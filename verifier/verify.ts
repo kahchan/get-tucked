@@ -45,7 +45,7 @@ function createServer(root: string): http.Server {
 async function fileToDataUrl(filePath: string): Promise<string> {
   const buf = await fsp.readFile(filePath);
   const ext = path.extname(filePath).slice(1).toLowerCase();
-  const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png';
   return `data:${mime};base64,${buf.toString('base64')}`;
 }
 
@@ -74,12 +74,12 @@ async function runSmoke(page: Page): Promise<number> {
 }
 
 async function runEval(page: Page): Promise<number> {
-  const files = (await fsp.readdir(FIXTURES)).filter((f) => /\.(jpe?g|png)$/i.test(f));
+  const files = (await fsp.readdir(FIXTURES)).filter((f) => /\.(jpe?g|png|webp)$/i.test(f));
 
   if (files.length === 0) {
     console.error(
       'ERROR: No fixture images found.\n' +
-        'Add real cyclist photos (JPG/PNG) to fixtures/ and re-run `npm run verify`.\n' +
+        'Add real cyclist photos (JPG/PNG/WebP) to fixtures/ and re-run `npm run verify`.\n' +
         'Run `npm run verify:smoke` to test plumbing without photos.',
     );
     return 1;
