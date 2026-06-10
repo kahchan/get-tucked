@@ -17,6 +17,9 @@ final class Position {
     // Head-on photo asset identifier (PHAsset local ID)
     var headOnPhotoIdentifier: String?
 
+    // Side-on photo asset identifier — populated after Phase 2.5 side-on capture
+    var sideOnPhotoIdentifier: String?
+
     // Scale calibration: two tap points in unit coordinates (0–1)
     // stored as [x0, y0, x1, y1]
     var handlebarTapPoints: [Double]?

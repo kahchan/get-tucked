@@ -8,8 +8,12 @@ import Photos
 struct PositionDetailView: View {
     @Bindable var position: Position
     #if canImport(UIKit)
-    @State private var uiImage: UIImage?
+    @State private var headOnImage: UIImage?
+    @State private var sideOnImage: UIImage?
     #endif
+    @State private var showingSideOn = false
+
+    private var hasSideOn: Bool { position.sideOnPhotoIdentifier != nil }
 
     var body: some View {
         ZStack {
@@ -22,9 +26,16 @@ struct PositionDetailView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
+                        // Photo view toggle (only shown when side-on exists)
+                        if hasSideOn {
+                            PhotoToggle(showingSideOn: $showingSideOn)
+                            SectionDivider()
+                        }
+
                         // Photo
                         #if canImport(UIKit)
-                        if let image = uiImage {
+                        let displayImage = showingSideOn ? sideOnImage : headOnImage
+                        if let image = displayImage {
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFit()
@@ -73,7 +84,7 @@ struct PositionDetailView: View {
         }
         .hideNavBar()
         #if canImport(UIKit)
-        .task { await loadPhoto() }
+        .task { await loadPhotos() }
         #endif
     }
 
@@ -90,25 +101,68 @@ struct PositionDetailView: View {
     }
 
     #if canImport(UIKit)
-    private func loadPhoto() async {
-        guard let identifier = position.headOnPhotoIdentifier else { return }
+    private func loadPhotos() async {
+        async let head = loadAsset(identifier: position.headOnPhotoIdentifier)
+        async let side = loadAsset(identifier: position.sideOnPhotoIdentifier)
+        headOnImage = await head
+        sideOnImage = await side
+    }
+
+    private func loadAsset(identifier: String?) async -> UIImage? {
+        guard let identifier else { return nil }
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
-        guard let asset = result.firstObject else { return }
+        guard let asset = result.firstObject else { return nil }
         let size = CGSize(width: 800, height: 800)
         let options = PHImageRequestOptions()
         options.isSynchronous = false
         options.deliveryMode = .highQualityFormat
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+        return await withCheckedContinuation { (continuation: CheckedContinuation<UIImage?, Never>) in
             PHImageManager.default().requestImage(
                 for: asset, targetSize: size,
                 contentMode: .aspectFit, options: options
             ) { image, _ in
-                uiImage = image
-                continuation.resume()
+                continuation.resume(returning: image)
             }
         }
     }
     #endif
+}
+
+// MARK: - Photo toggle
+
+private struct PhotoToggle: View {
+    @Binding var showingSideOn: Bool
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ToggleTab(label: "FRONTAL", selected: !showingSideOn) { showingSideOn = false }
+            ToggleTab(label: "SIDE-ON", selected: showingSideOn)  { showingSideOn = true }
+        }
+        .frame(height: 40)
+    }
+}
+
+private struct ToggleTab: View {
+    let label: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(Theme.mono(11, weight: selected ? .bold : .regular))
+                .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .bottom) {
+                    if selected {
+                        Rectangle()
+                            .fill(Theme.Palette.acc)
+                            .frame(height: 2)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - Metrics section

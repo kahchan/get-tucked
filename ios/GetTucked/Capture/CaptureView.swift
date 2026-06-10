@@ -15,11 +15,23 @@ struct CaptureView: View {
     @State private var assetIdentifier: String?
     @State private var tapPoints: [CGPoint] = []
     @State private var pendingResult: AnalysisResult?
+    // Side-on state
+    @State private var sideOnPickerItem: PhotosPickerItem?
+    @State private var sideOnImage: UIImage?
+    @State private var sideOnAssetIdentifier: String?
+    @State private var pendingSideOnPose: SideOnPoseMetrics?
     @State private var analysisError: AnalysisError?
     @State private var showingError = false
 
     enum CaptureStep {
-        case selectBike, pickPhoto, calibrate, analysing, namePosition, done
+        case selectBike
+        case pickPhoto          // head-on · 1 OF 2
+        case calibrate          // head-on calibration
+        case analysing          // head-on analysis
+        case pickSideOnPhoto    // side-on · 2 OF 2
+        case analysingSideOn    // side-on analysis
+        case namePosition
+        case done
     }
 
     var body: some View {
@@ -49,6 +61,20 @@ struct CaptureView: View {
                     }
                 case .analysing:
                     ProgressView("Analysing…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .pickSideOnPhoto:
+                    PhotoPickStep(
+                        pickerItem: $sideOnPickerItem,
+                        instructions: "Stand beside your bike and photograph from directly side-on at hub height.",
+                        stepLabel: "SIDE-ON · 2 OF 2"
+                    ) { image, identifier in
+                        sideOnImage = image
+                        sideOnAssetIdentifier = identifier
+                        step = .analysingSideOn
+                        Task { await runSideOnAnalysis() }
+                    }
+                case .analysingSideOn:
+                    ProgressView("Analysing posture…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .namePosition:
                     if let result = pendingResult {
@@ -83,12 +109,14 @@ struct CaptureView: View {
 
     private var stepTitle: String {
         switch step {
-        case .selectBike: "Select bike"
-        case .pickPhoto: "Choose photo"
-        case .calibrate: "Calibrate scale"
-        case .analysing: "Analysing"
-        case .namePosition: "Name position"
-        case .done: "Done"
+        case .selectBike:       "Select bike"
+        case .pickPhoto:        "FRONTAL · 1 OF 2"
+        case .calibrate:        "Calibrate scale"
+        case .analysing:        "Analysing"
+        case .pickSideOnPhoto:  "SIDE-ON · 2 OF 2"
+        case .analysingSideOn:  "Analysing"
+        case .namePosition:     "Name position"
+        case .done:             "Done"
         }
     }
 
@@ -107,7 +135,7 @@ struct CaptureView: View {
                 tapPoint1: tapPoints[1]
             )
             pendingResult = result
-            step = .namePosition
+            step = .pickSideOnPhoto   // head-on done → proceed to side-on
         } catch let error as AnalysisError {
             analysisError = error
             showingError = true
@@ -117,6 +145,21 @@ struct CaptureView: View {
             showingError = true
             step = .calibrate
         }
+    }
+
+    private func runSideOnAnalysis() async {
+        guard let image = sideOnImage,
+              let pixelsPerCm = pendingResult?.pixelsPerCm else {
+            // Side-on failed or skipped — go straight to naming
+            step = .namePosition
+            return
+        }
+        // Pose failure is non-fatal: we still save the position, just without posture metrics.
+        pendingSideOnPose = try? await AnalysisEngine.analyseSideOn(
+            image: image,
+            pixelsPerCm: pixelsPerCm
+        )
+        step = .namePosition
     }
 
     private func savePosition(label: String) {
@@ -134,6 +177,12 @@ struct CaptureView: View {
             foregroundPixelCount: result.foregroundPixelCount
         )
         metrics.shoulderWidthCm = result.headOnPose?.shoulderWidthCm
+        if let pose = pendingSideOnPose {
+            metrics.torsoAngleDeg = pose.torsoAngleDeg
+            metrics.hipAngleDeg   = pose.hipAngleDeg
+            metrics.headDropCm    = pose.headDropCm
+        }
+        position.sideOnPhotoIdentifier = sideOnAssetIdentifier
         position.metrics = metrics
         context.insert(position)
         step = .done
@@ -176,6 +225,8 @@ private struct BikePickerStep: View {
 
 private struct PhotoPickStep: View {
     @Binding var pickerItem: PhotosPickerItem?
+    var instructions: String = "The rider should fill most of the frame, facing the camera directly."
+    var stepLabel: String = "FRONTAL · 1 OF 2"
     let onPicked: (UIImage, String?) -> Void
     @State private var isLoading = false
 
@@ -185,9 +236,10 @@ private struct PhotoPickStep: View {
             Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
-            Text("Choose a head-on photo")
-                .font(.title3)
-            Text("The rider should fill most of the frame, facing the camera directly.")
+            Text(stepLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(instructions)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 32)
