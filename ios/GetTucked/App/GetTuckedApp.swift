@@ -7,6 +7,6 @@ struct GetTuckedApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: AppSchema.models, migrationPlan: AppMigrationPlan.self)
+        .modelContainer(for: AppSchema.models)
     }
 }

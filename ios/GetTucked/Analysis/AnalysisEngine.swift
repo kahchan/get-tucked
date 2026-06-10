@@ -145,10 +145,10 @@ struct AnalysisEngine {
         let handler = VNImageRequestHandler(cgImage: cgImage)
         try handler.perform([request])
 
-        guard let result = request.results?.first,
-              let maskBuffer = result.pixelBuffer.map({ $0 }) else {
+        guard let result = request.results?.first else {
             throw AnalysisError.segmentationFailed
         }
+        let maskBuffer = result.pixelBuffer
 
         return try cgImageFromPixelBuffer(
             maskBuffer,

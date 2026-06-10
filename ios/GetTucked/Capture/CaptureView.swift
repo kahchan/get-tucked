@@ -199,22 +199,33 @@ private struct BikePickerStep: View {
     let onNext: () -> Void
 
     var body: some View {
-        List(bikes, selection: $selected) { bike in
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(bike.nickname).font(.headline)
-                    Text("\(bike.handlebarWidthMm, specifier: "%.0f") mm · \(bike.bikeType.displayName)")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if selected?.id == bike.id {
-                    Image(systemName: "checkmark").foregroundStyle(.accent)
+        VStack(spacing: 0) {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(bikes, id: \.id) { bike in
+                        Button {
+                            selected = bike
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(bike.nickname).font(.headline)
+                                    Text("\(Int(bike.handlebarWidthMm)) mm · \(bike.bikeType.displayName)")
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if selected?.id == bike.id {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            .padding()
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        Divider()
+                    }
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { selected = bike }
-        }
-        .safeAreaInset(edge: .bottom) {
             Button("Next") { onNext() }
                 .buttonStyle(.borderedProminent)
                 .disabled(selected == nil)
