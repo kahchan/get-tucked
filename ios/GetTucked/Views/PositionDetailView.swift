@@ -144,6 +144,18 @@ private struct MetricsSection: View {
             SectionDivider()
 
             Group {
+                if let w = metrics.shoulderWidthCm {
+                    MetricRow(key: "Shoulder width", value: "\(String(format: "%.1f", w)) cm")
+                }
+                if let t = metrics.torsoAngleDeg {
+                    MetricRow(key: "Torso angle", value: "\(String(format: "%.0f", t))°")
+                }
+                if let h = metrics.hipAngleDeg {
+                    MetricRow(key: "Hip angle", value: "\(String(format: "%.0f", h))°")
+                }
+                if let d = metrics.headDropCm {
+                    MetricRow(key: "Head drop", value: "\(String(format: "%.1f", d)) cm")
+                }
                 MetricRow(
                     key: "Scale",
                     value: "\(String(format: "%.1f", metrics.pixelsPerCm)) px/cm"

@@ -7,6 +7,7 @@ enum AnalysisError: LocalizedError {
     case personClipsFrame
     case segmentationFailed
     case scaleNotCalibrated
+    case poseNotDetected
 
     var errorDescription: String? {
         switch self {
@@ -15,6 +16,7 @@ enum AnalysisError: LocalizedError {
         case .personClipsFrame: "Part of your body is cut off. Step back or recompose."
         case .segmentationFailed: "Couldn't compute a segmentation mask."
         case .scaleNotCalibrated: "Scale reference not set. Tap both ends of your handlebars first."
+        case .poseNotDetected: "Couldn't detect body pose. Make sure your full body is visible."
         }
     }
 }
@@ -25,12 +27,30 @@ struct AnalysisResult {
     let pixelsPerCm: Double
     let foregroundPixelCount: Int
     let maskImage: UIImage
+    let headOnPose: HeadOnPoseMetrics?
+}
+
+/// Pose metrics computable from the head-on photo.
+struct HeadOnPoseMetrics {
+    /// Shoulder-to-shoulder distance in cm, derived from VNHumanBodyPoseObservation.
+    let shoulderWidthCm: Double
+}
+
+/// Pose metrics computable from the side-on photo (Phase 2.5).
+struct SideOnPoseMetrics {
+    /// Angle of shoulder→hip vector from vertical. 0° = fully upright, 90° = horizontal.
+    let torsoAngleDeg: Double
+    /// Interior angle at the hip between the torso line (hip→shoulder) and thigh (hip→knee).
+    let hipAngleDeg: Double
+    /// Vertical distance the ear sits below the shoulder (positive = lower than shoulder).
+    let headDropCm: Double
 }
 
 struct AnalysisEngine {
     // Uncertainty model: 3% of computed area, reflecting segmentation + scale noise.
-    // Revisit with empirical data in Phase 2.
     private static let uncertaintyFraction = 0.03
+
+    // MARK: - Head-on analysis (frontal area + head-on pose)
 
     static func analyse(
         image: UIImage,
@@ -50,25 +70,35 @@ struct AnalysisEngine {
         guard handlebarPixels > 1 else { throw AnalysisError.scaleNotCalibrated }
         let pixelsPerCm = handlebarPixels / handlebarWidthCm
 
-        // Validate person presence and framing.
         try await validatePerson(cgImage: cgImage, imageSize: imageSize)
 
-        // Segment person.
         let mask = try await segmentPerson(cgImage: cgImage)
         let foregroundCount = countForegroundPixels(mask: mask)
 
-        // cm² = pixel count / pixelsPerCm²
         let areaCm2 = Double(foregroundCount) / (pixelsPerCm * pixelsPerCm)
         let uncertainty = areaCm2 * uncertaintyFraction
-
         let maskUI = UIImage(cgImage: mask)
+
+        let headOnPose = try? await estimateHeadOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
+
         return AnalysisResult(
             frontalAreaCm2: areaCm2,
             frontalAreaUncertaintyCm2: uncertainty,
             pixelsPerCm: pixelsPerCm,
             foregroundPixelCount: foregroundCount,
-            maskImage: maskUI
+            maskImage: maskUI,
+            headOnPose: headOnPose
         )
+    }
+
+    // MARK: - Side-on analysis (posture metrics, Phase 2.5)
+
+    static func analyseSideOn(
+        image: UIImage,
+        pixelsPerCm: Double
+    ) async throws -> SideOnPoseMetrics {
+        guard let cgImage = image.cgImage else { throw AnalysisError.segmentationFailed }
+        return try await estimateSideOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
     }
 
     // MARK: - Person validation
@@ -86,10 +116,16 @@ struct AnalysisEngine {
             throw AnalysisError.multiplePersonsDetected
         }
         let box = observations[0].boundingBox // normalised, origin bottom-left
-        // Reject if the box clips any edge (5 px margin).
-        let margin = 5.0 / min(imageSize.width, imageSize.height)
-        if box.minX < margin || box.minY < margin ||
-           box.maxX > 1 - margin || box.maxY > 1 - margin {
+
+        // Spec §3: rider should fill the frame. Require bbox height > 50% of frame.
+        // Do NOT reject for touching the bottom edge — full-body cycling shots
+        // routinely have feet at the frame bottom. Only reject if the top, left, or
+        // right clips significantly (rider is too close / poorly framed).
+        let clipMargin = 5.0 / min(imageSize.width, imageSize.height)
+        if box.height < 0.5 {
+            throw AnalysisError.personClipsFrame
+        }
+        if box.minX < clipMargin || box.maxX > 1 - clipMargin || box.maxY > 1 - clipMargin {
             throw AnalysisError.personClipsFrame
         }
     }
@@ -109,7 +145,10 @@ struct AnalysisEngine {
             throw AnalysisError.segmentationFailed
         }
 
-        return try cgImageFromPixelBuffer(maskBuffer, sourceSize: CGSize(width: cgImage.width, height: cgImage.height))
+        return try cgImageFromPixelBuffer(
+            maskBuffer,
+            sourceSize: CGSize(width: cgImage.width, height: cgImage.height)
+        )
     }
 
     private static func cgImageFromPixelBuffer(_ buffer: CVPixelBuffer, sourceSize: CGSize) throws -> CGImage {
@@ -151,5 +190,95 @@ struct AnalysisEngine {
             if bytes[i] >= 128 { foreground += 1 }
         }
         return foreground
+    }
+
+    // MARK: - Head-on pose estimation
+
+    private static func estimateHeadOnPose(
+        cgImage: CGImage,
+        pixelsPerCm: Double
+    ) async throws -> HeadOnPoseMetrics {
+        let request = VNDetectHumanBodyPoseRequest()
+        let handler = VNImageRequestHandler(cgImage: cgImage)
+        try handler.perform([request])
+
+        guard let observation = request.results?.first else {
+            throw AnalysisError.poseNotDetected
+        }
+
+        // Shoulder width: distance between left and right shoulder landmarks in image coords.
+        // VNHumanBodyPoseObservation returns normalised points (0–1, origin bottom-left).
+        let leftShoulder = try observation.recognizedPoint(.leftShoulder)
+        let rightShoulder = try observation.recognizedPoint(.rightShoulder)
+
+        guard leftShoulder.confidence > 0.5, rightShoulder.confidence > 0.5 else {
+            throw AnalysisError.poseNotDetected
+        }
+
+        let shoulderWidthNorm = abs(leftShoulder.location.x - rightShoulder.location.x)
+        // Convert: norm units × image pixel width → pixels → cm
+        let shoulderWidthPx = shoulderWidthNorm * Double(cgImage.width)
+        let shoulderWidthCm = shoulderWidthPx / pixelsPerCm
+
+        return HeadOnPoseMetrics(shoulderWidthCm: shoulderWidthCm)
+    }
+
+    // MARK: - Side-on pose estimation
+
+    private static func estimateSideOnPose(
+        cgImage: CGImage,
+        pixelsPerCm: Double
+    ) async throws -> SideOnPoseMetrics {
+        let request = VNDetectHumanBodyPoseRequest()
+        let handler = VNImageRequestHandler(cgImage: cgImage)
+        try handler.perform([request])
+
+        guard let observation = request.results?.first else {
+            throw AnalysisError.poseNotDetected
+        }
+
+        let shoulder = try observation.recognizedPoint(.leftShoulder)
+        let hip = try observation.recognizedPoint(.leftHip)
+        let knee = try observation.recognizedPoint(.leftKnee)
+        let ear = try observation.recognizedPoint(.leftEar)
+
+        guard shoulder.confidence > 0.5, hip.confidence > 0.5,
+              knee.confidence > 0.5, ear.confidence > 0.5 else {
+            throw AnalysisError.poseNotDetected
+        }
+
+        // Torso angle: angle of (shoulder - hip) vector from vertical (0° = upright).
+        // In normalised coords y increases upward, so shoulder.y > hip.y when upright.
+        let torsoVec = CGPoint(
+            x: shoulder.location.x - hip.location.x,
+            y: shoulder.location.y - hip.location.y
+        )
+        // atan2(x, y) gives angle from the +y axis (vertical) clockwise.
+        let torsoAngleDeg = abs(atan2(torsoVec.x, torsoVec.y) * 180 / .pi)
+
+        // Hip angle: interior angle at hip between torso line (hip→shoulder) and thigh (hip→knee).
+        let toShoulder = CGPoint(
+            x: shoulder.location.x - hip.location.x,
+            y: shoulder.location.y - hip.location.y
+        )
+        let toKnee = CGPoint(
+            x: knee.location.x - hip.location.x,
+            y: knee.location.y - hip.location.y
+        )
+        let dot = toShoulder.x * toKnee.x + toShoulder.y * toKnee.y
+        let magA = hypot(toShoulder.x, toShoulder.y)
+        let magB = hypot(toKnee.x, toKnee.y)
+        let hipAngleDeg = acos(max(-1, min(1, dot / (magA * magB)))) * 180 / .pi
+
+        // Head drop: positive distance ear is below the shoulder in cm.
+        // In normalised coords y increases upward, so negative dy means ear is lower.
+        let earDropNorm = shoulder.location.y - ear.location.y
+        let headDropCm = earDropNorm * Double(cgImage.height) / pixelsPerCm
+
+        return SideOnPoseMetrics(
+            torsoAngleDeg: torsoAngleDeg,
+            hipAngleDeg: hipAngleDeg,
+            headDropCm: headDropCm
+        )
     }
 }

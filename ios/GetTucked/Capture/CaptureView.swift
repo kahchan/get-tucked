@@ -133,6 +133,7 @@ struct CaptureView: View {
             pixelsPerCm: result.pixelsPerCm,
             foregroundPixelCount: result.foregroundPixelCount
         )
+        metrics.shoulderWidthCm = result.headOnPose?.shoulderWidthCm
         position.metrics = metrics
         context.insert(position)
         step = .done
