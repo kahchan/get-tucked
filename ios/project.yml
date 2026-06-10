@@ -8,7 +8,7 @@ options:
 
 settings:
   SWIFT_VERSION: "5.9"
-  DEVELOPMENT_TEAM: ""
+  DEVELOPMENT_TEAM: "LVK77WYSK8"
   CODE_SIGN_STYLE: Automatic
 
 targets:
