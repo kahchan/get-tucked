@@ -28,6 +28,12 @@
 	<string>Get Tucked saves source photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Get Tucked saves source photos to your library.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>SpaceMono-Regular.ttf</string>
+		<string>SpaceMono-Bold.ttf</string>
+		<string>BarlowCondensed-Bold.ttf</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string></string>
 	<key>UISupportedInterfaceOrientations</key>

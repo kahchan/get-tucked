@@ -43,13 +43,13 @@ struct CaptureView: View {
                         step = .pickPhoto
                     }
                 case .pickPhoto:
-                    PhotoPickStep(pickerItem: $pickerItem) { image, identifier in
-                        // §2.3 fix: normalise orientation once so the display and
-                        // the cgImage used in Vision are in the same coordinate space.
-                        selectedImage = image.normalisedOrientation()
-                        assetIdentifier = identifier
-                        tapPoints = []
-                        step = .calibrate
+                    if let bike = selectedBike {
+                        LiveCameraView(bike: bike, onCapture: { image in
+                            selectedImage = image  // already normalised in photoOutput delegate
+                            assetIdentifier = nil  // live capture has no PHAsset identifier
+                            tapPoints = []
+                            step = .calibrate
+                        }, onCancel: { dismiss() })
                     }
                 case .calibrate:
                     if let image = selectedImage {

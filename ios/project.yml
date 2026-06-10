@@ -22,6 +22,7 @@ targets:
           - "Resources/Assets.xcassets"
     resources:
       - path: GetTucked/Resources/Assets.xcassets
+      - path: GetTucked/Resources/Fonts
     info:
       path: GetTucked/Resources/Info.plist
       properties:
@@ -35,6 +36,10 @@ targets:
         NSPhotoLibraryUsageDescription: "Get Tucked saves source photos to your library."
         NSPhotoLibraryAddUsageDescription: "Get Tucked saves source photos to your library."
         NSMotionUsageDescription: "Get Tucked uses motion data to keep the camera level during capture."
+        UIAppFonts:
+          - SpaceMono-Regular.ttf
+          - SpaceMono-Bold.ttf
+          - BarlowCondensed-Bold.ttf
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.gettucked.app
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

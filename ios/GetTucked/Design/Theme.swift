@@ -30,19 +30,20 @@ enum Theme {
     // are added — the fallback is intentional, not a bug.
 
     enum FontName {
-        static let mono = "Space Mono"
-        static let monoBold = "Space Mono"        // bold via weight on the family
-        static let heading = "Barlow Condensed"
+        static let mono = "SpaceMono-Regular"
+        static let monoBold = "SpaceMono-Bold"
+        static let heading = "BarlowCondensed-Bold"
     }
 
     /// Monospace — numbers, labels, metric rows.
     static func mono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom(FontName.mono, size: size).weight(weight)
+        let name = weight == .regular ? FontName.mono : FontName.monoBold
+        return .custom(name, size: size)
     }
 
     /// Condensed display — headings only.
     static func heading(_ size: CGFloat) -> Font {
-        .custom(FontName.heading, size: size).weight(.bold)
+        .custom(FontName.heading, size: size)
     }
 
     // MARK: Layout tokens
