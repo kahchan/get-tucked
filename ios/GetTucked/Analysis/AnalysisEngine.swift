@@ -75,7 +75,12 @@ struct AnalysisEngine {
         let mask = try await segmentPerson(cgImage: cgImage)
         let foregroundCount = countForegroundPixels(mask: mask)
 
-        let areaCm2 = Double(foregroundCount) / (pixelsPerCm * pixelsPerCm)
+        // §2.2 fix: Vision mask resolution ≠ source resolution in general.
+        // pixelsPerCm was derived from source image pixel coords; rescale it
+        // to mask space before computing area so both quantities are in the same
+        // pixel coordinate system.
+        let maskPixelsPerCm = pixelsPerCm * (Double(mask.width) / Double(cgImage.width))
+        let areaCm2 = Double(foregroundCount) / (maskPixelsPerCm * maskPixelsPerCm)
         let uncertainty = areaCm2 * uncertaintyFraction
         let maskUI = UIImage(cgImage: mask)
 

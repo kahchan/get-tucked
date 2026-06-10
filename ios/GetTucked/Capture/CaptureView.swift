@@ -44,7 +44,9 @@ struct CaptureView: View {
                     }
                 case .pickPhoto:
                     PhotoPickStep(pickerItem: $pickerItem) { image, identifier in
-                        selectedImage = image
+                        // §2.3 fix: normalise orientation once so the display and
+                        // the cgImage used in Vision are in the same coordinate space.
+                        selectedImage = image.normalisedOrientation()
                         assetIdentifier = identifier
                         tapPoints = []
                         step = .calibrate
@@ -320,7 +322,6 @@ private struct HandlebarCalibrationStep: View {
     @Binding var tapPoints: [CGPoint]
     let onConfirm: () -> Void
 
-    @State private var imageSize: CGSize = .zero
     @State private var zoomPoint: CGPoint?
 
     var body: some View {
@@ -328,16 +329,18 @@ private struct HandlebarCalibrationStep: View {
             instructionBanner
 
             GeometryReader { proxy in
+                // §2.1 fix: compute the actual displayed image rect (aspect-fit)
+                // so taps are measured against the image, not the letterbox container.
+                let rect = aspectFitRect(imageSize: image.size, in: proxy.size)
                 ZStack {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
-                        .onAppear { imageSize = proxy.size }
-                    tapOverlay(in: proxy.size)
+                    tapOverlay(in: rect)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { location in
-                    handleTap(location: location, in: proxy.size)
+                    handleTap(location: location, imageRect: rect)
                 }
             }
 
@@ -348,6 +351,22 @@ private struct HandlebarCalibrationStep: View {
             }
 
             confirmButton
+        }
+    }
+
+    /// Returns the CGRect (in container coords) where the image is actually drawn
+    /// when using `.scaledToFit()`. Outside this rect is letterbox/pillarbox padding.
+    private func aspectFitRect(imageSize: CGSize, in container: CGSize) -> CGRect {
+        let imageAspect = imageSize.width / imageSize.height
+        let containerAspect = container.width / container.height
+        if imageAspect > containerAspect {
+            // Wider than container → letterboxed top/bottom
+            let h = container.width / imageAspect
+            return CGRect(x: 0, y: (container.height - h) / 2, width: container.width, height: h)
+        } else {
+            // Taller than container → pillarboxed left/right
+            let w = container.height * imageAspect
+            return CGRect(x: (container.width - w) / 2, y: 0, width: w, height: container.height)
         }
     }
 
@@ -364,10 +383,11 @@ private struct HandlebarCalibrationStep: View {
     }
 
     @ViewBuilder
-    private func tapOverlay(in size: CGSize) -> some View {
-        ForEach(Array(tapPoints.enumerated()), id: \.offset) { index, point in
-            let px = point.x * size.width
-            let py = point.y * size.height
+    private func tapOverlay(in rect: CGRect) -> some View {
+        ForEach(Array(tapPoints.enumerated()), id: \.offset) { index, unit in
+            // unit is in image-space (0–1); map to container space via imageRect
+            let px = rect.minX + unit.x * rect.width
+            let py = rect.minY + unit.y * rect.height
             Circle()
                 .strokeBorder(.white, lineWidth: 2)
                 .background(Circle().fill(index == 0 ? Color.blue : Color.orange))
@@ -376,8 +396,10 @@ private struct HandlebarCalibrationStep: View {
         }
         if tapPoints.count == 2 {
             Path { path in
-                let p0 = CGPoint(x: tapPoints[0].x * size.width, y: tapPoints[0].y * size.height)
-                let p1 = CGPoint(x: tapPoints[1].x * size.width, y: tapPoints[1].y * size.height)
+                let p0 = CGPoint(x: rect.minX + tapPoints[0].x * rect.width,
+                                 y: rect.minY + tapPoints[0].y * rect.height)
+                let p1 = CGPoint(x: rect.minX + tapPoints[1].x * rect.width,
+                                 y: rect.minY + tapPoints[1].y * rect.height)
                 path.move(to: p0)
                 path.addLine(to: p1)
             }
@@ -385,15 +407,27 @@ private struct HandlebarCalibrationStep: View {
         }
     }
 
-    private func handleTap(location: CGPoint, in size: CGSize) {
-        let unit = CGPoint(x: location.x / size.width, y: location.y / size.height)
+    private func handleTap(location: CGPoint, imageRect: CGRect) {
+        // Ignore taps in the letterbox/pillarbox area outside the image.
+        guard imageRect.contains(location) else { return }
+        // Store as unit coords within the image (0–1), not within the container.
+        let unit = CGPoint(
+            x: (location.x - imageRect.minX) / imageRect.width,
+            y: (location.y - imageRect.minY) / imageRect.height
+        )
         zoomPoint = location
 
         if tapPoints.count < 2 {
             tapPoints.append(unit)
         } else {
-            let d0 = hypot(tapPoints[0].x * size.width - location.x, tapPoints[0].y * size.height - location.y)
-            let d1 = hypot(tapPoints[1].x * size.width - location.x, tapPoints[1].y * size.height - location.y)
+            let d0 = hypot(
+                (tapPoints[0].x * imageRect.width + imageRect.minX) - location.x,
+                (tapPoints[0].y * imageRect.height + imageRect.minY) - location.y
+            )
+            let d1 = hypot(
+                (tapPoints[1].x * imageRect.width + imageRect.minX) - location.x,
+                (tapPoints[1].y * imageRect.height + imageRect.minY) - location.y
+            )
             if d0 < d1 { tapPoints[0] = unit } else { tapPoints[1] = unit }
         }
     }
@@ -429,5 +463,20 @@ private struct HandlebarCalibrationStep: View {
             .padding()
             .frame(maxWidth: .infinity)
             .background(.regularMaterial)
+    }
+}
+
+// MARK: - UIImage orientation normalisation (§2.3)
+
+extension UIImage {
+    /// Redraws the image into a new bitmap with orientation .up, so that
+    /// `cgImage` and the SwiftUI display use the same coordinate space.
+    func normalisedOrientation() -> UIImage {
+        guard imageOrientation != .up else { return self }
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        draw(in: CGRect(origin: .zero, size: size))
+        let result = UIGraphicsGetImageFromCurrentImageContext() ?? self
+        UIGraphicsEndImageContext()
+        return result
     }
 }
