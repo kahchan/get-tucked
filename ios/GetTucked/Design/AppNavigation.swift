@@ -6,6 +6,7 @@ import SwiftData
 enum AppScreen: Hashable {
     case positionList
     case positionDetail(Position)
+    case setTheScene
     case capture
     case bikeList
     case bikeSetup
@@ -28,6 +29,8 @@ struct AppNavigationView: View {
                             PositionListView(path: $path)
                         case .positionDetail(let position):
                             PositionDetailView(position: position)
+                        case .setTheScene:
+                            SetTheSceneView { path.append(.capture) }
                         case .capture:
                             #if canImport(UIKit)
                             CaptureView()

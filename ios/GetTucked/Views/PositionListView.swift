@@ -13,7 +13,7 @@ struct PositionListView: View {
             VStack(alignment: .leading, spacing: 0) {
                 NavHeader(title: "POSITIONS") {
                     Button {
-                        path.append(.capture)
+                        path.append(.setTheScene)
                     } label: {
                         Text("+")
                             .font(Theme.mono(22))
