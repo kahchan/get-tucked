@@ -5,49 +5,101 @@ struct PositionListView: View {
     @Binding var path: [AppScreen]
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
     @Query private var bikes: [Bike]
+    @State private var selectMode = false
+    @State private var selected: Set<UUID> = []
+
+    private var selectedPositions: [Position] {
+        positions.filter { selected.contains($0.id) }
+    }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
                 NavHeader(title: "POSITIONS") {
-                    Button {
-                        path.append(.setTheScene)
-                    } label: {
-                        Text("+")
-                            .font(Theme.mono(22))
-                            .foregroundStyle(bikes.isEmpty ? Theme.Palette.fg4 : Theme.Palette.acc)
+                    HStack(spacing: Theme.Space.md) {
+                        if !positions.isEmpty {
+                            Button(selectMode ? "DONE" : "SELECT") {
+                                selectMode.toggle()
+                                if !selectMode { selected.removeAll() }
+                            }
+                            .font(Theme.mono(11))
+                            .foregroundStyle(selectMode ? Theme.Palette.acc : Theme.Palette.fg3)
+                        }
+                        if !selectMode {
+                            Button {
+                                path.append(.setTheScene)
+                            } label: {
+                                Text("+")
+                                    .font(Theme.mono(22))
+                                    .foregroundStyle(bikes.isEmpty ? Theme.Palette.fg4 : Theme.Palette.acc)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(bikes.isEmpty)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .disabled(bikes.isEmpty)
                 }
 
                 SectionDivider()
 
                 if positions.isEmpty {
-                    EmptySlate(message: "No positions yet.\nPhotograph your riding position to measure frontal area.")
+                    EmptySlate(message: "No positions yet.\nCapture a position to measure frontal area.")
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(positions) { position in
-                                Button {
-                                    path.append(.positionDetail(position))
-                                } label: {
-                                    PositionRow(position: position)
+                                if selectMode {
+                                    Button {
+                                        if selected.contains(position.id) {
+                                            selected.remove(position.id)
+                                        } else if selected.count < 2 {
+                                            selected.insert(position.id)
+                                        }
+                                    } label: {
+                                        SelectablePositionRow(
+                                            position: position,
+                                            isSelected: selected.contains(position.id),
+                                            isDisabled: selected.count >= 2 && !selected.contains(position.id)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    Button {
+                                        path.append(.positionDetail(position))
+                                    } label: {
+                                        PositionRow(position: position)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
-
                                 SectionDivider()
                             }
                         }
+                        // Bottom padding so compare bar doesn't overlap last row
+                        if selectMode { Color.clear.frame(height: 72) }
                     }
                 }
             }
+
+            // Compare bar — slides up when 2 positions selected
+            if selectMode && selected.count == 2 {
+                CompareBar {
+                    let pair = selectedPositions.sorted {
+                        ($0.metrics?.frontalAreaCm2 ?? 0) < ($1.metrics?.frontalAreaCm2 ?? 0)
+                    }
+                    path.append(.comparison(pair[0], pair[1]))
+                    selectMode = false
+                    selected.removeAll()
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: selected.count)
         .hideNavBar()
     }
 }
+
+// MARK: - Row variants
 
 private struct PositionRow: View {
     let position: Position
@@ -75,5 +127,59 @@ private struct PositionRow: View {
         }
         .padding(.horizontal, Theme.Space.lg)
         .frame(height: 60)
+    }
+}
+
+private struct SelectablePositionRow: View {
+    let position: Position
+    let isSelected: Bool
+    let isDisabled: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Theme.Space.md) {
+            // Selection indicator
+            ZStack {
+                Rectangle()
+                    .stroke(isSelected ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1)
+                    .frame(width: 18, height: 18)
+                if isSelected {
+                    Rectangle()
+                        .fill(Theme.Palette.acc)
+                        .frame(width: 10, height: 10)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(position.label)
+                    .font(Theme.mono(14, weight: .bold))
+                    .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.fg)
+                Text(position.capturedAt.formatted(date: .abbreviated, time: .omitted))
+                    .font(Theme.mono(11))
+                    .foregroundStyle(Theme.Palette.fg4)
+            }
+
+            Spacer()
+
+            if let area = position.metrics?.frontalAreaCm2 {
+                Text("\(Int(area)) cm²")
+                    .font(Theme.mono(13, weight: .bold))
+                    .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.acc)
+            }
+        }
+        .padding(.horizontal, Theme.Space.lg)
+        .frame(height: 60)
+    }
+}
+
+// MARK: - Compare bar
+
+private struct CompareBar: View {
+    let onCompare: () -> Void
+
+    var body: some View {
+        AccentButton(label: "COMPARE (2)", action: onCompare)
+            .padding(.horizontal, Theme.Space.lg)
+            .padding(.bottom, Theme.Space.lg)
+            .background(Theme.Palette.bg0.opacity(0.95))
     }
 }

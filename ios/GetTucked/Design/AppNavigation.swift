@@ -10,6 +10,8 @@ enum AppScreen: Hashable {
     case capture
     case bikeList
     case bikeSetup
+    case leaderboard
+    case comparison(Position, Position)
 }
 
 // MARK: - Root navigation
@@ -41,6 +43,10 @@ struct AppNavigationView: View {
                             BikeListView(path: $path)
                         case .bikeSetup:
                             BikeSetupView()
+                        case .leaderboard:
+                            LeaderboardView(path: $path)
+                        case .comparison(let a, let b):
+                            ComparisonView(positionA: a, positionB: b)
                         }
                     }
             }
@@ -90,6 +96,7 @@ struct IndexOverlay: View {
 
     private let items: [(label: String, screen: AppScreen)] = [
         ("POSITIONS", .positionList),
+        ("LEADERBOARD", .leaderboard),
         ("BIKES", .bikeList),
     ]
 
