@@ -1,4 +1,9 @@
-# Runbook — Segmentation Spike A
+# Runbook — Segmentation Spike A (RETIRED)
+
+> **This runbook is historical.** The project has gone native iOS (Apple Vision), and
+> development is local on the Mac — not Codespaces, not Expo. The browser MediaPipe spike
+> described below is no longer developed. It answered the cross-platform question and is
+> kept only as reference. For the current app, see `README.md` and `CLAUDE.md`.
 
 ## What this is
 

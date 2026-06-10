@@ -1,60 +1,89 @@
-# Get Tucked — Segmentation Spike A
+# Get Tucked
 
 ## What this is
 
-Browser-side person segmentation quality verifier. The goal: confirm MediaPipe (JS/WASM)
-produces mattes clean and fast enough for the Get Tucked app before committing to Expo.
+A native iOS app that measures cyclist frontal area from calibrated photos, to help
+bikepackers and ultra-distance racers iterate their setups. The user photographs a
+position, the app segments the rider, computes frontal area in cm², and compares
+positions. See the full behaviour spec below.
 
-## The loop
+**Source of truth for behaviour:** [`plans/get-tucked-code-spec.html`](plans/get-tucked-code-spec.html)
+(the engineering spec). A companion **design spec** governs visual direction, tone, and
+hero flows — design assets are being added to the repo.
 
-**Loop command:** `npm run verify`
-Exit 0 = pass all fixtures. Exit non-zero = fail (read the output).
+## Where we are
 
-Run `npm run verify:smoke` first to confirm plumbing before touching logic.
+- **Stack decided: native iOS.** Swift 5.9+, SwiftUI, Vision (segmentation + pose),
+  ARKit (capture pose), AVFoundation, PhotoKit, SwiftData, Core Image. iOS 17 minimum.
+  No backend, no cloud, no third-party services.
+- **Development is local, on the Mac.** We are *not* using Codespaces / cloud agents /
+  Expo / React Native. That earlier direction (and the agent-buildability concerns behind
+  it) is retired — see "History" below.
+- **Phase 1 is built** (`ios/`): Bike model, single-bike onboarding, photo-pick →
+  segment → frontal area, save/list/detail. It has known correctness issues in the
+  frontal-area math — read [`HANDOFF-REVIEW.md`](HANDOFF-REVIEW.md) before extending it.
 
-## Knobs you may turn
+Build phases (skeleton → pose/comparison/AR → bags → events/timeline/self-test → polish)
+are defined in §14 of the code spec. Each phase ships a coherent working slice.
 
-**`src/segment.js` — top of file:**
-- `MODEL_URL` — swap the segmentation model. If mattes are consistently bad, this is the
-  right lever. Alternatives to try (in order):
-  - Selfie landscape: `https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter_landscape/float16/latest/selfie_segmenter_landscape.tflite`
-  - DeepLab v3: `https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite`
-- `CONFIDENCE_THRESHOLD` — lower raises sensitivity (more foreground), raise tightens it.
-- `DELEGATE` — keep `'CPU'` for headless determinism; GPU will be faster on-device.
+## Building and running (local, Mac)
 
-**`verifier/thresholds.ts`:**
-- `COVERAGE_MIN` / `COVERAGE_MAX` — widen if fixtures are legitimately outside the default range.
-- `TIMING_CEILING_MS` — only raise after a human confirms the hardware is just slow.
+The Xcode project is generated from `ios/project.yml` by [XcodeGen](https://github.com/yonkit/XcodeGen)
+— `project.yml` is the source of truth, not the `.xcodeproj`.
 
-## What you must NOT change
+```sh
+cd ios
+xcodegen generate          # regenerate GetTucked.xcodeproj from project.yml
+open GetTucked.xcodeproj    # then build/run in Xcode (⌘R)
+```
 
-- Files in `fixtures/` — only a human adds test photos.
-- The browser↔verifier contract: `window.__segmentReady`, `window.__segment`, `window.__smokeImage`.
-  The verifier depends on these signatures exactly.
+Gotchas:
+- **Full Xcode must be selected**, not Command Line Tools:
+  `sudo xcode-select -s /Applications/Xcode.app` (else `xcodebuild` errors out).
+- Regenerate the project after editing `project.yml` or adding/removing source files.
+- `DEVELOPMENT_TEAM` in `project.yml` is empty — set it (or set signing in Xcode) before
+  building to a device.
 
 ## When to STOP and ask the human
 
-- Mattes are consistently bad across 3+ model variants.
-- CDN (storage.googleapis.com / cdn.jsdelivr.net) is unreachable and tests can't run.
-- Coverage thresholds keep failing but mattes look correct when viewed in `output/` — may
-  need threshold calibration with human sign-off.
+- Before showing any number in the UI that you can't explain in two sentences. The spec
+  (§3) is strict: every displayed number must be defensible. No fake precision.
+- Before adding any Swift package or third-party dependency — propose it first.
+- Before changing the data model in a way that needs a SwiftData migration stage.
+- When a design decision isn't covered by the code spec or the design spec.
 
-## Quality vs speed split (critical)
+## Design language (overrides the global default)
 
-| What | Auto-gated | Notes |
-|------|-----------|-------|
-| Coverage (foreground fraction) | Yes | Catches empty/full-frame masks |
-| Timing | Ceiling only | Headless CPU ≠ on-device GPU. Reports vs 300–500ms target; hard-fails only on gross regression ceiling. Real verdict is Spike B. |
-| Edge quality | No | Mattes written to `output/` for human review. |
+This project has **its own visual system** — do **not** apply the global mire·studio
+default (rounded 25px, pale pills). The design file (reviewed 2026-06-10) is the opposite:
 
-## Stack
+- Dark canvas (near-black `#080808`), **acid-yellow** accent `#D9F020`, amber `#E8A020`.
+- **0px border radius everywhere** — no rounded corners.
+- `Space Mono` for numbers/labels, `Barlow Condensed` (bold) for headings.
+- No tab bar — a single linear flow with a hamburger index menu.
 
-- `src/segment.js` — browser ESM, plain JS, no build step. MediaPipe from CDN.
-- `verifier/verify.ts` — Node 22, tsx, Playwright Chromium, Node http server.
-- No bundler. Throwaway spike.
+Phase 1's current UI is plain system SwiftUI and predates this — Phase 2 reworks it.
+**Implement design tokens (`Theme.swift`) FIRST in Phase 2**, before building new screens,
+so every view is built against the tokens, not system styling. Design assets being added
+to the repo are the authority for specifics.
 
 ## Conventions
 
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`).
-- Ask before adding any npm package beyond what's already installed.
-- `npm run typecheck && npm run lint` before committing.
+- Functional SwiftUI; no force-unwraps in analysis code; keep the area/scale math in
+  `AnalysisEngine` testable and pure where possible.
+- Comments only for non-obvious *why* (the scale/intrinsics/uncertainty math qualifies).
+- Match the existing file layout under `ios/GetTucked/` (App / Models / Views / Capture /
+  Analysis).
+- The user cares deeply about visual polish — once the design spec lands, styling is not
+  optional.
+
+## History — the segmentation spike (retired)
+
+Before committing to native, a throwaway browser spike (`src/`, `verifier/`, `fixtures/`,
+`index.html`, `package.json`) tested whether cross-platform MediaPipe segmentation was
+good enough to justify an Expo/React Native stack. That question is closed: we went
+native with Apple Vision. **Do not develop the browser spike further.** It remains in the
+repo as reference only. Note: it tested MediaPipe, not Vision — so Apple Vision's matte
+quality on the hard case (full-body cyclist, cluttered background) is still worth a quick
+eyeball check (see `HANDOFF-REVIEW.md`).

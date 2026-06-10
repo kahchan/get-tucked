@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Get Tucked — Engineering Spec</title>
+<style>
+  body {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    color: #2a2a2a;
+    background: #fff;
+  }
+  h1 { font-size: 2rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
+  h2 { font-size: 1.35rem; margin: 2.75rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid #eaeaea; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; margin: 1.75rem 0 0.4rem; font-weight: 600; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.4rem; margin: 0.5rem 0 0.8rem; }
+  li { margin-bottom: 0.25rem; }
+  li > ul, li > ol { margin-top: 0.25rem; }
+  code { background: #f4f4f4; padding: 0.08rem 0.32rem; border-radius: 3px; font-size: 0.88em; font-family: "SF Mono", Menlo, Consolas, monospace; }
+  pre { background: #f7f7f7; padding: 1rem 1.1rem; border-radius: 5px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 0.9rem 0; font-size: 0.95em; }
+  th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid #eee; vertical-align: top; }
+  th { font-weight: 600; background: #fafafa; }
+  blockquote { border-left: 3px solid #ddd; margin: 0.8rem 0; padding: 0.4rem 0.9rem; color: #555; }
+  .meta { color: #888; font-size: 0.9em; margin-bottom: 1.6rem; }
+  .callout { background: #fff8e7; border-left: 3px solid #f0c060; padding: 0.7rem 0.95rem; margin: 1rem 0; border-radius: 0 3px 3px 0; }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  a { color: #2a64c4; }
+  hr { border: 0; border-top: 1px solid #eaeaea; margin: 2.5rem 0; }
+</style>
+</head>
+<body>
+
+<h1>Get Tucked</h1>
+<div class="meta">Engineering spec · v0.1 · status: <code>specced</code> · iOS native · paid one-time, no recurring</div>
+
+<p>Working name during development is <strong>Get Tucked</strong>. The App Store name will be <strong>Tuck</strong> if Apple rejects the working name (which is plausible given the pun). Design assets should accommodate both.</p>
+
+<h2>1. Problem</h2>
+<p>Bikepackers and ultra-distance racers spend months tuning setup. Bag placement, layering, cockpit choices, posture in the saddle. They make these decisions on feel because nothing in their price range quantifies the trade-offs. Wind tunnel time costs thousands of dollars. Aero sensors like Notio or Aerolab cost over USD $1,000 and target race riders. Below that floor, riders are flying blind.</p>
+
+<h2>2. Concept</h2>
+<p>An iOS app that measures rider frontal area from calibrated photos. The user photographs a position, the app extracts the silhouette, computes area in square centimetres, and saves the result. Comparing two positions surfaces the percentage difference and names the posture changes. Tap any bag in a photo to segment it and see what that piece of luggage costs.</p>
+
+<p>Built for the audience that iterates setups across a season, not the audience chasing 5 watts in a tunnel.</p>
+
+<h2>3. What this is, and what it is not</h2>
+
+<div class="callout">
+<p><strong>This is a measurement tool. It is not a wind tunnel.</strong></p>
+<p>The app does not predict CdA. It does not run CFD. It does not model airflow. It measures frontal area from photos and reports posture angles from pose estimation. Differences are expressed as percentages relative to a user-chosen baseline.</p>
+</div>
+
+<p>The honest framing matters because the alternative is shipping fake numbers with three decimal places that nobody can validate. Coaches spot it instantly. Reviewers hammer it. Users lose trust.</p>
+
+<p>Every number the app shows must be defensible. If the engineering team cannot explain how a number was computed in two sentences, the app does not display it. The "How this works" screen (see §11) is non-negotiable and ships in v1.</p>
+
+<h2>4. Audience</h2>
+<p><strong>Primary:</strong> bikepackers and ultra-distance racers who iterate setups across months. Tour Divide, Race Across France, Atlas Mountain Race, GBduro, Silk Road Mountain Race types. Plus the larger weekend bikepacking audience that will not race but enjoys quantification.</p>
+
+<p><strong>Secondary:</strong> time trial and triathlon riders comparing tucks. Same tool, different example imagery. Not pursued in v1 but the product must not actively exclude them.</p>
+
+<p><strong>Not the audience:</strong> riders who need absolute CdA numbers for race strategy. They already own Notio, Aerolab, or a tunnel booking.</p>
+
+<h2>5. Tech stack</h2>
+<ul>
+  <li><strong>Language:</strong> Swift 5.9+</li>
+  <li><strong>UI:</strong> SwiftUI primary, UIKit interop where needed (custom camera UI, segmentation overlay)</li>
+  <li><strong>Minimum OS:</strong> iOS 17 (required for Vision foreground subject extraction, which the bag overlay depends on)</li>
+  <li><strong>Frameworks:</strong>
+    <ul>
+      <li>ARKit for camera pose, gravity alignment, plane detection during capture</li>
+      <li>Vision for person segmentation, pose estimation, foreground subject lifting</li>
+      <li>AVFoundation for the capture session</li>
+      <li>PhotoKit for storing source photos in the user's library</li>
+      <li>SwiftData for app metadata (positions, bikes, events, metrics)</li>
+      <li>Core Image for compositing and overlay rendering</li>
+    </ul>
+  </li>
+  <li><strong>No backend.</strong> No third-party cloud services. No analytics in v1, or opt-in via Apple's standard mechanisms only.</li>
+  <li><strong>Device support:</strong> any iPhone running iOS 17. LiDAR (Pro models) adds a confidence boost where available, but the non-Pro experience is canonical. Pro-only features are out of scope for v1.</li>
+</ul>
+
+<h2>6. Data model</h2>
+
+<h3>Position</h3>
+<p>The core unit. Immutable once captured. Re-shooting creates a new Position rather than editing an existing one.</p>
+
+<pre><code>Position {
+  id: UUID
+  capturedAt: Date
+  bikeId: UUID?         // nullable; "no bike assigned"
+  eventIds: [UUID]      // zero or more events
+  label: String         // user-given, e.g. "Hoods, fully loaded"
+  packingList: String?  // free text, e.g. "Frame bag, fork bags x2..."
+
+  // Capture
+  photos: [PhotoRef]    // typically 2 (head-on + side-on), more allowed
+  scaleReference: ScaleReference  // handlebar width in cm, source photo
+
+  // Derived metrics (recomputed from photos when the analysis pipeline updates)
+  metrics: PositionMetrics
+}
+
+PhotoRef {
+  photoLibraryIdentifier: String  // PHAsset local identifier
+  angle: CaptureAngle             // .headOn | .sideOn | .threeQuarter
+  cameraPose: CameraPose          // from ARKit at capture time
+  qualityFlags: [QualityFlag]
+}
+
+PositionMetrics {
+  frontalAreaCm2: Double
+  frontalAreaUncertainty: Double  // ±, from user's noise floor
+  torsoAngleDeg: Double
+  hipAngleDeg: Double
+  headDropCm: Double
+  shoulderRollDeg: Double
+  armWidthCm: Double
+  bagSegments: [BagSegment]       // user-tapped bag masks with areas
+  computedAt: Date
+  pipelineVersion: String         // so re-analysis is possible later
+}
+
+BagSegment {
+  id: UUID
+  label: String?         // user-assigned, e.g. "seatpack"
+  maskData: Data         // compact PNG mask
+  areaCm2: Double
+  colourHex: String      // for overlay rendering
+}</code></pre>
+
+<h3>Bike</h3>
+<pre><code>Bike {
+  id: UUID
+  nickname: String              // "Tour Divide Curve Big Kev"
+  handlebarWidthCm: Double      // primary scale reference
+  wheelbaseCm: Double?          // optional secondary reference
+  notes: String?
+}</code></pre>
+
+<h3>Event</h3>
+<p>Events are <em>tags with a date</em>, not folders. A Position can belong to multiple events. This is what unlocks timeline views ("setup evolution leading into Tour Divide").</p>
+<pre><code>Event {
+  id: UUID
+  name: String           // "Tour Divide 2026"
+  date: Date             // event start date
+  notes: String?
+}</code></pre>
+
+<h3>UserSettings</h3>
+<pre><code>UserSettings {
+  noiseFloorPct: Double?        // measured during onboarding self-test
+  noiseFloorLastCalibrated: Date?
+  preferredUnits: Units         // metric only in v1
+  hasCompletedOnboarding: Bool
+  consentToCaptureOthers: Bool  // optional consent reminder
+}</code></pre>
+
+<h2>7. Capture pipeline</h2>
+
+<p>Capture is the make-or-break system. Bad input gives bad output, and bad output kills trust. The pipeline must <em>refuse</em> bad captures with specific feedback, not silently accept garbage.</p>
+
+<h3>Pose enforcement (ARKit)</h3>
+<ul>
+  <li>Side-on capture: phone gravity-aligned, level within ±2°. Camera height between rider's hip and chest. Phone perpendicular to the bike's wheel plane within ±5°.</li>
+  <li>Head-on capture: same level requirement. Phone perpendicular to the bike's forward axis within ±5°.</li>
+  <li>The capture button is disabled until tolerances are met. The UI shows the user <em>why</em> it is disabled in real time.</li>
+</ul>
+
+<h3>Subject detection (Vision)</h3>
+<ul>
+  <li>Single person required. Reject if zero or multiple people detected.</li>
+  <li>Person must occupy a reasonable portion of the frame (heuristic: bounding box height &gt; 50% of frame height).</li>
+  <li>Reject if person bounding box clips the frame edge.</li>
+</ul>
+
+<h3>Background quality</h3>
+<ul>
+  <li>Run segmentation in real time during framing. Compute a confidence score on the foreground/background split.</li>
+  <li>If confidence is below threshold, surface specific guidance: "background too cluttered behind rider's left shoulder", "low contrast on left side", "strong backlight detected".</li>
+  <li>Refuse the capture if confidence falls below a hard floor.</li>
+</ul>
+
+<h3>Scale reference</h3>
+<ul>
+  <li>User has entered handlebar width for the selected bike.</li>
+  <li>Vision detects handlebar endpoints in the photo. If detection fails, fall back to user-tap calibration ("tap each end of your handlebars").</li>
+  <li>Known length in cm, known length in pixels, plus ARKit camera intrinsics, gives absolute scale.</li>
+</ul>
+
+<h3>Multi-capture</h3>
+<ul>
+  <li>Each "position" capture takes 3 photos in quick succession (think Touch ID enrolment).</li>
+  <li>Pipeline computes metrics from each photo independently, reports the median, and uses the spread to populate per-position uncertainty.</li>
+  <li>If spread is too high (rider moved between shots), prompt to retry.</li>
+</ul>
+
+<h2>8. Analysis pipeline</h2>
+
+<h3>Frontal area</h3>
+<p>This is the hero metric. From a head-on photo with absolute scale, the calculation is:</p>
+<ol>
+  <li>Vision returns a person segmentation mask.</li>
+  <li>Count foreground pixels.</li>
+  <li>Convert to real-world area using camera intrinsics and the established scale.</li>
+</ol>
+<p>This is a <em>planar projection</em>. It assumes the rider is roughly in a single plane perpendicular to the camera. The assumption is good enough for relative comparisons. It is not good enough to call the output CdA.</p>
+
+<div class="callout">
+<p><strong>Engineering callout:</strong> the area calculation is not "Vision returns frontal area in cm²". The framework gives you a mask. Converting that to a real area requires camera intrinsics handling, scale propagation, and uncertainty estimation. Budget real engineering time for this. It is the most important math in the app.</p>
+</div>
+
+<h3>Posture metrics</h3>
+<p>From Vision's pose estimation (returns 3D joint positions for a single person):</p>
+<ul>
+  <li>Torso angle: angle between shoulder-hip line and the gravity vector</li>
+  <li>Hip angle: angle at the hip joint (torso to thigh)</li>
+  <li>Head drop: vertical distance from shoulder midpoint to top of head, projected to the saddle plane</li>
+  <li>Shoulder roll: rotation of shoulder line relative to bar line</li>
+  <li>Arm width: horizontal distance between elbow joints</li>
+</ul>
+<p>These are reported individually as diagnostics. They do not roll into a composite score. Frontal area is the headline; posture metrics tell the story behind it.</p>
+
+<h3>Bag segmentation</h3>
+<p>Bag overlay uses Vision's foreground subject lifting (iOS 17+, the same API powering "lift subject from background" in Photos).</p>
+<ul>
+  <li>User taps a bag in the photo.</li>
+  <li>Vision returns a mask for the tapped subject.</li>
+  <li>App computes the area of that mask.</li>
+  <li>User assigns a label.</li>
+  <li>Each bag gets a colour for overlay rendering.</li>
+</ul>
+<p>This is iterative. Each tap adds one bag. Each bag is independently editable, deletable, and re-segmentable.</p>
+
+<h3>Noise floor self-test</h3>
+<p>During onboarding, after the first successful capture, prompt the user to capture the same position again. Compute the percent difference in frontal area between captures. Average over a few captures to establish a personal noise floor.</p>
+<ul>
+  <li>Store as <code>UserSettings.noiseFloorPct</code>.</li>
+  <li>Display alongside every comparison: "Difference: 8.2%. Your noise floor: ±2.1%."</li>
+  <li>If a comparison delta is below the noise floor, the UI labels it "indistinguishable", not "0.3% different".</li>
+  <li>Suggest recalibration after 90 days or after the user changes phones.</li>
+</ul>
+
+<h2>9. Comparison logic</h2>
+
+<h3>Baseline</h3>
+<p>A baseline is a Position the user marks as their reference. Default suggestion: the bike <em>without bags</em>. Users can change the baseline at any time, or pick any two positions for an ad-hoc comparison.</p>
+
+<h3>Detailed view (2-up)</h3>
+<ul>
+  <li>Two positions side by side, photos with silhouette overlays.</li>
+  <li>Headline: percent delta in frontal area between A and B.</li>
+  <li>Below: diff list naming posture changes ("head 3 cm lower, shoulders rolled 2°, frame bag added").</li>
+  <li>Silhouette overlay toggle: A only, B only, both overlaid, neither.</li>
+  <li>Bag visibility toggle per bag.</li>
+</ul>
+
+<h3>Leaderboard</h3>
+<p>All positions on a single bike (or in a single event), ranked by frontal area. Smallest first. Each row shows percent delta from the user's baseline.</p>
+
+<h3>Cross-bike comparison</h3>
+<p>Allowed, but the UI surfaces a warning: "These positions are on different bikes. Differences may reflect the bikes, not the rider." Comparison still works; the warning makes the limitation visible.</p>
+
+<h3>Below-noise-floor handling</h3>
+<p>If <code>|delta| &lt; noiseFloorPct</code>, the comparison shows "indistinguishable" in place of the percent. Hovering or tapping reveals the actual computed delta and the noise floor explanation. This is the single most important honesty feature in the app.</p>
+
+<h2>10. Storage and privacy</h2>
+
+<h3>What's stored where</h3>
+<ul>
+  <li>Source photos: user's Photo Library, via PhotoKit. The app does not maintain a separate copy.</li>
+  <li>Position metadata, bikes, events, derived metrics: SwiftData store, app-private.</li>
+  <li>Masks (segmentation, bags): app-private, derived data, regenerable from source photos.</li>
+</ul>
+
+<h3>Privacy posture</h3>
+<ul>
+  <li>No cloud sync in v1. Everything is on-device.</li>
+  <li>No analytics in v1, or opt-in via Apple's standard mechanism.</li>
+  <li>At first capture, the app shows a consent reminder: "Photos stay on your device. Only capture people who have agreed to be measured." The user acknowledges once. Stored as <code>consentToCaptureOthers</code>.</li>
+  <li>Standard Apple privacy nutrition labels apply. Honest answers only.</li>
+</ul>
+
+<h3>Future-proofing</h3>
+<p>Derived metrics are stored with a <code>pipelineVersion</code>. If a future version improves the analysis pipeline, old positions can be re-analysed from their stored photos. The app offers but does not force this.</p>
+
+<h2>11. Methodology transparency ("How this works")</h2>
+<p>Reachable from any screen that shows a number. Contents:</p>
+<ul>
+  <li>Plain-language description of how frontal area is computed</li>
+  <li>List of inputs (photo, handlebar width, ARKit camera pose) and outputs (cm², percent delta)</li>
+  <li>List of what the app does <em>not</em> do (CFD, yaw, drag prediction, wind modelling)</li>
+  <li>Limitations (planar projection assumption, scale-reference dependence on accurate handlebar width, segmentation accuracy under poor lighting)</li>
+  <li>Citations to underlying research: Defraeye et al, Crouch et al, García-López et al, and a couple of accessible overview articles</li>
+  <li>Honest statement of measurement uncertainty and what the user's noise floor means</li>
+</ul>
+
+<p>This screen is a differentiator. No comparable app in the category does this well. It is also the screen that justifies the price.</p>
+
+<h2>12. Failure states</h2>
+
+<h3>Capture failures (refuse and explain)</h3>
+<table>
+  <tr><th>Condition</th><th>User-facing message</th></tr>
+  <tr><td>No person detected</td><td>"No rider found in frame. Step back so your full body is visible."</td></tr>
+  <tr><td>Multiple people detected</td><td>"Looks like more than one person is in frame. Ask helpers to step out of view."</td></tr>
+  <tr><td>Person clipped at edge</td><td>"Your [head/feet/elbows] are cut off. Step back or recompose."</td></tr>
+  <tr><td>Phone not level</td><td>"Phone is tilted. Hold it level (use the on-screen guide)."</td></tr>
+  <tr><td>Phone not perpendicular</td><td>"You're capturing from an angle. Move to face the bike directly."</td></tr>
+  <tr><td>Low segmentation confidence</td><td>"Background is making you hard to separate. Try a plain wall behind you."</td></tr>
+  <tr><td>Strong backlight</td><td>"Light is behind you, washing out your edges. Move so the light is in front."</td></tr>
+  <tr><td>Handlebar endpoints not detected</td><td>"Couldn't find your handlebars automatically. Tap each end to calibrate."</td></tr>
+  <tr><td>Multi-capture spread too high</td><td>"You moved between shots. Hold still and try again."</td></tr>
+</table>
+
+<h3>System failures</h3>
+<ul>
+  <li>Camera permission denied: explain why it's needed, deep-link to Settings.</li>
+  <li>Photo Library permission denied: same.</li>
+  <li>Motion permission denied (ARKit needs it): same.</li>
+  <li>Storage full: surface before capture, not after.</li>
+  <li>Backgrounded mid-capture: discard the in-progress session, return to the previous screen without prejudice.</li>
+  <li>ARKit unsupported (unlikely on iOS 17 devices, but possible): graceful fallback to non-AR capture with a quality warning.</li>
+</ul>
+
+<h3>Logical edge cases</h3>
+<ul>
+  <li>Entered handlebar width does not match what's visible in frame (sanity check fires): "Your bars look wider than 42 cm in this photo. Double-check the bike."</li>
+  <li>Bag tap selects nothing useful: "Couldn't isolate a subject there. Try tapping the centre of the bag."</li>
+  <li>Delta below noise floor: "Indistinguishable from your baseline within measurement precision."</li>
+  <li>Cross-bike comparison: warning banner, comparison still computed.</li>
+</ul>
+
+<h2>13. Engineering callouts</h2>
+<p>Things that look easy in the spec but are not:</p>
+<ol>
+  <li><strong>Frontal area math.</strong> Camera intrinsics, scale propagation, uncertainty. Not a one-liner. Budget time.</li>
+  <li><strong>Real-time pose enforcement during capture.</strong> ARKit + AVFoundation interop is fiddly. Expect a week of tuning the "is this shot acceptable" logic.</li>
+  <li><strong>Multi-capture aggregation.</strong> The right way to combine N captures of the same position (median? trimmed mean? weighted by ARKit confidence?) is empirical. Plan to iterate.</li>
+  <li><strong>Bag segmentation UX.</strong> The Vision foreground subject API works well on simple cases. Real bikes with bags overlapping bags will need careful UX (re-tap, edit mask, etc.).</li>
+  <li><strong>Noise floor self-test.</strong> The pedagogy is harder than the math. Users need to understand what they're being asked to do and why.</li>
+  <li><strong>App Store review of the name.</strong> If "Get Tucked" is rejected, have "Tuck" pre-prepared. Do not let this become a launch blocker.</li>
+</ol>
+
+<h2>14. Build phases</h2>
+<p>Vertical slices. Each phase ships a coherent working product, even if a small one.</p>
+
+<h3>Phase 1: skeleton</h3>
+<ul>
+  <li>Xcode project, SwiftUI app shell</li>
+  <li>Bike model, single-bike onboarding, no events yet</li>
+  <li>Single capture (head-on only), no AR enforcement, no segmentation refusal</li>
+  <li>Vision person segmentation → frontal area in cm²</li>
+  <li>Save a Position, list of Positions, view one</li>
+  <li>No comparison yet. No bags. No posture metrics.</li>
+</ul>
+<p><em>Stop here, review. Confirm the area numbers look plausible against a known reference.</em></p>
+
+<h3>Phase 2: pose, comparison, AR enforcement</h3>
+<ul>
+  <li>Posture metrics from Vision pose estimation</li>
+  <li>Side-on capture added; both angles required for a complete position</li>
+  <li>ARKit pose enforcement during capture (level, perpendicular)</li>
+  <li>2-up comparison view with overlaid silhouettes</li>
+  <li>Leaderboard view for a single bike</li>
+</ul>
+
+<h3>Phase 3: bags</h3>
+<ul>
+  <li>Tap-to-segment bag flow via Vision foreground subject lifting</li>
+  <li>Bag list per Position, per-bag area, per-bag colour</li>
+  <li>Bag visibility toggles in the comparison view</li>
+</ul>
+
+<h3>Phase 4: events, timeline, self-test</h3>
+<ul>
+  <li>Events as tags with dates</li>
+  <li>Position can belong to multiple events</li>
+  <li>Timeline view for an event ("setup evolution into Tour Divide")</li>
+  <li>Noise floor self-test, surfaced in onboarding and recallable from settings</li>
+  <li>Below-noise-floor handling everywhere</li>
+</ul>
+
+<h3>Phase 5: polish</h3>
+<ul>
+  <li>"How this works" methodology screen, fully written</li>
+  <li>Accessibility pass: VoiceOver labels for silhouettes and metrics, Dynamic Type support</li>
+  <li>Failure copy review across all states</li>
+  <li>The reveal-moment motion design pass</li>
+  <li>App Store submission prep, screenshots, marketing site</li>
+</ul>
+
+<h2>15. Out of scope for v1</h2>
+<ul>
+  <li>CFD of any kind</li>
+  <li>CdA prediction or any number that resembles one</li>
+  <li>Yaw effects, crosswind modelling</li>
+  <li>Cloud sync, iCloud, account systems</li>
+  <li>Sharing or export of positions to other users</li>
+  <li>Image export of comparison screens (TBD; do not block in design)</li>
+  <li>Android, web, iPad-specific UI</li>
+  <li>TT and triathlon-specific onboarding tracks</li>
+  <li>Coaching or B2B features</li>
+  <li>Multi-user accounts on one device</li>
+  <li>Wind tunnel calibration data, ground-truth validation pipeline</li>
+</ul>
+
+<h2>16. Extension points</h2>
+<table>
+  <tr><th>Version</th><th>Feature</th></tr>
+  <tr><td>v1.x</td><td>Image export of comparison screens</td></tr>
+  <tr><td>v2</td><td>TT/road audience track at onboarding, with different example imagery and tips</td></tr>
+  <tr><td>v2</td><td>Trained custom segmentation model for automatic bike/bag detection (replaces tap-to-segment)</td></tr>
+  <tr><td>v2</td><td>Re-capture prompts after 90 days for active positions</td></tr>
+  <tr><td>Later</td><td>Validation programme: collaborate with bike fit studios for ground-truth comparisons</td></tr>
+  <tr><td>Later</td><td>Coach mode: multi-rider library</td></tr>
+  <tr><td>Later</td><td>Cloud sync (would need account system; weigh against the privacy posture)</td></tr>
+  <tr><td>Later</td><td>Apple Watch capture trigger for solo riders</td></tr>
+</table>
+
+<h2>17. Open questions</h2>
+<ul>
+  <li>Pricing: NZD $20 or USD $20? Likely USD $19.99 for App Store consistency; confirm before submission.</li>
+  <li>Multi-capture count: 3 captures per position is the working number. Tune empirically during Phase 2.</li>
+  <li>Noise floor calibration cadence: 90 days is a guess. Revisit after dogfooding.</li>
+  <li>Reveal-moment timing: total duration around 3 to 6 seconds, but the exact choreography is a design call.</li>
+  <li>Pipeline versioning policy: when v2 improves analysis, do we auto-re-analyse old positions, prompt, or never re-analyse? Default plan: prompt.</li>
+  <li>Reference to "Tuck" if "Get Tucked" is rejected: should the in-app name change too, or stay "Get Tucked" with a different App Store listing name? Confirm during App Store prep.</li>
+</ul>
+
+<hr>
+
+<p class="meta">See the companion design spec for visual direction, tone, hero flows, and copy guidance. The code spec is the source of truth for behaviour; the design spec is the source of truth for how that behaviour is presented.</p>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+import SwiftUI
+import SwiftData
+
+@main
+struct GetTuckedApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+        .modelContainer(for: AppSchema.models, migrationPlan: AppMigrationPlan.self)
+    }
+}

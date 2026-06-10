@@ -1,42 +1,45 @@
-# get-tucked — Segmentation Spike A
+# Get Tucked
 
-Browser-side person segmentation quality verifier. Runs headless in GitHub Codespaces.
+A native iOS app that measures cyclist frontal area from calibrated photos. Built for
+bikepackers and ultra-distance racers who iterate their setups across a season — bag
+placement, layering, posture in the saddle — and want to quantify the trade-offs without
+a wind tunnel.
 
-Proves whether MediaPipe (JS/WASM) produces mattes clean and fast enough for the
-Get Tucked app before committing to an Expo/React Native architecture.
+It is a **measurement tool, not a wind tunnel**: it reports frontal area (cm²) and
+posture angles from photos, and expresses differences as percentages against a baseline.
+It does not predict CdA or model airflow. See `plans/get-tucked-code-spec.html` for the
+full spec.
 
-## Quick start (Codespaces)
+## Stack
 
-Open in a Codespace — the devcontainer installs Node 22, deps, and Playwright Chromium automatically.
+Swift 5.9+ · SwiftUI · Vision · ARKit · AVFoundation · PhotoKit · SwiftData · Core Image.
+iOS 17 minimum. No backend, no cloud, on-device only.
+
+## Building (local, macOS)
+
+The Xcode project is generated from `ios/project.yml` via [XcodeGen](https://github.com/yonkit/XcodeGen).
 
 ```sh
-# Test plumbing (no photos needed)
-npm run verify:smoke
-
-# Real eval (add photos to fixtures/ first)
-npm run verify
+cd ios
+xcodegen generate
+open GetTucked.xcodeproj   # build/run in Xcode
 ```
 
-## Adding test photos
+Requires full Xcode (not just Command Line Tools):
+`sudo xcode-select -s /Applications/Xcode.app`. Set a signing team in `project.yml` or
+Xcode before building to a device.
 
-Drop real cyclist photos (JPG/PNG) into `fixtures/`. Use real conditions: full-body cyclists,
-cluttered outdoor backgrounds. Studio shots are useless for this test.
+## Status
 
-See `fixtures/README.md` for details.
+Phase 1 (skeleton: onboarding → capture → frontal area → save/list) is implemented in
+`ios/`, with known issues documented in `HANDOFF-REVIEW.md`. Remaining phases (pose,
+comparison, AR capture enforcement, bag segmentation, events/timeline, polish) are in §14
+of the code spec.
 
-## Results
+## Repo notes
 
-Mattes are written to `output/` after each run. Review them visually — automated checks
-cover coverage range and timing, but edge quality is a human call.
-
-See `RUNBOOK.md` for how to read results and what "passing" means.
-
-## Commands
-
-| Command | What it does |
-|---------|-------------|
-| `npm run verify:smoke` | Smoke test — plumbing only, no fixtures needed |
-| `npm run verify` | Real eval against `fixtures/` |
-| `npm run typecheck` | TypeScript check (verifier only) |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
+- `ios/` — the app.
+- `plans/get-tucked-code-spec.html` — behaviour source of truth. A design spec is being
+  added for visual direction.
+- `src/`, `verifier/`, `fixtures/`, `index.html`, `package.json` — a **retired** browser
+  segmentation spike. Reference only; not part of the app. See `RUNBOOK.md`.
