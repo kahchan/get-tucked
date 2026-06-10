@@ -6,9 +6,9 @@ struct ContentView: View {
 
     var body: some View {
         if bikes.isEmpty {
-            BikeOnboardingView()
+            WelcomeView()
         } else {
-            MainTabView()
+            AppNavigationView()
         }
     }
 }

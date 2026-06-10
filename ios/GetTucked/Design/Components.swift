@@ -1,0 +1,147 @@
+import SwiftUI
+
+// MARK: - AccentButton
+
+/// Full-width primary CTA. Acid-yellow fill, Space Mono bold uppercase, arrow suffix.
+struct AccentButton: View {
+    let label: String
+    let action: () -> Void
+    var enabled: Bool = true
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(label.uppercased())
+                    .font(Theme.mono(14, weight: .bold))
+                    .kerning(0.5)
+                Spacer()
+                Text("→")
+                    .font(Theme.mono(14, weight: .bold))
+            }
+            .foregroundStyle(enabled ? Color.black : Theme.Palette.fg4)
+            .padding(.horizontal, Theme.Space.md)
+            .frame(maxWidth: .infinity)
+            .frame(height: Theme.Control.accentButtonHeight)
+            .background(enabled ? Theme.Palette.acc : Theme.Palette.line)
+        }
+        .disabled(!enabled)
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - GhostButton
+
+/// Full-width secondary action. 1px border, transparent fill.
+struct GhostButton: View {
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(label.uppercased())
+                    .font(Theme.mono(13, weight: .regular))
+                    .kerning(0.5)
+                Spacer()
+            }
+            .foregroundStyle(Theme.Palette.fg)
+            .padding(.horizontal, Theme.Space.md)
+            .frame(maxWidth: .infinity)
+            .frame(height: Theme.Control.ghostButtonHeight)
+            .overlay(
+                Rectangle()
+                    .stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - MetricRow
+
+/// Key / value row. Space Mono throughout, 1px line2 below.
+struct MetricRow: View {
+    let key: String
+    let value: String
+    var valueColor: Color = Theme.Palette.fg
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(key.uppercased())
+                    .font(Theme.mono(11))
+                    .foregroundStyle(Theme.Palette.fg3)
+                    .kerning(0.3)
+                Spacer()
+                Text(value)
+                    .font(Theme.mono(13, weight: .bold))
+                    .foregroundStyle(valueColor)
+            }
+            .frame(height: Theme.Control.metricRowHeight)
+
+            Rectangle()
+                .fill(Theme.Palette.line2)
+                .frame(height: Theme.Control.hairline)
+        }
+    }
+}
+
+// MARK: - SectionDivider
+
+/// 1px full-width line separator.
+struct SectionDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Theme.Palette.line)
+            .frame(height: Theme.Control.hairline)
+            .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - StatusPill
+
+/// Dot + label chip whose border color tracks a state.
+enum PillState {
+    case unknown   // dim
+    case warning   // amber border
+    case ok        // accent border
+}
+
+struct StatusPill: View {
+    let label: String
+    let state: PillState
+
+    private var borderColor: Color {
+        switch state {
+        case .unknown: Theme.Palette.line
+        case .warning: Theme.Palette.amb
+        case .ok:      Theme.Palette.acc
+        }
+    }
+
+    private var dotColor: Color {
+        switch state {
+        case .unknown: Theme.Palette.fg4
+        case .warning: Theme.Palette.amb
+        case .ok:      Theme.Palette.acc
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 5, height: 5)
+            Text(label.uppercased())
+                .font(Theme.mono(10))
+                .foregroundStyle(dotColor)
+                .kerning(0.3)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .overlay(
+            Rectangle()
+                .stroke(borderColor, lineWidth: Theme.Control.hairline)
+        )
+    }
+}
