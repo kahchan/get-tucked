@@ -187,7 +187,8 @@ struct CameraPreviewLayer: UIViewRepresentable {
 
 // MARK: - Camera session
 
-@MainActor
+// Not @MainActor: AVFoundation requires startRunning() / stopRunning() on a
+// background queue. @Published updates are pushed to main explicitly.
 final class CameraSession: NSObject, ObservableObject {
     let captureSession = AVCaptureSession()
 
@@ -204,50 +205,53 @@ final class CameraSession: NSObject, ObservableObject {
     private var captureCompletion: ((UIImage) -> Void)?
     private var bike: Bike?
 
+    // AVFoundation session must be configured and run on a dedicated serial queue.
+    private let sessionQueue = DispatchQueue(label: "com.gettucked.camera.session", qos: .userInitiated)
+
     // Pill thresholds
-    private let levelThresholdDeg = 2.0    // within ±2° of horizontal gravity
-    private let perpThresholdDeg  = 5.0    // within ±5° of perpendicular to gravity
-    private let bgConfidenceMin   = 0.6    // Vision segmentation confidence floor
+    private let levelThresholdDeg = 2.0
+    private let perpThresholdDeg  = 5.0
+    private let bgConfidenceMin   = 0.6
 
     func start(bike: Bike) {
         self.bike = bike
-        Task.detached { [weak self] in
-            await self?.configureSession()
-        }
+        sessionQueue.async { [weak self] in self?.configureSession() }
         startMotion()
     }
 
     func stop() {
-        Task.detached { [weak self] in
-            self?.captureSession.stopRunning()
-        }
+        sessionQueue.async { [weak self] in self?.captureSession.stopRunning() }
         motionManager.stopDeviceMotionUpdates()
     }
 
     func capturePhoto(completion: @escaping (UIImage) -> Void) {
         captureCompletion = completion
         let settings = AVCapturePhotoSettings()
-        photoOutput.capturePhoto(with: settings, delegate: self)
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.photoOutput.capturePhoto(with: settings, delegate: self)
+        }
     }
 
-    // MARK: - Session setup
+    // MARK: - Session setup (runs on sessionQueue)
 
-    private func configureSession() async {
-        guard await AVCaptureDevice.requestAccess(for: .video) else { return }
+    private func configureSession() {
+        let semaphore = DispatchSemaphore(value: 0)
+        var granted = false
+        AVCaptureDevice.requestAccess(for: .video) { g in granted = g; semaphore.signal() }
+        semaphore.wait()
+        guard granted else { return }
+
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else { return }
 
         captureSession.beginConfiguration()
         captureSession.sessionPreset = .photo
-
-        if captureSession.canAddInput(input) { captureSession.addInput(input) }
-
+        if captureSession.canAddInput(input)  { captureSession.addInput(input) }
         if captureSession.canAddOutput(photoOutput) { captureSession.addOutput(photoOutput) }
-
         videoOutput.setSampleBufferDelegate(self, queue: .global(qos: .userInitiated))
         videoOutput.alwaysDiscardsLateVideoFrames = true
         if captureSession.canAddOutput(videoOutput) { captureSession.addOutput(videoOutput) }
-
         captureSession.commitConfiguration()
         captureSession.startRunning()
     }
@@ -256,8 +260,7 @@ final class CameraSession: NSObject, ObservableObject {
 
     private func startMotion() {
         guard motionManager.isDeviceMotionAvailable else {
-            levelOK = true
-            perpOK = true
+            DispatchQueue.main.async { self.levelOK = true; self.perpOK = true }
             return
         }
         motionManager.deviceMotionUpdateInterval = 1.0 / 30.0
@@ -278,7 +281,7 @@ final class CameraSession: NSObject, ObservableObject {
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate (BG confidence via Vision)
 
 extension CameraSession: AVCaptureVideoDataOutputSampleBufferDelegate {
-    nonisolated func captureOutput(
+    func captureOutput(
         _ output: AVCaptureOutput,
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
@@ -323,7 +326,7 @@ extension CameraSession: AVCaptureVideoDataOutputSampleBufferDelegate {
 // MARK: - AVCapturePhotoCaptureDelegate
 
 extension CameraSession: AVCapturePhotoCaptureDelegate {
-    nonisolated func photoOutput(
+    func photoOutput(
         _ output: AVCapturePhotoOutput,
         didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
