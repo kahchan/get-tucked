@@ -3,15 +3,18 @@ import SwiftData
 
 // MARK: - Screen enum
 
+// PersistentIdentifier (not Position) in model-carrying cases: SwiftUI's typed
+// NavigationStack path does internal type comparison that crashes when SwiftData
+// models (PersistentIdentifier-based Hashable) appear directly in the path array.
 enum AppScreen: Hashable {
     case positionList
-    case positionDetail(Position)
+    case positionDetail(PersistentIdentifier)
     case setTheScene
     case capture
     case bikeList
     case bikeSetup
     case leaderboard
-    case comparison(Position, Position)
+    case comparison(PersistentIdentifier, PersistentIdentifier)
 }
 
 // MARK: - Root navigation
@@ -29,8 +32,8 @@ struct AppNavigationView: View {
                         switch screen {
                         case .positionList:
                             PositionListView(path: $path)
-                        case .positionDetail(let position):
-                            PositionDetailView(position: position)
+                        case .positionDetail(let id):
+                            PositionDetailWrapper(id: id)
                         case .setTheScene:
                             SetTheSceneView { path.append(.capture) }
                         case .capture:
@@ -45,8 +48,8 @@ struct AppNavigationView: View {
                             BikeSetupView()
                         case .leaderboard:
                             LeaderboardView(path: $path)
-                        case .comparison(let a, let b):
-                            ComparisonView(positionA: a, positionB: b)
+                        case .comparison(let idA, let idB):
+                            ComparisonWrapper(idA: idA, idB: idB)
                         }
                     }
             }
@@ -85,6 +88,43 @@ struct HamburgerButton: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - SwiftData model lookup wrappers
+
+private struct PositionDetailWrapper: View {
+    let id: PersistentIdentifier
+    @Query private var positions: [Position]
+
+    var body: some View {
+        if let position = positions.first(where: { $0.persistentModelID == id }) {
+            PositionDetailView(position: position)
+        } else {
+            Text("Position not found")
+                .foregroundStyle(Theme.Palette.fg2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Palette.bg0)
+        }
+    }
+}
+
+private struct ComparisonWrapper: View {
+    let idA: PersistentIdentifier
+    let idB: PersistentIdentifier
+    @Query private var positions: [Position]
+
+    var body: some View {
+        let a = positions.first(where: { $0.persistentModelID == idA })
+        let b = positions.first(where: { $0.persistentModelID == idB })
+        if let a, let b {
+            ComparisonView(positionA: a, positionB: b)
+        } else {
+            Text("Positions not found")
+                .foregroundStyle(Theme.Palette.fg2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Palette.bg0)
+        }
     }
 }
 

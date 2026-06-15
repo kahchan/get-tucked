@@ -66,7 +66,7 @@ struct PositionListView: View {
                                     .buttonStyle(.plain)
                                 } else {
                                     Button {
-                                        path.append(.positionDetail(position))
+                                        path.append(.positionDetail(position.persistentModelID))
                                     } label: {
                                         PositionRow(position: position)
                                     }
@@ -87,7 +87,7 @@ struct PositionListView: View {
                     let pair = selectedPositions.sorted {
                         ($0.metrics?.frontalAreaCm2 ?? 0) < ($1.metrics?.frontalAreaCm2 ?? 0)
                     }
-                    path.append(.comparison(pair[0], pair[1]))
+                    path.append(.comparison(pair[0].persistentModelID, pair[1].persistentModelID))
                     selectMode = false
                     selected.removeAll()
                 }

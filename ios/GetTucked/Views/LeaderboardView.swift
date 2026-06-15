@@ -35,7 +35,7 @@ struct LeaderboardView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(ranked.enumerated()), id: \.element.id) { index, position in
                                 Button {
-                                    path.append(.positionDetail(position))
+                                    path.append(.positionDetail(position.persistentModelID))
                                 } label: {
                                     RankRow(rank: index + 1, position: position, best: ranked.first)
                                 }
