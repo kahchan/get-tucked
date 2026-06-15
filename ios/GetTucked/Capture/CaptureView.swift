@@ -226,12 +226,13 @@ private struct BikePickerStep: View {
                     }
                 }
             }
-            Button("Next") { onNext() }
-                .buttonStyle(.borderedProminent)
-                .disabled(selected == nil)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(.regularMaterial)
+            AccentButton(label: "NEXT", action: onNext, enabled: selected != nil)
+                .padding(.horizontal, Theme.Space.lg)
+                .padding(.vertical, Theme.Space.md)
+                .background(Theme.Palette.bg0)
+        }
+        .onAppear {
+            if bikes.count == 1 { selected = bikes[0] }
         }
     }
 }
