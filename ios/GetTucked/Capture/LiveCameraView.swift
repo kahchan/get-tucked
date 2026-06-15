@@ -17,59 +17,60 @@ struct LiveCameraView: View {
 
     var body: some View {
         ZStack {
-            // Camera feed
-            CameraPreviewLayer(session: session.captureSession)
-                .ignoresSafeArea()
+            Theme.Palette.bg0.ignoresSafeArea()
 
-            // HUD overlay
-            VStack(spacing: 0) {
-                // Top bar: bike chip + cancel
-                HStack {
-                    BikeChip(name: bike.nickname)
-                    Spacer()
-                    Button(action: onCancel) {
-                        Text("✕")
-                            .font(Theme.mono(18))
-                            .foregroundStyle(Theme.Palette.fg)
-                            .frame(width: 40, height: 40)
+            if session.permissionDenied {
+                PermissionDeniedOverlay(onCancel: onCancel)
+            } else {
+                // Camera feed
+                CameraPreviewLayer(session: session.captureSession)
+                    .ignoresSafeArea()
+
+                // HUD overlay
+                VStack(spacing: 0) {
+                    HStack {
+                        BikeChip(name: bike.nickname)
+                        Spacer()
+                        Button(action: onCancel) {
+                            Text("✕")
+                                .font(Theme.mono(18))
+                                .foregroundStyle(Theme.Palette.fg)
+                                .frame(width: 40, height: 40)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, Theme.Space.lg)
-                .padding(.top, Theme.Space.md)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.top, Theme.Space.md)
 
-                // Level indicator line
-                LevelLine(deviationDeg: session.tiltDeg)
-                    .padding(.top, Theme.Space.sm)
+                    LevelLine(deviationDeg: session.tiltDeg)
+                        .padding(.top, Theme.Space.sm)
 
-                Spacer()
+                    Spacer()
 
-                // Status pills + capture button
-                VStack(spacing: Theme.Space.lg) {
-                    StatusPillRow(
-                        levelOK: session.levelOK,
-                        perpOK: session.perpOK,
-                        bgOK: session.bgOK
-                    )
-
-                    CaptureButton(enabled: session.allPassed) {
-                        session.capturePhoto { image in
-                            captureFlash = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                captureFlash = false
-                                onCapture(image)
+                    VStack(spacing: Theme.Space.lg) {
+                        StatusPillRow(
+                            levelOK: session.levelOK,
+                            perpOK: session.perpOK,
+                            bgOK: session.bgOK
+                        )
+                        CaptureButton(enabled: session.allPassed) {
+                            session.capturePhoto { image in
+                                captureFlash = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                    captureFlash = false
+                                    onCapture(image)
+                                }
                             }
                         }
                     }
+                    .padding(.bottom, 48)
                 }
-                .padding(.bottom, 48)
-            }
 
-            // Flash on capture
-            if captureFlash {
-                Color.white.opacity(0.6)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
+                if captureFlash {
+                    Color.white.opacity(0.6)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                }
             }
         }
         .onAppear { session.start(bike: bike) }
@@ -165,6 +166,35 @@ private struct CaptureButton: View {
     }
 }
 
+private struct PermissionDeniedOverlay: View {
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: Theme.Space.lg) {
+            Spacer()
+            Text("CAMERA ACCESS REQUIRED")
+                .font(Theme.heading(22))
+                .foregroundStyle(Theme.Palette.fg)
+            Text("Go to Settings → Get Tucked → Camera and allow access.")
+                .font(Theme.mono(13))
+                .foregroundStyle(Theme.Palette.fg3)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Space.xl)
+            AccentButton(label: "OPEN SETTINGS") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .padding(.horizontal, Theme.Space.xl)
+            Spacer()
+            GhostButton(label: "CANCEL", action: onCancel)
+                .padding(.horizontal, Theme.Space.xl)
+                .padding(.bottom, 48)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 // MARK: - AVFoundation preview layer (UIViewRepresentable)
 
 struct CameraPreviewLayer: UIViewRepresentable {
@@ -196,6 +226,7 @@ final class CameraSession: NSObject, ObservableObject {
     @Published var levelOK = false
     @Published var perpOK = false
     @Published var bgOK = false
+    @Published var permissionDenied = false
 
     var allPassed: Bool { levelOK && perpOK && bgOK }
 
@@ -236,11 +267,21 @@ final class CameraSession: NSObject, ObservableObject {
     // MARK: - Session setup (runs on sessionQueue)
 
     private func configureSession() {
-        let semaphore = DispatchSemaphore(value: 0)
-        var granted = false
-        AVCaptureDevice.requestAccess(for: .video) { g in granted = g; semaphore.signal() }
-        semaphore.wait()
-        guard granted else { return }
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        if status == .denied || status == .restricted {
+            DispatchQueue.main.async { self.permissionDenied = true }
+            return
+        }
+        if status == .notDetermined {
+            let semaphore = DispatchSemaphore(value: 0)
+            var granted = false
+            AVCaptureDevice.requestAccess(for: .video) { g in granted = g; semaphore.signal() }
+            semaphore.wait()
+            guard granted else {
+                DispatchQueue.main.async { self.permissionDenied = true }
+                return
+            }
+        }
 
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else { return }
