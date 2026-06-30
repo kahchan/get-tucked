@@ -60,7 +60,7 @@ struct AppNavigationView: View {
             if !indexOpen {
                 HamburgerButton { indexOpen = true }
                     .padding(.leading, Theme.Space.lg)
-                    .padding(.top, 16)
+                    .padding(.top, 6)
             }
 
             if indexOpen {
