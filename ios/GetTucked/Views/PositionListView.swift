@@ -31,9 +31,11 @@ struct PositionListView: View {
                             Button {
                                 path.append(.setTheScene)
                             } label: {
-                                Text("+")
-                                    .font(Theme.mono(22))
+                                Image(systemName: "plus")
+                                    .font(.system(size: 20, weight: .medium))
                                     .foregroundStyle(bikes.isEmpty ? Theme.Palette.fg4 : Theme.Palette.acc)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .disabled(bikes.isEmpty)
@@ -44,7 +46,19 @@ struct PositionListView: View {
                 SectionDivider()
 
                 if positions.isEmpty {
-                    EmptySlate(message: "No positions yet.\nCapture a position to measure frontal area.")
+                    if bikes.isEmpty {
+                        EmptyStateView(
+                            message: "No bike yet.\nAdd your bike to start measuring positions.",
+                            ctaLabel: "Add your bike",
+                            ctaAction: { path.append(.bikeSetup) }
+                        )
+                    } else {
+                        EmptyStateView(
+                            message: "No positions yet.\nCapture a position to measure frontal area.",
+                            ctaLabel: "Capture a position",
+                            ctaAction: { path.append(.setTheScene) }
+                        )
+                    }
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {

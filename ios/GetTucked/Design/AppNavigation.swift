@@ -79,13 +79,11 @@ struct HamburgerButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { _ in
-                    Rectangle()
-                        .fill(Theme.Palette.fg)
-                        .frame(width: 18, height: 1)
-                }
-            }
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Theme.Palette.fg)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -154,9 +152,11 @@ struct IndexOverlay: View {
                         .foregroundStyle(Theme.Palette.acc)
                     Spacer()
                     Button(action: { isOpen = false }) {
-                        Text("✕")
-                            .font(Theme.mono(16))
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(Theme.Palette.fg2)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

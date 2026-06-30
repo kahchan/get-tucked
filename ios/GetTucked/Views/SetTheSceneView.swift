@@ -24,15 +24,7 @@ struct SetTheSceneView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack {
-                    Text("SET THE SCENE")
-                        .font(Theme.heading(22))
-                        .foregroundStyle(Theme.Palette.fg)
-                    Spacer()
-                }
-                .padding(.horizontal, Theme.Space.lg)
-                .frame(height: 56)
+                NavHeader(title: "SET THE SCENE")
 
                 SectionDivider()
 

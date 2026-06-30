@@ -22,14 +22,17 @@ struct NavHeader<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack {
+        ZStack {
             Text(title)
                 .font(Theme.heading(18))
                 .foregroundStyle(Theme.Palette.fg)
-            Spacer()
-            trailing()
+            HStack {
+                Spacer()
+                trailing()
+            }
+            .padding(.horizontal, Theme.Space.lg)
         }
-        .padding(.horizontal, Theme.Space.lg)
+        .frame(maxWidth: .infinity)
         .frame(height: 56)
     }
 }
@@ -53,6 +56,43 @@ struct EmptySlate: View {
                 .foregroundStyle(Theme.Palette.fg4)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Theme.Space.xl)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// Full-height empty state with an optional inline CTA button.
+struct EmptyStateView: View {
+    let message: String
+    var ctaLabel: String? = nil
+    var ctaAction: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(spacing: Theme.Space.lg) {
+            Spacer()
+            Text(message)
+                .font(Theme.mono(13))
+                .foregroundStyle(Theme.Palette.fg4)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Space.xl)
+
+            if let ctaLabel, let ctaAction {
+                Button(action: ctaAction) {
+                    HStack(spacing: Theme.Space.sm) {
+                        Text(ctaLabel.uppercased())
+                            .font(Theme.mono(14, weight: .bold))
+                            .kerning(0.5)
+                        Text("→")
+                            .font(Theme.mono(14, weight: .bold))
+                    }
+                    .foregroundStyle(Color.black)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .frame(height: Theme.Control.accentButtonHeight)
+                    .background(Theme.Palette.acc)
+                }
+                .buttonStyle(.plain)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity)
