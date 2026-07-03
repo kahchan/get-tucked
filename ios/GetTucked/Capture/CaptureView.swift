@@ -80,6 +80,7 @@ struct CaptureView: View {
                         assetIdentifier = nil  // live capture has no PHAsset identifier
                         tapPoints = []
                         step = .calibrate
+                        Task { await saveToCameraRoll(image) }
                     }, onCancel: { dismiss() })
                 }
             case .calibrate:
@@ -186,6 +187,20 @@ struct CaptureView: View {
             pixelsPerCm: pixelsPerCm
         )
         step = .reveal
+    }
+
+    /// Spec §PhotoKit: source photos belong in the user's Photo Library. Live
+    /// capture bypasses PhotosPicker (no PHAsset), so write it there ourselves —
+    /// fire-and-forget, since a save failure shouldn't block the capture flow.
+    private func saveToCameraRoll(_ image: UIImage) async {
+        var status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+        if status == .notDetermined {
+            status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        }
+        guard status == .authorized || status == .limited else { return }
+        try? await PHPhotoLibrary.shared().performChanges {
+            PHAssetCreationRequest.forAsset().addResource(with: .photo, data: image.jpegData(compressionQuality: 0.9) ?? Data(), options: nil)
+        }
     }
 
     private func savePosition(label: String) {
