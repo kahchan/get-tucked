@@ -3,6 +3,8 @@ import SwiftData
 
 /// Add / edit a bike. Monospace inputs with bottom-border only (no Form).
 struct BikeSetupView: View {
+    /// When set, the screen edits this bike in place instead of creating a new one.
+    var editing: Bike? = nil
     var onSave: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var context
@@ -12,6 +14,8 @@ struct BikeSetupView: View {
     @State private var handlebarWidthText = ""
     @State private var bikeType: BikeType = .road
     @State private var showHandlebarTip = false
+    @State private var didLoad = false
+    @State private var showDeleteConfirm = false
 
     private var handlebarWidth: Double? { Double(handlebarWidthText) }
 
@@ -27,7 +31,7 @@ struct BikeSetupView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Title bar
                 HStack {
-                    Text("BIKE SETUP")
+                    Text(editing == nil ? "BIKE SETUP" : "EDIT BIKE")
                         .font(Theme.heading(22))
                         .foregroundStyle(Theme.Palette.fg)
                     Spacer()
@@ -89,21 +93,56 @@ struct BikeSetupView: View {
                     .padding(.top, Theme.Space.md)
                 }
 
-                AccentButton(label: "SAVE BIKE", action: save, enabled: isValid)
-                    .padding(.horizontal, Theme.Space.lg)
-                    .padding(.vertical, Theme.Space.md)
+                VStack(spacing: Theme.Space.sm) {
+                    AccentButton(label: editing == nil ? "SAVE BIKE" : "SAVE CHANGES",
+                                 action: save, enabled: isValid)
+                    if editing != nil {
+                        GhostButton(label: "DELETE BIKE") { showDeleteConfirm = true }
+                    }
+                }
+                .padding(.horizontal, Theme.Space.lg)
+                .padding(.vertical, Theme.Space.md)
             }
         }
+        .onAppear(perform: loadIfNeeded)
+        .confirmationDialog(deleteMessage, isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete bike", role: .destructive, action: deleteBike)
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private var deleteMessage: String {
+        let count = editing?.positions.count ?? 0
+        return count == 0
+            ? "Delete this bike?"
+            : "Delete this bike and its \(count) saved position\(count == 1 ? "" : "s")?"
+    }
+
+    private func loadIfNeeded() {
+        guard !didLoad, let bike = editing else { return }
+        didLoad = true
+        nickname = bike.nickname
+        handlebarWidthText = String(Int(bike.handlebarWidthMm))
+        bikeType = bike.bikeType
     }
 
     private func save() {
         guard let width = handlebarWidth, isValid else { return }
-        let bike = Bike(
-            nickname: nickname.trimmingCharacters(in: .whitespaces),
-            handlebarWidthMm: width,
-            bikeType: bikeType
-        )
-        context.insert(bike)
+        let name = nickname.trimmingCharacters(in: .whitespaces)
+        if let bike = editing {
+            bike.nickname = name
+            bike.handlebarWidthMm = width
+            bike.bikeType = bikeType
+        } else {
+            context.insert(Bike(nickname: name, handlebarWidthMm: width, bikeType: bikeType))
+        }
+        onSave?()
+        dismiss()
+    }
+
+    private func deleteBike() {
+        guard let bike = editing else { return }
+        context.delete(bike)   // cascades to the bike's positions
         onSave?()
         dismiss()
     }
@@ -117,9 +156,9 @@ private struct FieldLabel: View {
 
     var body: some View {
         Text(text)
-            .font(Theme.mono(10))
-            .foregroundStyle(Theme.Palette.fg4)
-            .kerning(0.3)
+            .font(Theme.mono(11, weight: .bold))
+            .foregroundStyle(Theme.Palette.fg2)
+            .kerning(0.8)
             .padding(.horizontal, Theme.Space.lg)
     }
 }
@@ -158,8 +197,8 @@ private struct TypeToggle: View {
                     selection = type
                 } label: {
                     Text(type.displayName.uppercased())
-                        .font(Theme.mono(11, weight: selected ? .bold : .regular))
-                        .foregroundStyle(selected ? Color.black : Theme.Palette.fg3)
+                        .font(Theme.mono(12, weight: selected ? .bold : .regular))
+                        .foregroundStyle(selected ? Color.black : Theme.Palette.fg2)
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
                         .background(selected ? Theme.Palette.acc : Color.clear)

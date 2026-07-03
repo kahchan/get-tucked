@@ -5,6 +5,7 @@ struct BikeListView: View {
     @Binding var path: [AppScreen]
     @Query(sort: \Bike.createdAt, order: .forward) private var bikes: [Bike]
     @State private var showingAddBike = false
+    @State private var editingBike: Bike?
 
     var body: some View {
         ZStack {
@@ -30,7 +31,10 @@ struct BikeListView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(bikes) { bike in
-                                BikeRow(bike: bike)
+                                Button { editingBike = bike } label: {
+                                    BikeRow(bike: bike)
+                                }
+                                .buttonStyle(.plain)
                                 SectionDivider()
                             }
                         }
@@ -41,6 +45,9 @@ struct BikeListView: View {
         .hideNavBar()
         .sheet(isPresented: $showingAddBike) {
             BikeSetupView()
+        }
+        .sheet(item: $editingBike) { bike in
+            BikeSetupView(editing: bike)
         }
     }
 }
@@ -59,8 +66,13 @@ private struct BikeRow: View {
                     .foregroundStyle(Theme.Palette.fg3)
             }
             Spacer()
+            Text("EDIT")
+                .font(Theme.mono(10, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg4)
+                .kerning(0.5)
         }
         .padding(.horizontal, Theme.Space.lg)
         .frame(height: 60)
+        .contentShape(Rectangle())
     }
 }
