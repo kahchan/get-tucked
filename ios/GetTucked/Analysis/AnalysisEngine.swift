@@ -47,9 +47,6 @@ struct SideOnPoseMetrics {
 }
 
 struct AnalysisEngine {
-    // Uncertainty model: 3% of computed area, reflecting segmentation + scale noise.
-    private static let uncertaintyFraction = 0.03
-
     // MARK: - Head-on analysis (frontal area + head-on pose)
 
     static func analyse(
@@ -58,17 +55,18 @@ struct AnalysisEngine {
         tapPoint0: CGPoint,
         tapPoint1: CGPoint
     ) async throws -> AnalysisResult {
-        let handlebarWidthCm = handlebarWidthMm / 10.0
         guard let cgImage = image.cgImage else { throw AnalysisError.segmentationFailed }
 
         let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
 
         // Scale: tap points are in unit coords (0–1); convert to pixels.
-        let p0 = CGPoint(x: tapPoint0.x * imageSize.width, y: tapPoint0.y * imageSize.height)
-        let p1 = CGPoint(x: tapPoint1.x * imageSize.width, y: tapPoint1.y * imageSize.height)
-        let handlebarPixels = hypot(p1.x - p0.x, p1.y - p0.y)
+        let handlebarPixels = AnalysisMath.handlebarPixels(
+            tap0: tapPoint0, tap1: tapPoint1, imageSize: imageSize
+        )
         guard handlebarPixels > 1 else { throw AnalysisError.scaleNotCalibrated }
-        let pixelsPerCm = handlebarPixels / handlebarWidthCm
+        let pixelsPerCm = AnalysisMath.pixelsPerCm(
+            handlebarPixels: handlebarPixels, handlebarWidthMm: handlebarWidthMm
+        )
 
         try await validatePerson(cgImage: cgImage, imageSize: imageSize)
 
@@ -76,12 +74,14 @@ struct AnalysisEngine {
         let foregroundCount = countForegroundPixels(mask: mask)
 
         // §2.2 fix: Vision mask resolution ≠ source resolution in general.
-        // pixelsPerCm was derived from source image pixel coords; rescale it
-        // to mask space before computing area so both quantities are in the same
-        // pixel coordinate system.
-        let maskPixelsPerCm = pixelsPerCm * (Double(mask.width) / Double(cgImage.width))
-        let areaCm2 = Double(foregroundCount) / (maskPixelsPerCm * maskPixelsPerCm)
-        let uncertainty = areaCm2 * uncertaintyFraction
+        // Rescale pixelsPerCm into mask space so area and scale share pixel units.
+        let maskPixelsPerCm = AnalysisMath.maskPixelsPerCm(
+            sourcePixelsPerCm: pixelsPerCm, maskWidth: mask.width, sourceWidth: cgImage.width
+        )
+        let areaCm2 = AnalysisMath.frontalAreaCm2(
+            foregroundPixelCount: foregroundCount, maskPixelsPerCm: maskPixelsPerCm
+        )
+        let uncertainty = AnalysisMath.uncertaintyCm2(areaCm2: areaCm2)
         let maskUI = UIImage(cgImage: mask)
 
         let headOnPose = try? await estimateHeadOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
@@ -220,10 +220,12 @@ struct AnalysisEngine {
             throw AnalysisError.poseNotDetected
         }
 
-        let shoulderWidthNorm = abs(leftShoulder.location.x - rightShoulder.location.x)
-        // Convert: norm units × image pixel width → pixels → cm
-        let shoulderWidthPx = shoulderWidthNorm * Double(cgImage.width)
-        let shoulderWidthCm = shoulderWidthPx / pixelsPerCm
+        let shoulderWidthCm = AnalysisMath.shoulderWidthCm(
+            leftShoulderX: leftShoulder.location.x,
+            rightShoulderX: rightShoulder.location.x,
+            imageWidthPx: cgImage.width,
+            pixelsPerCm: pixelsPerCm
+        )
 
         return HeadOnPoseMetrics(shoulderWidthCm: shoulderWidthCm)
     }
@@ -252,33 +254,16 @@ struct AnalysisEngine {
             throw AnalysisError.poseNotDetected
         }
 
-        // Torso angle: angle of (shoulder - hip) vector from vertical (0° = upright).
-        // In normalised coords y increases upward, so shoulder.y > hip.y when upright.
-        let torsoVec = CGPoint(
-            x: shoulder.location.x - hip.location.x,
-            y: shoulder.location.y - hip.location.y
+        let torsoAngleDeg = AnalysisMath.torsoAngleDeg(
+            shoulder: shoulder.location, hip: hip.location
         )
-        // atan2(x, y) gives angle from the +y axis (vertical) clockwise.
-        let torsoAngleDeg = abs(atan2(torsoVec.x, torsoVec.y) * 180 / .pi)
-
-        // Hip angle: interior angle at hip between torso line (hip→shoulder) and thigh (hip→knee).
-        let toShoulder = CGPoint(
-            x: shoulder.location.x - hip.location.x,
-            y: shoulder.location.y - hip.location.y
+        let hipAngleDeg = AnalysisMath.hipAngleDeg(
+            shoulder: shoulder.location, hip: hip.location, knee: knee.location
         )
-        let toKnee = CGPoint(
-            x: knee.location.x - hip.location.x,
-            y: knee.location.y - hip.location.y
+        let headDropCm = AnalysisMath.headDropCm(
+            shoulderY: shoulder.location.y, earY: ear.location.y,
+            imageHeightPx: cgImage.height, pixelsPerCm: pixelsPerCm
         )
-        let dot = toShoulder.x * toKnee.x + toShoulder.y * toKnee.y
-        let magA = hypot(toShoulder.x, toShoulder.y)
-        let magB = hypot(toKnee.x, toKnee.y)
-        let hipAngleDeg = acos(max(-1, min(1, dot / (magA * magB)))) * 180 / .pi
-
-        // Head drop: positive distance ear is below the shoulder in cm.
-        // In normalised coords y increases upward, so negative dy means ear is lower.
-        let earDropNorm = shoulder.location.y - ear.location.y
-        let headDropCm = earDropNorm * Double(cgImage.height) / pixelsPerCm
 
         return SideOnPoseMetrics(
             torsoAngleDeg: torsoAngleDeg,

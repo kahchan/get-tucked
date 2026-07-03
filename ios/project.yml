@@ -45,3 +45,24 @@ targets:
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       INFOPLIST_FILE: GetTucked/Resources/Info.plist
+
+  GetTuckedTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: GetTuckedTests
+    dependencies:
+      - target: GetTucked
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.gettucked.tests
+      GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  GetTucked:
+    build:
+      targets:
+        GetTucked: all
+    test:
+      targets:
+        - GetTuckedTests
