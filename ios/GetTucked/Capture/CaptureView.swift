@@ -23,7 +23,7 @@ struct CaptureView: View {
     @State private var analysisError: AnalysisError?
     @State private var showingError = false
 
-    enum CaptureStep {
+    enum CaptureStep: Equatable {
         case selectBike
         case pickPhoto          // head-on · 1 OF 2
         case calibrate          // head-on calibration
@@ -36,82 +36,98 @@ struct CaptureView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                switch step {
-                case .selectBike:
-                    BikePickerStep(bikes: bikes, selected: $selectedBike) {
-                        step = .pickPhoto
-                    }
-                case .pickPhoto:
-                    if let bike = selectedBike {
-                        LiveCameraView(bike: bike, onCapture: { image in
-                            selectedImage = image  // already normalised in photoOutput delegate
-                            assetIdentifier = nil  // live capture has no PHAsset identifier
-                            tapPoints = []
-                            step = .calibrate
-                        }, onCancel: { dismiss() })
-                    }
-                case .calibrate:
-                    if let image = selectedImage {
-                        HandlebarCalibrationStep(
-                            image: image,
-                            tapPoints: $tapPoints
-                        ) {
-                            step = .analysing
-                            Task { await runAnalysis() }
+        ZStack(alignment: .top) {
+            Theme.Palette.bg0.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                if step != .pickPhoto {
+                    NavHeader(title: stepTitle) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Text("✕")
+                                .font(Theme.mono(18))
+                                .foregroundStyle(Theme.Palette.fg3)
                         }
+                        .buttonStyle(.plain)
                     }
-                case .analysing:
-                    ProgressView("Analysing…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .pickSideOnPhoto:
-                    PhotoPickStep(
-                        pickerItem: $sideOnPickerItem,
-                        instructions: "Stand beside your bike and photograph from directly side-on at hub height.",
-                        stepLabel: "SIDE-ON · 2 OF 2"
-                    ) { image, identifier in
-                        sideOnImage = image
-                        sideOnAssetIdentifier = identifier
-                        step = .analysingSideOn
-                        Task { await runSideOnAnalysis() }
-                    }
-                case .analysingSideOn:
-                    ProgressView("Analysing posture…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .reveal:
-                    if let result = pendingResult {
-                        RevealStep(result: result, sideOnPose: pendingSideOnPose) {
-                            step = .namePosition
-                        }
-                    }
-                case .namePosition:
-                    if let result = pendingResult {
-                        NamePositionStep(result: result) { label in
-                            savePosition(label: label)
-                        }
-                    }
-                case .done:
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 64))
-                        .foregroundStyle(.green)
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { dismiss() }
-                        }
+                    SectionDivider()
                 }
-            }
-            .navigationTitle(stepTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+
+                stepContent
             }
             .alert("Capture failed", isPresented: $showingError, presenting: analysisError) { _ in
                 Button("Try again") { step = .pickPhoto }
                 Button("Cancel", role: .cancel) { dismiss() }
             } message: { error in
                 Text(error.errorDescription ?? "Unknown error.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var stepContent: some View {
+        Group {
+            switch step {
+            case .selectBike:
+                BikePickerStep(bikes: bikes, selected: $selectedBike) {
+                    step = .pickPhoto
+                }
+            case .pickPhoto:
+                if let bike = selectedBike {
+                    LiveCameraView(bike: bike, onCapture: { image in
+                        selectedImage = image  // already normalised in photoOutput delegate
+                        assetIdentifier = nil  // live capture has no PHAsset identifier
+                        tapPoints = []
+                        step = .calibrate
+                    }, onCancel: { dismiss() })
+                }
+            case .calibrate:
+                if let image = selectedImage {
+                    HandlebarCalibrationStep(
+                        image: image,
+                        tapPoints: $tapPoints
+                    ) {
+                        step = .analysing
+                        Task { await runAnalysis() }
+                    }
+                }
+            case .analysing:
+                ProgressView("Analysing…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .pickSideOnPhoto:
+                PhotoPickStep(
+                    pickerItem: $sideOnPickerItem,
+                    instructions: "Stand beside your bike and photograph from directly side-on at hub height.",
+                    stepLabel: "SIDE-ON · 2 OF 2"
+                ) { image, identifier in
+                    sideOnImage = image
+                    sideOnAssetIdentifier = identifier
+                    step = .analysingSideOn
+                    Task { await runSideOnAnalysis() }
+                }
+            case .analysingSideOn:
+                ProgressView("Analysing posture…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .reveal:
+                if let result = pendingResult {
+                    RevealStep(result: result, sideOnPose: pendingSideOnPose) {
+                        step = .namePosition
+                    }
+                }
+            case .namePosition:
+                if let result = pendingResult {
+                    NamePositionStep(result: result) { label in
+                        savePosition(label: label)
+                    }
+                }
+            case .done:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.green)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { dismiss() }
+                    }
             }
         }
     }
