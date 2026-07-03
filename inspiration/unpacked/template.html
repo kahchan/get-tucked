@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get Tucked — Prototype</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<style>/* vietnamese */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("b5ab890b-b004-4f7d-9803-40985dd3cedf") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("9507607d-3bc8-4c9c-bf89-733c1653f374") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("9781c5ec-0edf-4456-b9be-08cd95fdb288") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("0e71d11c-57ec-43c7-9505-99994b261728") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("17c5d777-8285-44e4-98b4-9d8e3f5e165d") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("aa09581e-cb6a-46a2-af85-3ce00114064a") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("4ef085c1-923e-4749-9812-39029a232f28") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("7ee3fae4-62db-4c6c-be6a-bd9c6798110f") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("161ab711-7efb-466b-9a8c-9c2936d876b9") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("29481fa2-bb4c-47af-92f7-4df4219b5a95") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("3898a544-ebd6-49ea-9c26-82c1be3a4ae4") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("ad3a60e5-ac85-41ba-ad2d-4c7c4c85ad7e") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("6890e841-faf8-4594-94e6-5a767a3efada") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("b7ea40db-5448-4116-aa30-e3001857b825") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("e8133fc0-6ad7-4427-ad20-ffdada57d433") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("e65dd886-292c-436e-b4d6-3d4c19c1647f") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("c011f1f6-8faa-4789-b2d1-f46b1818c46f") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("cc5f3d31-5c3a-4c35-b896-f7e5fb3f373d") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("2465232d-5956-40ce-b681-24673f60b282") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("5cd859e6-48c9-4199-9a16-9476fa640f7a") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("26c923a6-ff12-4818-b7cb-0d2b5fb5ae2e") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>/* Get Tucked — prototype styles */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#111;display:flex;align-items:center;justify-content:center;font-family:"Space Mono",monospace;overflow:hidden}
+.stage-wrap{display:flex;align-items:center;justify-content:center;width:100vw;height:100vh}
+.stage{position:relative;width:393px;height:852px;background:#080808;overflow:hidden;border-radius:48px;box-shadow:0 0 0 10px #1a1a1a,0 0 0 11px #222,0 40px 80px rgba(0,0,0,0.8);transform-origin:center center;flex-shrink:0}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:126px;height:37px;background:#1a1a1a;border-radius:0 0 20px 20px;z-index:100}
+
+/* colors */
+:root{
+  --bg0:#080808;--bg1:#101010;--bg2:#161616;--line:#262626;--line2:#1a1a1a;
+  --fg:#eeeeee;--fg2:#999;--fg3:#777;--fg4:#555;--fg5:#3a3a3a;
+  --acc:#D9F020;--amb:#E8A020;
+  --standin:#1C1C1C;--blob:#2A2A2A;
+}
+
+/* screens */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;pointer-events:none;}
+.screen.active{display:flex;pointer-events:all;}
+
+/* typography */
+.mono{font-family:"Space Mono",monospace}
+.ui{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase}
+
+/* shared bits */
+.hr{height:1px;background:var(--line);flex-shrink:0}
+.hr2{height:1px;background:var(--line2);flex-shrink:0}
+.scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.scroll::-webkit-scrollbar{width:0;display:none}
+
+/* buttons */
+.btn-acc{height:52px;background:var(--acc);display:flex;align-items:center;justify-content:space-between;padding:0 20px;cursor:pointer;user-select:none;transition:opacity 0.2s}
+.btn-acc:active{opacity:0.85}
+.btn-acc.disabled{background:var(--bg2);cursor:not-allowed;pointer-events:none}
+.btn-acc.disabled .btn-acc-lbl{color:var(--fg4)}
+.btn-acc.disabled .btn-acc-arrow{color:var(--fg4)}
+.btn-acc-lbl{font-family:"Space Mono",monospace;font-size:12px;color:#080808;letter-spacing:0.1em;font-weight:700}
+.btn-acc-arrow{font-family:"Space Mono",monospace;font-size:14px;color:#080808}
+.btn-ghost{height:48px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:border-color 0.2s}
+.btn-ghost:active{border-color:var(--fg4)}
+.btn-ghost-lbl{font-family:"Space Mono",monospace;font-size:11px;color:var(--fg2);letter-spacing:0.08em}
+
+/* labels */
+.k{font-family:"Space Mono",monospace;font-size:9px;color:var(--fg4);letter-spacing:0.1em}
+.k2{font-family:"Space Mono",monospace;font-size:11px;color:var(--fg3);letter-spacing:0.06em}
+
+/* ── HEADERS ── */
+.scr-head{padding:78px 24px 0;flex-shrink:0}
+.scr-title{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:19px;font-weight:700;color:var(--fg);letter-spacing:0.08em}
+.scr-sub{font-family:"Space Mono",monospace;font-size:11px;color:var(--fg4);letter-spacing:0.04em;margin-top:6px;line-height:1.5}
+
+/* ── camera feed ── */
+.cam{flex:1;position:relative;background:#0a0a0a;background-image:url("data:image/svg+xml,%3Csvg width='12' height='12' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='0' y1='12' x2='12' y2='0' stroke='%23fff' stroke-opacity='.04' stroke-width='1'/%3E%3C/svg%3E");background-size:12px 12px;overflow:hidden}
+.cam-corner{position:absolute;width:16px;height:16px}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:200;transition:opacity 0.08s}
+
+/* pills */
+.pill{display:flex;align-items:center;gap:7px;padding:11px 14px;border:1px solid var(--line);cursor:pointer;user-select:none;transition:border-color 0.2s;flex:1;justify-content:center}
+.pill-dot{width:7px;height:7px;border-radius:50%;background:var(--amb);transition:background 0.2s,box-shadow 0.2s}
+.pill.ok{border-color:rgba(217,240,32,0.4)}
+.pill.ok .pill-dot{background:var(--acc);box-shadow:0 0 6px var(--acc)}
+.pill-lbl{font-family:"Space Mono",monospace;font-size:11px;color:var(--fg3);letter-spacing:0.08em}
+.pill.ok .pill-lbl{color:var(--acc)}
+
+/* capture button */
+.btn-capture{height:56px;background:transparent;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:not-allowed;transition:background 0.3s,border-color 0.3s;user-select:none}
+.btn-capture.ready{border-color:var(--acc);cursor:pointer;background:rgba(217,240,32,0.05)}
+.btn-capture.ready .cap-lbl{color:var(--acc)}
+.cap-lbl{font-family:"Space Mono",monospace;font-size:12px;color:var(--fg3);letter-spacing:0.1em;transition:color 0.3s;font-weight:700}
+
+/* practice badge */
+.badge{position:absolute;top:54px;left:18px;z-index:6;border:1px solid var(--acc);padding:4px 9px;display:flex;align-items:center;gap:6px}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:var(--acc)}
+.badge-lbl{font-family:"Space Mono",monospace;font-size:9px;color:var(--acc);letter-spacing:0.12em;font-weight:700}
+
+/* step header */
+.cap-stephead{position:absolute;top:54px;left:0;right:0;z-index:5;padding:0 18px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.cap-steplbl{font-family:"Space Mono",monospace;font-size:11px;color:var(--acc);letter-spacing:0.1em;font-weight:700}
+
+/* ── PROCESSING ── */
+.proc-bar{height:1px;background:var(--acc);width:0%;margin:0 32px}
+
+/* ── REVEAL ── */
+.standin{position:relative;flex-shrink:0;overflow:hidden;background:var(--standin)}
+.standin-svg{position:absolute;inset:0;width:100%;height:100%}
+.big-num{font-family:"Space Mono",monospace;font-size:60px;font-weight:700;color:var(--fg);line-height:1;letter-spacing:-0.03em}
+.unit-lbl{font-family:"Space Mono",monospace;font-size:12px;color:var(--fg3);letter-spacing:0.05em}
+.met-row{display:flex;align-items:center;padding:0 28px;height:50px;border-bottom:1px solid var(--line2)}
+.met-key{flex:1;font-family:"Space Mono",monospace;font-size:11px;color:var(--fg3);letter-spacing:0.06em}
+.met-val{font-family:"Space Mono",monospace;font-size:16px;color:var(--fg);font-weight:700}
+
+/* skeleton anim helpers (driven by JS opacity) */
+.sk-el{transition:fill-opacity 0.35s ease, stroke-opacity 0.35s ease}
+
+/* ── SETUP ── */
+.field{padding:20px 0;border-bottom:1px solid var(--line2)}
+.field-key{display:flex;align-items:center;gap:8px;font-family:"Space Mono",monospace;font-size:11px;color:var(--fg3);letter-spacing:0.08em;margin-bottom:14px}
+.field-input{display:flex;align-items:baseline;gap:8px}
+.txt-input{font-family:"Space Mono",monospace;font-size:20px;font-weight:700;color:var(--fg);letter-spacing:-0.01em;background:transparent;border:none;outline:none;width:100%;border-bottom:1px solid var(--line);padding:6px 0}
+.txt-input::placeholder{color:var(--fg5);font-weight:400}
+.txt-input:focus{border-bottom-color:var(--acc)}
+.num-input{font-family:"Space Mono",monospace;font-size:28px;font-weight:700;color:var(--fg);letter-spacing:-0.02em;background:transparent;border:none;outline:none;width:96px;border-bottom:1px solid var(--line);padding:4px 0}
+.num-input::placeholder{color:var(--fg5)}
+.num-input:focus{border-bottom-color:var(--acc)}
+.unit{font-family:"Space Mono",monospace;font-size:13px;color:var(--fg3);letter-spacing:0.05em}
+.help{width:18px;height:18px;border:1px solid var(--line);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);cursor:pointer;user-select:none;flex-shrink:0}
+.help:active{border-color:var(--acc);color:var(--acc)}
+.tooltip{margin-top:12px;border:1px solid var(--line);background:var(--bg1);padding:11px 13px;font-family:"Space Mono",monospace;font-size:10px;color:var(--fg2);letter-spacing:0.02em;line-height:1.6;max-height:0;overflow:hidden;opacity:0;transition:max-height 0.3s,opacity 0.3s,margin 0.3s;margin-top:0}
+.tooltip.open{max-height:80px;opacity:1;margin-top:12px}
+
+/* ── ENV COACHING ── */
+.coach-col{flex:1;display:flex;flex-direction:column}
+.coach-scene{height:128px;position:relative;overflow:hidden;border:1px solid var(--line)}
+.coach-scene.good{background-image:repeating-linear-gradient(135deg,rgba(217,240,32,0.05) 0 1px,transparent 1px 9px)}
+.coach-scene.bad{background-image:repeating-linear-gradient(135deg,rgba(232,160,32,0.06) 0 1px,transparent 1px 9px)}
+.coach-tag{position:absolute;top:9px;left:9px;font-family:"Space Mono",monospace;font-size:9px;letter-spacing:0.1em;font-weight:700}
+.coach-list{padding-top:14px;display:flex;flex-direction:column;gap:11px}
+.coach-item{display:flex;gap:9px;align-items:flex-start}
+.coach-mark{font-family:"Space Mono",monospace;font-size:11px;line-height:1.4;flex-shrink:0;width:10px}
+.coach-txt{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg2);letter-spacing:0.01em;line-height:1.5}
+
+/* ── PROMPT SCREENS ── */
+.prompt-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 30px}
+.prompt-eyebrow{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg4);letter-spacing:0.14em;font-weight:700;margin-bottom:22px}
+.prompt-copy{font-family:"Barlow Condensed",sans-serif;font-size:34px;font-weight:600;color:var(--fg);line-height:1.06;letter-spacing:-0.01em;text-wrap:pretty}
+.prompt-sub{font-family:"Space Mono",monospace;font-size:11px;color:var(--fg3);letter-spacing:0.02em;line-height:1.7;margin-top:18px}
+
+/* ── NAME POSITION ── */
+.name-bg{position:absolute;inset:0;opacity:0.16;pointer-events:none}
+
+/* ── LIBRARY ── */
+.lib-row{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line2);cursor:pointer;user-select:none;position:relative;transition:background 0.15s}
+.lib-row:active{background:var(--bg1)}
+.lib-thumb{width:46px;height:58px;background:var(--standin);position:relative;flex-shrink:0;overflow:hidden}
+.lib-meta{flex:1;min-width:0}
+.lib-name{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:16px;font-weight:600;color:var(--fg);letter-spacing:0.02em;line-height:1.1}
+.lib-chips{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.chip{font-family:"Space Mono",monospace;font-size:8px;color:var(--fg3);letter-spacing:0.06em;border:1px solid var(--line);padding:2px 6px;text-transform:uppercase}
+.chip.acc{color:var(--acc);border-color:rgba(217,240,32,0.35)}
+.lib-val{text-align:right;flex-shrink:0}
+.lib-area{font-family:"Space Mono",monospace;font-size:16px;color:var(--fg);font-weight:700;letter-spacing:-0.01em}
+.lib-date{font-family:"Space Mono",monospace;font-size:8px;color:var(--fg4);letter-spacing:0.05em;margin-top:4px}
+.lib-check{width:20px;height:20px;border:1px solid var(--line);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.lib-row.sel .lib-check{border-color:var(--acc);background:var(--acc)}
+.lib-row.sel{background:rgba(217,240,32,0.03)}
+.lib-check-tick{font-family:"Space Mono",monospace;font-size:11px;color:#080808;opacity:0;font-weight:700}
+.lib-row.sel .lib-check-tick{opacity:1}
+
+/* filter chips row */
+.filter-row{display:flex;gap:8px;padding:14px 24px;flex-shrink:0;overflow-x:auto}
+.filter-row::-webkit-scrollbar{display:none}
+.fchip{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);letter-spacing:0.06em;border:1px solid var(--line);padding:7px 12px;white-space:nowrap;cursor:pointer;user-select:none;transition:all 0.15s;text-transform:uppercase}
+.fchip.on{color:var(--acc);border-color:var(--acc);background:rgba(217,240,32,0.05)}
+
+/* library prompt card */
+.lib-card{margin:18px 24px;border:1px dashed var(--line);padding:22px 20px}
+.lib-card-eyebrow{font-family:"Space Mono",monospace;font-size:9px;color:var(--acc);letter-spacing:0.12em;font-weight:700;margin-bottom:12px}
+.lib-card-copy{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:22px;font-weight:600;color:var(--fg);line-height:1.08;letter-spacing:0.01em;margin-bottom:18px;text-wrap:pretty}
+
+/* compare action bar */
+.cmp-bar{position:absolute;left:0;right:0;bottom:0;background:var(--acc);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;transform:translateY(100%);transition:transform 0.25s;z-index:10}
+.cmp-bar.show{transform:translateY(0)}
+.cmp-bar-lbl{font-family:"Space Mono",monospace;font-size:12px;color:#080808;letter-spacing:0.08em;font-weight:700}
+
+/* ── 2-UP COMPARISON ── */
+.cmp-panels{display:flex;flex-shrink:0;border-bottom:1px solid var(--line)}
+.cmp-panel{flex:1;position:relative;height:240px;background:var(--standin);overflow:hidden}
+.cmp-panel:first-child{border-right:1px solid var(--line)}
+.cmp-panel-lbl{position:absolute;top:12px;left:12px;z-index:3}
+.cmp-tag{font-family:"Space Mono",monospace;font-size:9px;font-weight:700;letter-spacing:0.1em}
+.cmp-name{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:14px;font-weight:600;color:var(--fg);letter-spacing:0.02em;margin-top:3px;line-height:1}
+.cmp-headline{text-align:center;padding:24px 0 6px;flex-shrink:0}
+.cmp-delta{font-family:"Space Mono",monospace;font-size:56px;font-weight:700;letter-spacing:-0.03em;line-height:1;color:var(--acc)}
+.cmp-delta.flat{color:var(--fg2);font-size:34px}
+.cmp-delta-cap{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg4);letter-spacing:0.1em;margin-top:10px}
+.cmp-noise{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);letter-spacing:0.04em;text-align:center;padding-bottom:14px;flex-shrink:0}
+.diff-row{display:flex;align-items:center;padding:0 24px;height:44px;border-bottom:1px solid var(--line2)}
+.diff-key{flex:1;font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);letter-spacing:0.05em}
+.diff-vals{display:flex;align-items:baseline;gap:10px}
+.diff-ab{font-family:"Space Mono",monospace;font-size:12px;color:var(--fg2)}
+.diff-d{font-family:"Space Mono",monospace;font-size:12px;font-weight:700;width:54px;text-align:right}
+.diff-d.down{color:var(--acc)}
+.diff-d.up{color:var(--amb)}
+.toggle-row{display:flex;gap:8px;padding:14px 22px 36px;flex-shrink:0;border-top:1px solid var(--line)}
+.tgl{flex:1;height:42px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;user-select:none;transition:all 0.15s}
+.tgl.on{border-color:var(--acc);background:rgba(217,240,32,0.05)}
+.tgl-lbl{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);letter-spacing:0.06em}
+.tgl.on .tgl-lbl{color:var(--acc)}
+
+/* ── NAV / INDEX ── */
+.idx-btn{position:absolute;top:50px;right:16px;z-index:300;width:38px;height:30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;user-select:none}
+.idx-btn span{width:16px;height:1.5px;background:var(--fg3);transition:background 0.2s}
+.idx-btn:active span{background:var(--acc)}
+.idx-counter{position:absolute;bottom:14px;left:0;right:0;text-align:center;z-index:60;font-family:"Space Mono",monospace;font-size:9px;color:var(--fg4);letter-spacing:0.12em;pointer-events:none}
+
+.idx-overlay{position:absolute;inset:0;background:rgba(6,6,6,0.97);z-index:400;opacity:0;pointer-events:none;transition:opacity 0.25s;display:flex;flex-direction:column;padding:72px 0 30px}
+.idx-overlay.open{opacity:1;pointer-events:all}
+.idx-overlay-head{display:flex;align-items:center;justify-content:space-between;padding:0 24px 14px}
+.idx-overlay-title{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:18px;font-weight:700;color:var(--fg);letter-spacing:0.08em}
+.idx-close{font-family:"Space Mono",monospace;font-size:18px;color:var(--fg3);cursor:pointer;user-select:none;padding:4px 8px}
+.idx-list{flex:1;overflow:auto}
+.idx-list::-webkit-scrollbar{display:none}
+.idx-item{display:flex;align-items:center;gap:14px;padding:13px 24px;cursor:pointer;user-select:none;border-bottom:1px solid var(--line2);transition:background 0.15s}
+.idx-item:active{background:var(--bg1)}
+.idx-item.cur{background:rgba(217,240,32,0.04)}
+.idx-num{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg4);letter-spacing:0.05em;width:22px;flex-shrink:0}
+.idx-item.cur .idx-num{color:var(--acc)}
+.idx-name{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:17px;font-weight:500;color:var(--fg2);letter-spacing:0.03em}
+.idx-item.cur .idx-name{color:var(--fg)}
+.idx-phase{font-family:"Space Mono",monospace;font-size:8px;color:var(--fg5);letter-spacing:0.08em;margin-left:auto;text-transform:uppercase}
+
+/* ── BIKE PICKER (capture-time) ── */
+.bike-chip{position:absolute;top:92px;left:50%;transform:translateX(-50%);z-index:7;display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(8,8,8,0.72);border:1px solid var(--line);cursor:pointer;user-select:none;backdrop-filter:blur(6px)}
+.bike-chip:active{border-color:var(--fg4)}
+.bike-chip-key{font-family:"Space Mono",monospace;font-size:8px;color:var(--fg4);letter-spacing:0.12em}
+.bike-chip-name{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:13px;font-weight:600;color:var(--fg);letter-spacing:0.03em;line-height:1}
+.bike-chip-caret{font-family:"Space Mono",monospace;font-size:9px;color:var(--acc);margin-left:2px}
+
+.sheet-backdrop{position:absolute;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:none;align-items:flex-end;backdrop-filter:blur(2px)}
+.sheet-backdrop.open{display:flex}
+.sheet{width:100%;background:var(--bg1);border-top:1px solid var(--line);border-radius:20px 20px 0 0;padding:10px 0 38px;max-height:80%;display:flex;flex-direction:column;animation:sheetUp 0.26s cubic-bezier(0.2,0.7,0.2,1) both}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-grip{width:38px;height:4px;border-radius:2px;background:var(--fg5);margin:4px auto 16px}
+.sheet-title{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);letter-spacing:0.16em;font-weight:700;padding:0 24px}
+.sheet-sub{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg4);letter-spacing:0.02em;padding:6px 24px 14px}
+.bike-list{overflow:auto}
+.bike-list::-webkit-scrollbar{width:0;display:none}
+.bike-row{display:flex;align-items:center;gap:14px;padding:15px 24px;border-top:1px solid var(--line2);cursor:pointer;user-select:none}
+.bike-row:active{background:var(--bg2)}
+.bike-radio{width:20px;height:20px;border:1px solid var(--line);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.bike-row.on .bike-radio{border-color:var(--acc);background:var(--acc)}
+.bike-radio-tick{font-family:"Space Mono",monospace;font-size:11px;color:#080808;font-weight:700;line-height:1;opacity:0}
+.bike-row.on .bike-radio-tick{opacity:1}
+.bike-row-body{flex:1;min-width:0}
+.bike-row-name{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:16px;font-weight:600;color:var(--fg);letter-spacing:0.02em;line-height:1.1}
+.bike-row-meta{display:flex;gap:8px;margin-top:5px;align-items:center}
+.bike-ruler{font-family:"Space Mono",monospace;font-size:9px;color:var(--fg3);letter-spacing:0.04em}
+
+.bike-add-toggle{display:flex;align-items:center;gap:12px;padding:16px 24px;border-top:1px solid var(--line);cursor:pointer;user-select:none}
+.bike-add-toggle:active{background:var(--bg2)}
+.bike-add-plus{font-family:"Space Mono",monospace;font-size:16px;color:var(--acc);width:20px;text-align:center;line-height:1}
+.bike-add-lbl{font-family:"Space Mono",monospace;font-size:11px;color:var(--acc);letter-spacing:0.08em;font-weight:700}
+.bike-add-form{display:none;padding:4px 24px 8px;border-top:1px solid var(--line);flex-direction:column;gap:16px}
+.bike-add-form.open{display:flex}
+.bike-add-form .field-key{margin-top:14px}
+.seg{display:flex;gap:8px}
+.seg-opt{flex:1;height:40px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:all 0.15s}
+.seg-opt.on{border-color:var(--acc);background:rgba(217,240,32,0.06)}
+.seg-opt-lbl{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);letter-spacing:0.06em}
+.seg-opt.on .seg-opt-lbl{color:var(--acc)}
+.bike-width-wrap{display:flex;align-items:baseline;gap:8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.bike-width-input{flex:1;background:transparent;border:none;outline:none;font-family:"Space Mono",monospace;font-size:22px;font-weight:700;color:var(--fg);letter-spacing:-0.01em}
+.bike-width-input::placeholder{color:var(--fg5)}
+.bike-width-unit{font-family:"Space Mono",monospace;font-size:13px;color:var(--fg3)}
+
+/* ── BACK NAV ── */
+.back-btn{position:absolute;top:48px;left:14px;z-index:300;width:36px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+.back-btn-ico{font-family:"Space Mono",monospace;font-size:18px;color:var(--fg3);transition:color 0.2s}
+.back-btn:active .back-btn-ico{color:var(--acc)}
+
+/* header inline link */
+.hdr-link{font-family:"Space Mono",monospace;font-size:10px;color:var(--acc);letter-spacing:0.08em;cursor:pointer;user-select:none;white-space:nowrap;padding-bottom:2px}
+.hdr-link:active{opacity:0.7}
+
+/* ── LEADERBOARD ── */
+.lb-toggle{display:flex;gap:8px;padding:16px 24px 0;flex-shrink:0}
+.lb-tgl{flex:1;height:38px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:all 0.15s}
+.lb-tgl.on{border-color:var(--acc);background:rgba(217,240,32,0.05)}
+.lb-tgl-lbl{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg3);letter-spacing:0.06em}
+.lb-tgl.on .lb-tgl-lbl{color:var(--acc)}
+.lb-row{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line2);position:relative}
+.lb-row.you{background:rgba(217,240,32,0.05)}
+.lb-rank{font-family:"Space Mono",monospace;font-size:15px;font-weight:700;color:var(--fg4);width:24px;flex-shrink:0;letter-spacing:-0.02em;text-align:center}
+.lb-rank.top{color:var(--fg)}
+.lb-row.you .lb-rank{color:var(--acc)}
+.lb-body{flex:1;min-width:0}
+.lb-name{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:15px;font-weight:600;color:var(--fg2);letter-spacing:0.02em;line-height:1.1;display:flex;align-items:center;gap:7px}
+.lb-row.you .lb-name{color:var(--fg)}
+.lb-you-tag{font-family:"Space Mono",monospace;font-size:7px;color:#080808;background:var(--acc);padding:2px 5px;letter-spacing:0.08em;font-weight:700}
+.lb-bar{height:2px;background:var(--line2);margin-top:9px;position:relative;overflow:hidden}
+.lb-bar-fill{position:absolute;left:0;top:0;bottom:0;background:var(--fg4);transition:width 0.4s ease}
+.lb-row.you .lb-bar-fill{background:var(--acc)}
+.lb-valwrap{text-align:right;flex-shrink:0;width:78px}
+.lb-val{font-family:"Space Mono",monospace;font-size:16px;font-weight:700;color:var(--fg);letter-spacing:-0.01em}
+.lb-sub{font-family:"Space Mono",monospace;font-size:8px;color:var(--fg4);letter-spacing:0.04em;margin-top:4px}
+
+/* ── METHODOLOGY ── */
+.method-step{display:flex;gap:16px;padding:0 24px}
+.method-rail{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.method-num{font-family:"Space Mono",monospace;font-size:11px;font-weight:700;color:var(--acc);width:30px;height:30px;border:1px solid rgba(217,240,32,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--bg0)}
+.method-line{width:1px;flex:1;background:var(--line);margin:6px 0}
+.method-body{padding-bottom:24px;flex:1;padding-top:3px}
+.method-title{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:17px;font-weight:600;color:var(--fg);letter-spacing:0.04em;margin-bottom:8px}
+.method-desc{font-family:"Space Mono",monospace;font-size:11px;color:var(--fg3);letter-spacing:0.01em;line-height:1.7}
+.method-col-tag{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:0.1em;font-weight:700;margin-bottom:12px}
+.method-cols{display:flex;gap:16px;padding:0 24px;margin-top:4px}
+.method-note{margin:24px 24px 0;border:1px solid var(--line);background:var(--bg1);padding:16px}
+.method-note-key{font-family:"Space Mono",monospace;font-size:9px;color:var(--acc);letter-spacing:0.12em;font-weight:700;margin-bottom:10px}
+.method-note-txt{font-family:"Space Mono",monospace;font-size:10px;color:var(--fg2);letter-spacing:0.01em;line-height:1.7}
+.method-close{padding:30px 24px 44px}
+.method-close-line{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:30px;font-weight:700;color:var(--fg);line-height:1.04;letter-spacing:-0.01em}
+
+/* ── HOW IT WORKS (intro) ── */
+.hiw-lead{font-family:"Barlow Condensed",sans-serif;font-size:26px;font-weight:600;color:var(--fg);line-height:1.14;letter-spacing:-0.01em;text-wrap:pretty;margin-bottom:30px}
+.hiw-steps{display:flex;flex-direction:column;gap:22px}
+.hiw-step{display:flex;gap:16px;align-items:flex-start}
+.hiw-num{font-family:"Space Mono",monospace;font-size:11px;font-weight:700;color:var(--acc);width:30px;height:30px;border:1px solid rgba(217,240,32,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hiw-body{flex:1;padding-top:3px}
+.hiw-title{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:17px;font-weight:600;color:var(--fg);letter-spacing:0.04em;margin-bottom:6px}
+.hiw-desc{font-family:"Space Mono",monospace;font-size:11px;color:var(--fg3);letter-spacing:0.01em;line-height:1.65}
+
+/* stick-figure tweak: hide skeleton, keep the stand-in silhouette */
+.no-figure .sk-bone,
+.no-figure .sk-joint,
+.no-figure .sk-ann,
+.no-figure .sk-blob-trace{display:none !important}
+</style>
+</head>
+<body>
+<div class="stage-wrap"><div class="stage">
+  <div class="notch"></div>
+  <div class="flash" id="flash"></div>
+
+  <!-- index button -->
+  <div class="idx-btn" onclick="toggleIndex(true)"><span></span><span></span><span></span></div>
+
+  <!-- shared bike picker sheet -->
+  <div class="sheet-backdrop" id="bike-sheet" onclick="if(event.target===this)closeBikePicker()">
+    <div class="sheet">
+      <div class="sheet-grip"></div>
+      <div class="sheet-title">SHOOTING ON</div>
+      <div class="sheet-sub">Each bike's handlebar width is the ruler that turns pixels into centimetres.</div>
+      <div class="bike-list" id="bike-list"></div>
+      <div class="bike-add-toggle" id="bike-add-toggle" onclick="toggleAddBike()">
+        <span class="bike-add-plus" id="bike-add-plus">+</span>
+        <span class="bike-add-lbl" id="bike-add-lbl">ADD A BIKE</span>
+      </div>
+      <div class="bike-add-form" id="bike-add-form">
+        <div>
+          <div class="field-key" style="margin-top:4px">NICKNAME</div>
+          <div class="field-input"><input class="txt-input" id="newbike-nick" type="text" placeholder="Winter trainer" autocomplete="off"></div>
+        </div>
+        <div>
+          <div class="field-key">TYPE</div>
+          <div class="seg" id="newbike-seg">
+            <div class="seg-opt on" data-type="ROAD" onclick="pickType('ROAD')"><span class="seg-opt-lbl">ROAD</span></div>
+            <div class="seg-opt" data-type="GRAVEL" onclick="pickType('GRAVEL')"><span class="seg-opt-lbl">GRAVEL</span></div>
+            <div class="seg-opt" data-type="MTB" onclick="pickType('MTB')"><span class="seg-opt-lbl">MTB</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="field-key">HANDLEBAR WIDTH</div>
+          <div class="bike-width-wrap">
+            <input class="bike-width-input" id="newbike-width" type="number" inputmode="numeric" placeholder="420" autocomplete="off">
+            <span class="bike-width-unit">mm</span>
+          </div>
+        </div>
+        <div class="btn-acc disabled" id="newbike-save" onclick="saveBike()" style="margin-top:6px">
+          <span class="btn-acc-lbl">SAVE &amp; SELECT</span><span class="btn-acc-arrow">→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 00 · WELCOME ══════ -->
+  <div class="screen active" id="s0" data-screen-label="00 Welcome">
+    <div style="flex:1;padding:96px 32px 24px;display:flex;flex-direction:column">
+      <div class="ui" style="font-size:88px;font-weight:700;color:var(--fg);line-height:0.88;margin-bottom:44px">Get<br>Tucked</div>
+      <div class="mono" style="font-size:13px;color:var(--fg2);line-height:1.8;letter-spacing:0.02em">Be informed,<br>don't guess.</div>
+      <div style="flex:1"></div>
+      <div class="mono" style="font-size:11px;color:var(--fg3);letter-spacing:0.03em;line-height:1.85;margin-bottom:30px">Measure rider frontal area<br>from a single photograph.<br>Compare positions.</div>
+      <div class="btn-acc" onclick="go(1)">
+        <span class="btn-acc-lbl">GET STARTED</span><span class="btn-acc-arrow">→</span>
+      </div>
+    </div>
+    <div style="height:40px"></div>
+  </div>
+
+  <!-- ══════ · HOW IT WORKS ══════ -->
+  <div class="screen" id="s_intro" data-screen-label="How It Works">
+    <div class="scr-head">
+      <div class="scr-title">What It Does</div>
+      <div class="scr-sub">One photo in. A real number out.</div>
+      <div class="hr" style="margin-top:24px"></div>
+    </div>
+    <div class="scroll" style="padding:26px 24px 0">
+      <div class="hiw-lead">Get Tucked reads photos of you on the bike and compares your frontal area — the surface the wind actually fights.</div>
+      <div class="hiw-steps">
+        <div class="hiw-step">
+          <div class="hiw-num">01</div>
+          <div class="hiw-body">
+            <div class="hiw-title">Snap</div>
+            <div class="hiw-desc">One head-on shot of your riding position. No wind tunnel, no sensors.</div>
+          </div>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-num">02</div>
+          <div class="hiw-body">
+            <div class="hiw-title">Measure</div>
+            <div class="hiw-desc">Your handlebar width is a known ruler — it turns pixels into real centimetres.</div>
+          </div>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-num">03</div>
+          <div class="hiw-body">
+            <div class="hiw-title">Compare</div>
+            <div class="hiw-desc">Save positions and stack them side by side. Watch the number drop.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 24px 44px;flex-shrink:0">
+      <div class="hr" style="margin-bottom:16px"></div>
+      <div class="btn-acc" onclick="go(2)">
+        <span class="btn-acc-lbl">BEGIN SETUP</span><span class="btn-acc-arrow">→</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 01 · BIKE SETUP ══════ -->
+  <div class="screen" id="s1" data-screen-label="01 Bike Setup">
+    <div class="scr-head">
+      <div class="scr-title">Bike Setup</div>
+      <div class="scr-sub">Two facts. Then we shoot.</div>
+      <div class="hr" style="margin-top:24px"></div>
+    </div>
+    <div class="scroll" style="padding:0 24px">
+      <div class="field">
+        <div class="field-key">NICKNAME</div>
+        <div class="field-input">
+          <input class="txt-input" id="setup-nick" type="text" placeholder="Summer road rig" autocomplete="off">
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-key">
+          HANDLEBAR WIDTH
+          <div class="help" id="width-help">?</div>
+        </div>
+        <div class="field-input">
+          <input class="num-input" id="setup-width" type="number" placeholder="420" min="320" max="520">
+          <div class="unit">mm</div>
+        </div>
+        <div class="tooltip" id="width-tip">Measure center-to-center across the bar tops. It sets the scale for every measurement.</div>
+      </div>
+    </div>
+    <div style="padding:0 24px 44px;flex-shrink:0">
+      <div class="hr" style="margin-bottom:16px"></div>
+      <div class="btn-acc disabled" id="setup-continue" onclick="go(3)">
+        <span class="btn-acc-lbl">PROCEED TO CAPTURE</span><span class="btn-acc-arrow">→</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 02 · SET THE SCENE ══════ -->
+  <div class="screen" id="s2" data-screen-label="02 Set the Scene">
+    <div class="scr-head">
+      <div class="scr-title">Set the Scene</div>
+      <div class="scr-sub">Good light in, good numbers out.</div>
+      <div class="hr" style="margin-top:24px"></div>
+    </div>
+    <div class="scroll" style="padding:20px 24px 0">
+      <div style="display:flex;gap:16px">
+        <div class="coach-col">
+          <div class="coach-scene good">
+            <div class="coach-tag" style="color:var(--acc)">DO</div>
+            <div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:30px;height:84px;background:var(--blob);opacity:0.7"></div>
+          </div>
+          <div class="coach-list">
+            <div class="coach-item"><div class="coach-mark" style="color:var(--acc)">+</div><div class="coach-txt">Plain wall behind you</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--acc)">+</div><div class="coach-txt">Even, flat light</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--acc)">+</div><div class="coach-txt">Whole body in frame</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--acc)">+</div><div class="coach-txt">Phone held level</div></div>
+          </div>
+        </div>
+        <div class="coach-col">
+          <div class="coach-scene bad">
+            <div class="coach-tag" style="color:var(--amb)">AVOID</div>
+            <div style="position:absolute;left:30%;bottom:0;width:18px;height:60px;background:var(--blob);opacity:0.5"></div>
+            <div style="position:absolute;left:62%;bottom:0;width:26px;height:96px;background:var(--blob);opacity:0.4;transform:skewX(-6deg)"></div>
+            <div style="position:absolute;left:12px;top:40px;width:30px;height:30px;border:1px solid rgba(232,160,32,0.25)"></div>
+          </div>
+          <div class="coach-list">
+            <div class="coach-item"><div class="coach-mark" style="color:var(--amb)">−</div><div class="coach-txt">Cluttered background</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--amb)">−</div><div class="coach-txt">Harsh side shadows</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--amb)">−</div><div class="coach-txt">Feet clipped off</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--amb)">−</div><div class="coach-txt">Tilted phone</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:18px 24px 44px;flex-shrink:0">
+      <div class="hr" style="margin-bottom:16px"></div>
+      <div class="btn-acc" onclick="go(4)">
+        <span class="btn-acc-lbl">GOT IT</span><span class="btn-acc-arrow">→</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 03 · PRACTICE CAPTURE ══════ (built by JS) -->
+  <div class="screen" id="s3" data-screen-label="03 Practice Capture" style="background:#060606"></div>
+
+  <!-- ══════ 04 · SIDE-ON CAPTURE ══════ (built by JS) -->
+  <div class="screen" id="s4" data-screen-label="04 Side-on Capture" style="background:#060606"></div>
+
+  <!-- ══════ 05 · PROCESSING ══════ -->
+  <div class="screen" id="s5" data-screen-label="05 Processing" style="justify-content:center;align-items:center">
+    <div style="width:100%;padding:0 32px">
+      <div class="mono" style="font-size:11px;color:var(--fg3);letter-spacing:0.14em;margin-bottom:20px;text-align:center;font-weight:700">PROCESSING</div>
+      <div class="proc-bar" id="proc-bar"></div>
+      <div class="mono" id="proc-msg" style="font-size:11px;color:var(--fg3);letter-spacing:0.08em;margin-top:18px;text-align:center">SEGMENTING RIDER</div>
+    </div>
+  </div>
+
+  <!-- ══════ 06 · REVEAL ══════ -->
+  <div class="screen" id="s6" data-screen-label="06 Reveal">
+    <div style="position:absolute;top:54px;left:0;right:0;z-index:5;padding:0 18px;display:flex;align-items:center;justify-content:space-between;pointer-events:none">
+      <div class="mono" style="font-size:11px;color:var(--acc);letter-spacing:0.1em;font-weight:700">RESULT · HEAD-ON</div>
+    </div>
+    <!-- stand-in + skeleton -->
+    <div class="standin" id="reveal-skel" style="height:360px"></div>
+    <!-- headline -->
+    <div style="background:var(--bg1);padding:16px 28px 12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-shrink:0">
+      <div class="mono" id="reveal-poslbl" style="font-size:8px;color:var(--fg4);letter-spacing:0.1em;margin-bottom:6px">FRONTAL AREA · HOODS, FULLY LOADED</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div class="big-num" id="reveal-num">—</div>
+        <div class="unit-lbl">cm²</div>
+        <div style="flex:1"></div>
+        <div style="text-align:right;cursor:pointer" onclick="go(15)">
+          <div class="mono" style="font-size:7px;color:var(--fg4);letter-spacing:0.08em;margin-bottom:3px">NOISE FLOOR</div>
+          <div class="mono" style="font-size:9px;color:var(--fg3);border-bottom:1px dotted var(--fg4);display:inline-block;padding-bottom:1px">±2.1%</div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:1;overflow:hidden">
+      <div class="met-row"><div class="met-key">TORSO ANGLE</div><div class="met-val">42°</div></div>
+      <div class="met-row"><div class="met-key">HEAD HEIGHT</div><div class="met-val">112 cm</div></div>
+      <div class="met-row"><div class="met-key">SHOULDER WIDTH</div><div class="met-val">47 cm</div></div>
+      <div class="met-row" style="border-bottom:none"><div class="met-key">SEAT DROP</div><div class="met-val">18 cm</div></div>
+    </div>
+    <div style="padding:12px 24px 40px;flex-shrink:0;border-top:1px solid var(--line)">
+      <div class="btn-acc" onclick="go(8)">
+        <span class="btn-acc-lbl">NAME THIS POSITION</span><span class="btn-acc-arrow">→</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 07 · NAME POSITION ══════ -->
+  <div class="screen" id="s7" data-screen-label="07 Name Position">
+    <div class="name-bg"><div class="standin" id="name-bg-skel" style="position:absolute;inset:0;background:transparent"></div></div>
+    <div style="position:relative;z-index:2;flex:1;display:flex;flex-direction:column;padding:0 30px;justify-content:center">
+      <div class="prompt-eyebrow">124.7 cm² · CAPTURED</div>
+      <div class="prompt-copy" style="margin-bottom:30px">Name this<br>position.</div>
+      <input class="txt-input" id="name-input" type="text" placeholder="Hoods, fully loaded" autocomplete="off" style="font-size:22px">
+      <div class="mono" style="font-size:10px;color:var(--fg4);letter-spacing:0.04em;margin-top:12px">You'll compare against this name later.</div>
+    </div>
+    <div style="position:relative;z-index:2;padding:0 30px 44px;flex-shrink:0">
+      <div class="btn-acc disabled" id="name-save" onclick="go(9)">
+        <span class="btn-acc-lbl">SAVE POSITION</span><span class="btn-acc-arrow">→</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 08 · NOISE FLOOR ══════ -->
+  <div class="screen" id="s8" data-screen-label="08 Noise Floor">
+    <div class="prompt-wrap">
+      <div class="prompt-eyebrow">OPTIONAL · 30 SECONDS</div>
+      <div class="prompt-copy">How precise<br>is this number?</div>
+      <div class="prompt-sub">Take one more set in the same position — don't move the bike. We'll show you the measurement's true margin of error.</div>
+    </div>
+    <div style="padding:0 30px 44px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">
+      <div class="btn-acc" onclick="go(10)">
+        <span class="btn-acc-lbl">DO IT NOW</span><span class="btn-acc-arrow">→</span>
+      </div>
+      <div class="btn-ghost" onclick="go(10)"><div class="btn-ghost-lbl">SKIP FOR NOW</div></div>
+    </div>
+  </div>
+
+  <!-- ══════ 09 · COMPARISON PROMPT ══════ -->
+  <div class="screen" id="s9" data-screen-label="09 Comparison Prompt">
+    <div class="prompt-wrap">
+      <div class="prompt-eyebrow">YOU'RE SET UP</div>
+      <div class="prompt-copy">One position is a<br>measurement.<br>Two is a<br><span style="color:var(--acc)">comparison.</span></div>
+    </div>
+    <div style="padding:0 30px 44px;flex-shrink:0;display:flex;flex-direction:column;gap:14px">
+      <div class="btn-acc" onclick="go(5)">
+        <span class="btn-acc-lbl">CAPTURE SECOND POSITION</span><span class="btn-acc-arrow">→</span>
+      </div>
+      <div class="btn-ghost" onclick="go(11)">
+        <span class="btn-ghost-lbl">GO TO LIBRARY</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 10 · LIBRARY · EMPTY ══════ -->
+  <div class="screen" id="s10" data-screen-label="10 Library Empty">
+    <div class="scr-head" style="padding-bottom:14px">
+      <div class="scr-title">Library</div>
+      <div class="scr-sub">1 position</div>
+    </div>
+    <div class="hr"></div>
+    <div class="scroll">
+      <div class="lib-row" onclick="go(12)">
+        <div class="lib-thumb" data-thumb=""></div>
+        <div class="lib-meta">
+          <div class="lib-name" id="lib-new-name">HOODS, FULLY LOADED</div>
+          <div class="lib-chips"><div class="chip acc" id="lib-new-type">ROAD</div><div class="chip" id="lib-new-rig">SUMMER RIG</div></div>
+        </div>
+        <div class="lib-val">
+          <div class="lib-area">124.7</div>
+          <div class="lib-date">JUN 03</div>
+        </div>
+      </div>
+      <div class="lib-card">
+        <div class="lib-card-eyebrow">NEXT STEP</div>
+        <div class="lib-card-copy">Add a second position to start comparing.</div>
+        <div class="btn-acc" onclick="go(12)">
+          <span class="btn-acc-lbl">CAPTURE A POSITION</span><span class="btn-acc-arrow">→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 11 · LIBRARY · POPULATED ══════ -->
+  <div class="screen" id="s11" data-screen-label="11 Library Full">
+    <div class="scr-head" style="padding-bottom:0">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+        <div>
+          <div class="scr-title">Library</div>
+          <div class="scr-sub">5 positions · tap two to compare</div>
+        </div>
+        <div class="hdr-link" onclick="go(14)">LEADERBOARD →</div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="fchip on">ALL</div>
+      <div class="fchip">ROAD</div>
+      <div class="fchip">GRAVEL</div>
+      <div class="fchip">RACE DAY</div>
+      <div class="fchip">TRAINING</div>
+    </div>
+    <div class="hr"></div>
+    <div class="scroll" style="padding-bottom:70px">
+      <div class="lib-row sel">
+        <div class="lib-check"><div class="lib-check-tick">✓</div></div>
+        <div class="lib-thumb" data-thumb=""></div>
+        <div class="lib-meta">
+          <div class="lib-name">AERO TUCK</div>
+          <div class="lib-chips"><div class="chip">GRAVEL</div><div class="chip">RACE DAY</div></div>
+        </div>
+        <div class="lib-val"><div class="lib-area">118.2</div><div class="lib-date">JUN 03</div></div>
+      </div>
+      <div class="lib-row sel">
+        <div class="lib-check"><div class="lib-check-tick">✓</div></div>
+        <div class="lib-thumb" data-thumb=""></div>
+        <div class="lib-meta">
+          <div class="lib-name">HOODS, FULLY LOADED</div>
+          <div class="lib-chips"><div class="chip acc">ROAD</div><div class="chip">TRAINING</div></div>
+        </div>
+        <div class="lib-val"><div class="lib-area">124.7</div><div class="lib-date">JUN 03</div></div>
+      </div>
+      <div class="lib-row">
+        <div class="lib-check"><div class="lib-check-tick">✓</div></div>
+        <div class="lib-thumb" data-thumb=""></div>
+        <div class="lib-meta">
+          <div class="lib-name">DROPS, SPRINT</div>
+          <div class="lib-chips"><div class="chip acc">ROAD</div><div class="chip">TRAINING</div></div>
+        </div>
+        <div class="lib-val"><div class="lib-area">121.0</div><div class="lib-date">MAY 28</div></div>
+      </div>
+      <div class="lib-row">
+        <div class="lib-check"><div class="lib-check-tick">✓</div></div>
+        <div class="lib-thumb" data-thumb=""></div>
+        <div class="lib-meta">
+          <div class="lib-name">HOODS, RELAXED</div>
+          <div class="lib-chips"><div class="chip acc">ROAD</div><div class="chip">TRAINING</div></div>
+        </div>
+        <div class="lib-val"><div class="lib-area">131.4</div><div class="lib-date">MAY 28</div></div>
+      </div>
+      <div class="lib-row">
+        <div class="lib-check"><div class="lib-check-tick">✓</div></div>
+        <div class="lib-thumb" data-thumb=""></div>
+        <div class="lib-meta">
+          <div class="lib-name">BAR TOPS, LOW</div>
+          <div class="lib-chips"><div class="chip">GRAVEL</div><div class="chip">RACE DAY</div></div>
+        </div>
+        <div class="lib-val"><div class="lib-area">109.6</div><div class="lib-date">MAY 14</div></div>
+      </div>
+    </div>
+    <div class="cmp-bar" id="cmp-bar" onclick="go(13)">
+      <span class="cmp-bar-lbl" id="cmp-bar-count">COMPARE (2)</span>
+      <span class="cmp-bar-lbl">→</span>
+    </div>
+  </div>
+
+  <!-- ══════ 12 · 2-UP COMPARISON ══════ -->
+  <div class="screen" id="s12" data-screen-label="12 2-Up Comparison">
+    <div style="position:absolute;top:54px;left:0;right:0;z-index:5;padding:0 18px;pointer-events:none">
+      <div class="mono" style="font-size:11px;color:var(--fg3);letter-spacing:0.1em;font-weight:700">COMPARE</div>
+    </div>
+    <div class="cmp-panels" style="margin-top:80px">
+      <div class="cmp-panel">
+        <div id="cmp-panel-a"></div>
+        <div class="cmp-panel-lbl"><div class="cmp-tag" style="color:var(--fg3)">A</div><div class="cmp-name">Aero Tuck</div></div>
+      </div>
+      <div class="cmp-panel">
+        <div id="cmp-panel-b"></div>
+        <div class="cmp-panel-lbl"><div class="cmp-tag" style="color:var(--acc)">B</div><div class="cmp-name">Hoods, Loaded</div></div>
+      </div>
+    </div>
+    <div class="cmp-headline">
+      <div class="cmp-delta" id="cmp-delta">−4.8%</div>
+      <div class="cmp-delta-cap">A IS SMALLER · 6.5 cm²</div>
+    </div>
+    <div class="cmp-noise">Your noise floor: ±2.1% — this delta is real.</div>
+    <div class="hr"></div>
+    <div style="flex:1;overflow:hidden">
+      <div class="diff-row"><div class="diff-key">FRONTAL AREA</div><div class="diff-vals"><div class="diff-ab">118.2 / 124.7</div><div class="diff-d down">−6.5</div></div></div>
+      <div class="diff-row"><div class="diff-key">SHOULDER WIDTH</div><div class="diff-vals"><div class="diff-ab">44 / 47</div><div class="diff-d down">−3.0</div></div></div>
+      <div class="diff-row"><div class="diff-key">FRONTAL HEIGHT</div><div class="diff-vals"><div class="diff-ab">54 / 58</div><div class="diff-d down">−4.0</div></div></div>
+      <div class="diff-row"><div class="diff-key">HEAD HEIGHT</div><div class="diff-vals"><div class="diff-ab">118 / 112</div><div class="diff-d up">+6.0</div></div></div>
+    </div>
+    <div class="toggle-row">
+      <div class="tgl on"><div class="tgl-lbl">SILHOUETTE</div></div>
+      <div class="tgl"><div class="tgl-lbl">SKELETON</div></div>
+      <div class="tgl"><div class="tgl-lbl">BAGS</div></div>
+    </div>
+  </div>
+
+  <!-- ══════ 13 · LEADERBOARD ══════ -->
+  <div class="screen" id="s13" data-screen-label="13 Leaderboard">
+    <div class="back-btn" onclick="goBack()"><span class="back-btn-ico">←</span></div>
+    <div class="scr-head" style="padding-top:78px;padding-bottom:0">
+      <div class="scr-title">Leaderboard</div>
+      <div class="scr-sub" id="lb-sub-note">Your positions, ranked by frontal area.</div>
+    </div>
+    <div class="lb-toggle">
+      <div class="lb-tgl on" data-bike="all" onclick="setLbBike('all')"><div class="lb-tgl-lbl">ALL</div></div>
+      <div class="lb-tgl" data-bike="ROAD" onclick="setLbBike('ROAD')"><div class="lb-tgl-lbl">ROAD</div></div>
+      <div class="lb-tgl" data-bike="GRAVEL" onclick="setLbBike('GRAVEL')"><div class="lb-tgl-lbl">GRAVEL</div></div>
+    </div>
+    <div class="hr" style="margin-top:12px"></div>
+    <div class="scroll" id="lb-list"></div>
+  </div>
+
+  <!-- ══════ 14 · METHODOLOGY ══════ -->
+  <div class="screen" id="s14" data-screen-label="14 Methodology">
+    <div class="back-btn" onclick="goBack()"><span class="back-btn-ico">←</span></div>
+    <div class="scr-head">
+      <div class="scr-title">Methodology</div>
+      <div class="scr-sub">How the number is made.</div>
+      <div class="hr" style="margin-top:24px"></div>
+    </div>
+    <div class="scroll" style="padding-top:26px">
+      <div class="method-step">
+        <div class="method-rail"><div class="method-num">01</div><div class="method-line"></div></div>
+        <div class="method-body">
+          <div class="method-title">Isolate</div>
+          <div class="method-desc">We separate you and the bike from everything behind you. The background is thrown away — only your silhouette survives.</div>
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="method-rail"><div class="method-num">02</div><div class="method-line"></div></div>
+        <div class="method-body">
+          <div class="method-title">Scale</div>
+          <div class="method-desc">Your handlebar width is a known ruler in the frame. It converts pixels into real centimetres — no depth sensor required.</div>
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="method-rail"><div class="method-num">03</div></div>
+        <div class="method-body">
+          <div class="method-title">Project</div>
+          <div class="method-desc">We sum the lit silhouette into one figure: your frontal area, in cm² — the surface the wind actually sees.</div>
+        </div>
+      </div>
+      <div class="hr" style="margin:8px 24px 24px"></div>
+      <div style="padding:0 24px 4px"><div class="k">WHAT THE NUMBER IS — AND ISN'T</div></div>
+      <div class="method-cols">
+        <div class="coach-col">
+          <div class="method-col-tag" style="color:var(--acc)">IT IS</div>
+          <div class="coach-list">
+            <div class="coach-item"><div class="coach-mark" style="color:var(--acc)">+</div><div class="coach-txt">A repeatable proxy for drag</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--acc)">+</div><div class="coach-txt">Sensitive to position, not weather</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--acc)">+</div><div class="coach-txt">Comparable shot to shot</div></div>
+          </div>
+        </div>
+        <div class="coach-col">
+          <div class="method-col-tag" style="color:var(--amb)">IT ISN'T</div>
+          <div class="coach-list">
+            <div class="coach-item"><div class="coach-mark" style="color:var(--amb)">−</div><div class="coach-txt">A wind-tunnel CdA figure</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--amb)">−</div><div class="coach-txt">A read on surface or yaw drag</div></div>
+            <div class="coach-item"><div class="coach-mark" style="color:var(--amb)">−</div><div class="coach-txt">A watts-saved promise</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="method-note">
+        <div class="method-note-key">THE NOISE FLOOR</div>
+        <div class="method-note-txt">Every reading carries a ±2.1% margin. Re-shoot the same position to confirm a change is real — not measurement jitter.</div>
+      </div>
+      <div class="method-close">
+        <div class="method-close-line">Be informed,<br><span style="color:var(--acc)">don't guess.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- counter -->
+  <div class="idx-counter" id="idx-counter">01 / 16 · WELCOME</div>
+
+  <!-- index overlay -->
+  <div class="idx-overlay" id="idx-overlay">
+    <div class="idx-overlay-head">
+      <div class="idx-overlay-title">Screens</div>
+      <div class="idx-close" onclick="toggleIndex(false)">✕</div>
+    </div>
+    <div class="hr2"></div>
+    <div class="idx-list" id="idx-list"></div>
+  </div>
+
+</div></div>
+
+<!-- tweaks panel (React, mounted standalone) -->
+<div id="tweaks-root"></div>
+<script src="b4ce408a-2a1b-4e0a-91ab-8fc2bd4ca152" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="18c7305f-441e-47f6-bbaf-ae50d176e7fa" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="1ae2db59-5607-46eb-a964-5641f2aa4ec8" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="b554d774-e090-43a2-ae25-d79d180e71f4"></script>
+<script type="text/babel" src="adf5215b-243e-4e25-ba47-8b6fa246ef65"></script>
+<script type="text/babel">
+const GT_TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "figure": true,
+  "animSpeed": 2
+}/*EDITMODE-END*/;
+function GTTweaks() {
+  const [t, setTweak] = useTweaks(GT_TWEAK_DEFAULTS);
+  React.useEffect(() => { window.GTApply && window.GTApply.figure(t.figure); }, [t.figure]);
+  React.useEffect(() => { window.GTApply && window.GTApply.animSpeed(t.animSpeed); }, [t.animSpeed]);
+  return (
+    <TweaksPanel>
+      <TweakSection label="Prototype" />
+      <TweakToggle label="Stick figure" value={t.figure}
+                   onChange={(v) => setTweak('figure', v)} />
+      <TweakSlider label="Animation speed" value={t.animSpeed}
+                   min={0.25} max={3} step={0.25} unit="×"
+                   onChange={(v) => setTweak('animSpeed', v)} />
+    </TweaksPanel>
+  );
+}
+ReactDOM.createRoot(document.getElementById('tweaks-root')).render(<GTTweaks />);
+</script>
+
+
+</body></html>
