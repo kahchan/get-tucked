@@ -30,6 +30,7 @@ struct CaptureView: View {
         case analysing          // head-on analysis
         case pickSideOnPhoto    // side-on · 2 OF 2
         case analysingSideOn    // side-on analysis
+        case reveal             // frontal-area result reveal
         case namePosition
         case done
     }
@@ -78,6 +79,12 @@ struct CaptureView: View {
                 case .analysingSideOn:
                     ProgressView("Analysing posture…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .reveal:
+                    if let result = pendingResult {
+                        RevealStep(result: result, sideOnPose: pendingSideOnPose) {
+                            step = .namePosition
+                        }
+                    }
                 case .namePosition:
                     if let result = pendingResult {
                         NamePositionStep(result: result) { label in
@@ -117,6 +124,7 @@ struct CaptureView: View {
         case .analysing:        "Analysing"
         case .pickSideOnPhoto:  "SIDE-ON · 2 OF 2"
         case .analysingSideOn:  "Analysing"
+        case .reveal:           "Result"
         case .namePosition:     "Name position"
         case .done:             "Done"
         }
@@ -152,8 +160,8 @@ struct CaptureView: View {
     private func runSideOnAnalysis() async {
         guard let image = sideOnImage,
               let pixelsPerCm = pendingResult?.pixelsPerCm else {
-            // Side-on failed or skipped — go straight to naming
-            step = .namePosition
+            // Side-on failed or skipped — reveal the frontal-area result anyway
+            step = .reveal
             return
         }
         // Pose failure is non-fatal: we still save the position, just without posture metrics.
@@ -161,13 +169,16 @@ struct CaptureView: View {
             image: image,
             pixelsPerCm: pixelsPerCm
         )
-        step = .namePosition
+        step = .reveal
     }
 
     private func savePosition(label: String) {
         guard let result = pendingResult, let bike = selectedBike else { return }
         let position = Position(label: label, bike: bike)
         position.headOnPhotoIdentifier = assetIdentifier
+        // Live capture has no PHAsset identifier — persist the image bytes so the
+        // detail view can display the frontal photo.
+        position.photosData = selectedImage?.compressedForStorage()
         position.handlebarTapPoints = [
             tapPoints[0].x, tapPoints[0].y,
             tapPoints[1].x, tapPoints[1].y,
@@ -281,6 +292,68 @@ private struct PhotoPickStep: View {
             Spacer()
         }
         .padding()
+    }
+}
+
+private struct RevealStep: View {
+    let result: AnalysisResult
+    let sideOnPose: SideOnPoseMetrics?
+    let onContinue: () -> Void
+
+    var body: some View {
+        ZStack {
+            Theme.Palette.bg0.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("FRONTAL AREA")
+                            .font(Theme.mono(11, weight: .bold))
+                            .foregroundStyle(Theme.Palette.fg3)
+                            .kerning(0.8)
+                            .padding(.top, Theme.Space.xl)
+
+                        HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
+                            Text("\(Int(result.frontalAreaCm2.rounded()))")
+                                .font(Theme.mono(60, weight: .bold))
+                                .foregroundStyle(Theme.Palette.acc)
+                            Text("cm²")
+                                .font(Theme.mono(18))
+                                .foregroundStyle(Theme.Palette.fg3)
+                        }
+                        .padding(.top, Theme.Space.xs)
+
+                        Text("± \(Int(result.frontalAreaUncertaintyCm2.rounded())) cm² estimated")
+                            .font(Theme.mono(12))
+                            .foregroundStyle(Theme.Palette.fg4)
+                            .padding(.top, Theme.Space.xs)
+                            .padding(.bottom, Theme.Space.lg)
+
+                        SectionDivider()
+
+                        MetricRow(key: "Scale",
+                                  value: String(format: "%.1f px/cm", result.pixelsPerCm))
+                        if let shoulder = result.headOnPose?.shoulderWidthCm {
+                            MetricRow(key: "Shoulder width",
+                                      value: String(format: "%.1f cm", shoulder))
+                        }
+                        if let pose = sideOnPose {
+                            MetricRow(key: "Torso angle",
+                                      value: "\(Int(pose.torsoAngleDeg.rounded()))°")
+                            MetricRow(key: "Hip angle",
+                                      value: "\(Int(pose.hipAngleDeg.rounded()))°")
+                            MetricRow(key: "Head drop",
+                                      value: String(format: "%.1f cm", pose.headDropCm))
+                        }
+                    }
+                    .padding(.horizontal, Theme.Space.lg)
+                }
+
+                AccentButton(label: "NAME POSITION", action: onContinue)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.vertical, Theme.Space.md)
+            }
+        }
     }
 }
 
@@ -490,5 +563,16 @@ extension UIImage {
         let result = UIGraphicsGetImageFromCurrentImageContext() ?? self
         UIGraphicsEndImageContext()
         return result
+    }
+
+    /// Downscaled JPEG for persisting in SwiftData. Full-res stills are several MB;
+    /// the detail view only displays at ~800px, so a 1400px long-edge JPEG is plenty.
+    func compressedForStorage(maxDimension: CGFloat = 1400, quality: CGFloat = 0.85) -> Data? {
+        let longEdge = max(size.width, size.height)
+        let scaleFactor = longEdge > maxDimension ? maxDimension / longEdge : 1
+        let target = CGSize(width: size.width * scaleFactor, height: size.height * scaleFactor)
+        let renderer = UIGraphicsImageRenderer(size: target)
+        let resized = renderer.image { _ in draw(in: CGRect(origin: .zero, size: target)) }
+        return resized.jpegData(compressionQuality: quality)
     }
 }
