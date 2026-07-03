@@ -204,6 +204,11 @@ struct CameraPreviewLayer: UIViewRepresentable {
         let view = PreviewView()
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
+        // Lock the preview to portrait — without an explicit rotation angle the
+        // back-camera connection defaults to landscape and the feed shows sideways.
+        if let conn = view.previewLayer.connection, conn.isVideoRotationAngleSupported(90) {
+            conn.videoRotationAngle = 90
+        }
         return view
     }
 
@@ -228,7 +233,9 @@ final class CameraSession: NSObject, ObservableObject {
     @Published var bgOK = false
     @Published var permissionDenied = false
 
-    var allPassed: Bool { levelOK && perpOK && bgOK }
+    // LEVEL + PERP are physically enforced and gate the shutter. BG is advisory —
+    // a low-contrast background degrades the matte but shouldn't dead-lock capture.
+    var allPassed: Bool { levelOK && perpOK }
 
     private var photoOutput = AVCapturePhotoOutput()
     private var videoOutput = AVCaptureVideoDataOutput()
@@ -238,6 +245,12 @@ final class CameraSession: NSObject, ObservableObject {
 
     // AVFoundation session must be configured and run on a dedicated serial queue.
     private let sessionQueue = DispatchQueue(label: "com.gettucked.camera.session", qos: .userInitiated)
+    // Segmentation runs off the video-frame callback; keep it off the session queue.
+    private let segmentationQueue = DispatchQueue(label: "com.gettucked.camera.segmentation", qos: .userInitiated)
+    // Real-time segmentation is throttled — running it every frame at photo
+    // resolution pegs the CPU and freezes the device.
+    private var lastSegmentation: CFTimeInterval = 0
+    private let segmentationInterval: CFTimeInterval = 0.33
 
     // Pill thresholds
     private let levelThresholdDeg = 2.0
@@ -290,9 +303,15 @@ final class CameraSession: NSObject, ObservableObject {
         captureSession.sessionPreset = .photo
         if captureSession.canAddInput(input)  { captureSession.addInput(input) }
         if captureSession.canAddOutput(photoOutput) { captureSession.addOutput(photoOutput) }
-        videoOutput.setSampleBufferDelegate(self, queue: .global(qos: .userInitiated))
+        videoOutput.setSampleBufferDelegate(self, queue: segmentationQueue)
         videoOutput.alwaysDiscardsLateVideoFrames = true
         if captureSession.canAddOutput(videoOutput) { captureSession.addOutput(videoOutput) }
+
+        // Portrait rotation for the captured still, matching the preview.
+        if let conn = photoOutput.connection(with: .video), conn.isVideoRotationAngleSupported(90) {
+            conn.videoRotationAngle = 90
+        }
+
         captureSession.commitConfiguration()
         captureSession.startRunning()
     }
@@ -329,6 +348,11 @@ extension CameraSession: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
+        // Throttle: segmenting every frame at photo resolution pegs the CPU.
+        let now = CACurrentMediaTime()
+        guard now - lastSegmentation >= segmentationInterval else { return }
+        lastSegmentation = now
+
         let request = VNGeneratePersonSegmentationRequest()
         request.qualityLevel = .fast
         request.outputPixelFormat = kCVPixelFormatType_OneComponent8
@@ -341,22 +365,29 @@ extension CameraSession: AVCaptureVideoDataOutputSampleBufferDelegate {
         }
 
         // Confidence proxy: fraction of pixels that are clearly foreground (>200/255)
-        // or clearly background (<50/255). Ambiguous pixels (matte edges) hurt confidence.
+        // or clearly background (<50/255). Ambiguous pixels (matte edges) hurt
+        // confidence. Sample on a stride and honour bytesPerRow (masks are row-padded).
         let mask = result.pixelBuffer
         CVPixelBufferLockBaseAddress(mask, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(mask, .readOnly) }
 
         let w = CVPixelBufferGetWidth(mask)
         let h = CVPixelBufferGetHeight(mask)
+        let rowBytes = CVPixelBufferGetBytesPerRow(mask)
         guard let base = CVPixelBufferGetBaseAddress(mask) else { return }
         let bytes = base.assumingMemoryBound(to: UInt8.self)
-        let total = w * h
+        let stride = 4
         var decisive = 0
-        for i in 0 ..< total {
-            let v = bytes[i]
-            if v > 200 || v < 50 { decisive += 1 }
+        var sampled = 0
+        for y in Swift.stride(from: 0, to: h, by: stride) {
+            let row = y * rowBytes
+            for x in Swift.stride(from: 0, to: w, by: stride) {
+                let v = bytes[row + x]
+                if v > 200 || v < 50 { decisive += 1 }
+                sampled += 1
+            }
         }
-        let confidence = Double(decisive) / Double(max(1, total))
+        let confidence = Double(decisive) / Double(max(1, sampled))
 
         Task { @MainActor [weak self] in
             self?.bgOK = confidence >= (self?.bgConfidenceMin ?? 0.6)
