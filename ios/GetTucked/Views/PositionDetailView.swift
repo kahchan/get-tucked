@@ -102,14 +102,25 @@ struct PositionDetailView: View {
 
     #if canImport(UIKit)
     private func loadPhotos() async {
-        async let head = loadAsset(identifier: position.headOnPhotoIdentifier)
-        async let side = loadAsset(identifier: position.sideOnPhotoIdentifier)
-        headOnImage = await head
-        sideOnImage = await side
+        // Head-on is captured live and persisted as bytes; prefer that over any
+        // PHAsset re-fetch. Side-on comes from the picker (asset identifier).
+        if let data = position.photosData, let image = UIImage(data: data) {
+            headOnImage = image
+        } else {
+            headOnImage = await loadAsset(identifier: position.headOnPhotoIdentifier)
+        }
+        sideOnImage = await loadAsset(identifier: position.sideOnPhotoIdentifier)
     }
 
     private func loadAsset(identifier: String?) async -> UIImage? {
         guard let identifier else { return nil }
+        // PHAsset re-fetch needs library read authorization; PhotosPicker itself
+        // is permissionless, so without this the saved photo silently won't reload.
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        if status == .notDetermined {
+            _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        }
+        guard PHPhotoLibrary.authorizationStatus(for: .readWrite) != .denied else { return nil }
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
         guard let asset = result.firstObject else { return nil }
         let size = CGSize(width: 800, height: 800)
