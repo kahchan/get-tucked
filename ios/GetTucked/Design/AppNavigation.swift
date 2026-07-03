@@ -15,6 +15,9 @@ enum AppScreen: Hashable {
     case bikeSetup
     case leaderboard
     case comparison(PersistentIdentifier, PersistentIdentifier)
+    #if DEBUG
+    case matteCheck
+    #endif
 }
 
 // MARK: - Root navigation
@@ -50,6 +53,10 @@ struct AppNavigationView: View {
                             LeaderboardView(path: $path)
                         case .comparison(let idA, let idB):
                             ComparisonWrapper(idA: idA, idB: idB)
+                        #if DEBUG
+                        case .matteCheck:
+                            MatteCheckView()
+                        #endif
                         }
                     }
             }
@@ -132,11 +139,17 @@ struct IndexOverlay: View {
     @Binding var path: [AppScreen]
     @Binding var isOpen: Bool
 
-    private let items: [(label: String, screen: AppScreen)] = [
-        ("POSITIONS", .positionList),
-        ("LEADERBOARD", .leaderboard),
-        ("BIKES", .bikeList),
-    ]
+    private let items: [(label: String, screen: AppScreen)] = {
+        var list: [(String, AppScreen)] = [
+            ("POSITIONS", .positionList),
+            ("LEADERBOARD", .leaderboard),
+            ("BIKES", .bikeList),
+        ]
+        #if DEBUG
+        list.append(("MATTE CHECK", .matteCheck))
+        #endif
+        return list
+    }()
 
     var body: some View {
         ZStack(alignment: .topLeading) {
