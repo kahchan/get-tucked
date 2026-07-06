@@ -1,6 +1,10 @@
 # Plan D — Design parity with the prototype
 
-Status: **planned**. Written 2026-07-03, after unpacking the Claude Design
+Status: **in progress**. D1 done (`438f70d`) — also added a discovered
+fix: reserved trailing space (`Theme.Control.hamburgerReserve`) so
+Positions'/Bikes' header actions don't collide with the relocated
+hamburger. D2-D7 not started; D8 remains decision-gated per below.
+Written 2026-07-03, after unpacking the Claude Design
 prototype into `inspiration/unpacked/` (`template.html` = screens + CSS,
 `b554d774.js` = flows/behaviours/copy). **Those two files are the design
 authority** — when this plan is ambiguous, open them and match the prototype.

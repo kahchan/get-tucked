@@ -1,6 +1,9 @@
 # Plan C — UX flow fixes
 
-Status: **planned**. Written 2026-07-03; updated same day after unpacking the
+Status: **done** (C1-C6; C7 superseded by Plan D7, not separately needed).
+C1 `00c8c61`, C2 `2566861`, C3 `9d517ad`, C4 `bd09c6f` (pulled in
+phase2-live-capture-plan item 2 as a prerequisite), C5 `5571819`,
+C6 `3fed904`. Written 2026-07-03; updated same day after unpacking the
 design prototype (`inspiration/unpacked/` — see Plan D). Where C and D touch
 the same screen, C fixes the flow and D restyles it: read both before starting
 a task on CaptureView, ComparisonView, or LeaderboardView.

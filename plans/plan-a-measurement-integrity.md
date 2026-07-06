@@ -1,6 +1,9 @@
 # Plan A — Measurement integrity (what the number means)
 
-Status: **planned**. Written 2026-07-03 from a full code/plan review.
+Status: **in progress**. Written 2026-07-03 from a full code/plan review.
+A1's harness is built (commit `18cb848`); the human matte verdict (real
+outdoor photos → `plans/matte-verdict.md`) is still outstanding and gates
+A2/A4. A3/A4/A5 not started.
 Audience: a smaller model executing tasks one at a time. Do tasks in order.
 Each task is self-contained; commit each with a Conventional Commit message.
 
@@ -20,6 +23,10 @@ be presented as real. Neither is fully true today.
 ---
 
 ## A1. Decide what "frontal area" includes — experiment first (HIGH priority)
+
+**Harness: done** (commit `18cb848`). **Human verdict: outstanding** — waiting
+on Kah to shoot ≥5 outdoor photos and record the verdict in
+`plans/matte-verdict.md`.
 
 **The open product question:** `VNGeneratePersonSegmentationRequest` is trained
 on *people*. It may or may not include the bike, and will not reliably include

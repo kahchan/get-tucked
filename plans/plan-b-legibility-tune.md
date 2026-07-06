@@ -1,6 +1,7 @@
 # Plan B — Legibility tune + finish the token pass
 
-Status: **planned**. Written 2026-07-03. Do tasks in order; one commit per task.
+Status: **done**. Written 2026-07-03. B1-B5 all landed:
+B1 `45db5c5`, B2 `223a5c0`, B3 `0b8cced`, B4 `f9839e4`, B5 `667f306`.
 Design authority: the unpacked prototype (`inspiration/unpacked/template.html`
 + `b554d774.js`) and the token system (near-black `bg0`, acid yellow,
 **0px radius on surfaces/buttons/cards**, Space Mono numbers/labels,
