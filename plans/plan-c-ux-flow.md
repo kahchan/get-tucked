@@ -65,6 +65,10 @@ back after the flow completes or cancels.
 
 ## C4. Kill the bike-picker step; pick the bike in the camera HUD
 
+> **Superseded by Plan E2** (`plan-e-nav-ia.md`): the tappable bike chip →
+> picker now also carries inline add-bike, since the index that used to host
+> add-bike is being removed. Implement via E2, not here.
+
 With one bike (the common case) the current flow still demands a NEXT tap on a
 full-screen picker. The design intends the bike chip in the camera HUD to be
 the switcher. Depends on: `plans/phase2-live-capture-plan.md` item 2 (tappable

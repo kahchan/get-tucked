@@ -1,9 +1,13 @@
 # Plan D — Design parity with the prototype
 
-Status: **in progress**. D1 done (`438f70d`) — also added a discovered
-fix: reserved trailing space (`Theme.Control.hamburgerReserve`) so
-Positions'/Bikes' header actions don't collide with the relocated
-hamburger. D2-D7 not started; D8 remains decision-gated per below.
+Status: **in progress**. D1 done (`438f70d`) — but its **hamburger
+relocation is superseded by Plan E** (the hamburger index was a misread
+of the prototype's storybook screen-switcher; Plan E removes it and
+rebuilds routing off the prototype's real IA). D1's header
+left-alignment + subtitles stand; only the hamburger move is undone,
+along with the `Theme.Control.hamburgerReserve` collision fix it needed.
+D2-D7 not started; D8 remains decision-gated per below. **Do Plan E
+before D5-D8** — E rebuilds the routing those screens are reached through.
 Written 2026-07-03, after unpacking the Claude Design
 prototype into `inspiration/unpacked/` (`template.html` = screens + CSS,
 `b554d774.js` = flows/behaviours/copy). **Those two files are the design
