@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ComparisonView: View {
-    let positionA: Position   // baseline (lower area, shown left)
-    let positionB: Position   // comparison
+    let positionA: Position   // first selected — the reference
+    let positionB: Position   // second selected
 
     private var metricsA: PositionMetrics? { positionA.metrics }
     private var metricsB: PositionMetrics? { positionB.metrics }
@@ -14,6 +14,10 @@ struct ComparisonView: View {
     private var deltaPct: Double? {
         guard let a = areaA, let b = areaB, a > 0 else { return nil }
         return ((b - a) / a) * 100
+    }
+
+    private var isCrossBike: Bool {
+        positionA.bike?.id != positionB.bike?.id
     }
 
     var body: some View {
@@ -36,9 +40,13 @@ struct ComparisonView: View {
 
                         SectionDivider()
 
+                        if isCrossBike {
+                            CrossBikeWarning()
+                        }
+
                         // Delta hero
-                        if let delta = deltaPct {
-                            DeltaHero(delta: delta)
+                        if let delta = deltaPct, let a = areaA, let b = areaB {
+                            DeltaHero(delta: delta, winner: a < b ? "A" : "B", absoluteDeltaCm2: abs(b - a))
                             SectionDivider()
                         }
 
@@ -49,6 +57,20 @@ struct ComparisonView: View {
             }
         }
         .hideNavBar()
+    }
+}
+
+// MARK: - Cross-bike warning
+
+private struct CrossBikeWarning: View {
+    var body: some View {
+        Text("DIFFERENT BIKES — differences may reflect the bikes, not the rider.")
+            .font(Theme.mono(11))
+            .foregroundStyle(Theme.Palette.amb)
+            .padding(Theme.Space.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.Palette.bg1)
+            .overlay(Rectangle().stroke(Theme.Palette.amb, lineWidth: 1))
     }
 }
 
@@ -89,6 +111,8 @@ private struct PositionPanel: View {
 
 private struct DeltaHero: View {
     let delta: Double
+    let winner: String            // "A" or "B" — whichever has the smaller area
+    let absoluteDeltaCm2: Double
 
     private var isImprovement: Bool { delta < 0 }
     private var color: Color { isImprovement ? Theme.Palette.acc : Theme.Palette.amb }
@@ -99,10 +123,10 @@ private struct DeltaHero: View {
             Text("\(sign)\(String(format: "%.1f", delta))%")
                 .font(Theme.mono(52, weight: .bold))
                 .foregroundStyle(color)
-            Text(isImprovement ? "SMALLER FRONTAL AREA" : "LARGER FRONTAL AREA")
-                .font(Theme.mono(10))
-                .foregroundStyle(Theme.Palette.fg4)
-                .kerning(0.5)
+            Text("\(winner) IS SMALLER · \(Int(absoluteDeltaCm2.rounded())) cm²")
+                .font(Theme.mono(11))
+                .foregroundStyle(Theme.Palette.fg3)
+                .kerning(0.3)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Theme.Space.lg)

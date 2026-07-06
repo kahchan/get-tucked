@@ -6,10 +6,11 @@ struct PositionListView: View {
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
     @Query private var bikes: [Bike]
     @State private var selectMode = false
-    @State private var selected: Set<UUID> = []
+    @State private var selected: [UUID] = []
 
+    // Selection order is preserved: first tapped = A (reference), second = B.
     private var selectedPositions: [Position] {
-        positions.filter { selected.contains($0.id) }
+        selected.compactMap { id in positions.first { $0.id == id } }
     }
 
     var body: some View {
@@ -66,9 +67,9 @@ struct PositionListView: View {
                                 if selectMode {
                                     Button {
                                         if selected.contains(position.id) {
-                                            selected.remove(position.id)
+                                            selected.removeAll { $0 == position.id }
                                         } else if selected.count < 2 {
-                                            selected.insert(position.id)
+                                            selected.append(position.id)
                                         }
                                     } label: {
                                         SelectablePositionRow(
@@ -98,9 +99,7 @@ struct PositionListView: View {
             // Compare bar — slides up when 2 positions selected
             if selectMode && selected.count == 2 {
                 CompareBar {
-                    let pair = selectedPositions.sorted {
-                        ($0.metrics?.frontalAreaCm2 ?? 0) < ($1.metrics?.frontalAreaCm2 ?? 0)
-                    }
+                    let pair = selectedPositions
                     path.append(.comparison(pair[0].persistentModelID, pair[1].persistentModelID))
                     selectMode = false
                     selected.removeAll()
