@@ -1,7 +1,14 @@
 # Plan E — Navigation & information architecture
 
-Status: **not started**. Written 2026-07-07 after a navigation audit triggered
-by a concrete regression: from the app there was no discoverable way to add a
+Status: **in progress**. E1 done (`911afbe`), E2 done (`a27777b`), E3 done
+(`db89f0b`, but per Kah's call, **not** the plan's own recommendation — see
+E3 below). E4 has nothing to build yet: Methodology doesn't exist in the
+codebase (owned by Plans A2/D4), so the hdr-link half of its acceptance
+criteria is deferred to whichever of those lands the screen; the "no path
+depends on the removed index" half is confirmed clean (repo-wide grep for
+`IndexOverlay`/`HamburgerButton` finds nothing outside this plan's own
+commits). Written 2026-07-07 after a navigation audit triggered by a
+concrete regression: from the app there was no discoverable way to add a
 second bike or reach the leaderboard.
 
 **Design authority:** the unpacked prototype in `inspiration/unpacked/`
@@ -87,6 +94,15 @@ Principles:
 
 ## E1. Remove the hamburger index; Library becomes root with a Leaderboard link
 
+**Done** (`911afbe`). Landed as specced, plus one call not covered by the plan:
+the DEBUG-only `matteCheck` screen had no other entry point once the index was
+gone. Added a tiny `#if DEBUG` "DBG" header button as a first pass, but on-device
+verification showed it overcrowded the trailing row (`LEADERBOARD →` wrapped to
+five lines) — pulled it back out. `matteCheck` is reachable now only by
+temporarily seeding `path` in code (see the comment on the enum case);
+no persistent UI cost. The `chromeReserve` trailing padding was dropped from
+Positions' header per the plan's own suggestion, verified on-device.
+
 The highest-value, lowest-risk task. It deletes the broken menu and restores
 Leaderboard discoverability in one move.
 
@@ -127,6 +143,17 @@ remains.
 
 ## E2. Capture-time bike picker with inline add-bike
 
+**Done** (`a27777b`). C4 had already made the chip tappable and built a
+switcher sheet, so this task's real scope was: open the picker unconditionally
+(was gated to `bikes.count > 1`, which blocked the add-bike path for anyone
+with exactly one bike), build the inline add-bike disclosure in a new
+`Capture/BikePickerSheet.swift`, restyle the chip to the two-line
+key/name/caret, and extract `Bike.isValidInput` so the picker's form and
+`BikeSetupView` share one validation rule instead of two. Verified on-device
+(sheet list, disabled Save state, expanded form) via temporary state-default
+flips, reverted before commit — no tap-simulation tool is available in this
+environment.
+
 Restores add-bike *in context* and makes the bike chip the switcher, per the
 prototype. Absorbs Plan C4 and `phase2-live-capture-plan` item 2.
 
@@ -161,6 +188,23 @@ carries the chip-selected bike.
 
 ## E3. Bike management surface (flagged — confirm before building)
 
+**Done** (`db89f0b`) — **overridden by Kah**, not built per this plan's own
+recommendation. Asked both flagged questions; Kah chose the option this plan
+had listed as the *rejected* alternative (gear icon in the Library header,
+pushing `BikeListView`) and chose to keep both add-bike paths (`BikeListView`
+keeps its own `+`, on top of E2's inline form). Shipped as: a `gearshape`
+icon on the Positions header → `path.append(.bikeList)`; `BikeListView`
+unchanged.
+
+Fitting a 4th control (gear) into the existing trailing row alongside
+`LEADERBOARD →` / `SELECT` / `+` overflowed badly on-device (`LEADERBOARD →`
+wrapped to five lines, `SELECT` to two) — there simply isn't enough width for
+four controls on one line at this screen width once real position data makes
+`SELECT` visible. Fixed by splitting the header into two rows: `SELECT` /
+gear / `+` on the title row, `LEADERBOARD →` on the subtitle row — same
+overall header height, no shared-`NavHeader` API change (Positions builds its
+own header block; every other screen's simpler trailing slot is untouched).
+
 `BikeListView` (edit / delete, `BikeListView.swift`) needs a home now the index
 is gone. The prototype defers this to a "Settings" screen that does not yet
 exist in the 15 mockups.
@@ -183,8 +227,20 @@ persistent global control the prototype deliberately omits.
 list; edit and delete work; no orphaned `BikeListView`.
 
 **Commit:** `feat(bikes): reach bike management from the capture picker (Plan E3)`
+(superseded — actual commit is `feat(bikes): reach bike management from a
+Library header gear icon (Plan E3)`, `db89f0b`)
 
 ## E4. Cross-links: Leaderboard → Methodology, header parity
+
+**Blocked / deferred.** No Methodology screen exists anywhere in the codebase
+yet (`grep`-confirmed) — it's owned by Plans A2/D4, neither of which has
+started. The hdr-link half of this task has nothing to attach to; land it
+alongside whichever of A2/D4 builds the screen. The audit half is done now:
+repo-wide search confirms no file references `IndexOverlay`, `HamburgerButton`,
+or `indexOpen` outside this plan's own (already-landed) commits — the reveal
+and comparison screens never depended on the removed index in the first
+place. `LeaderboardView`'s back caret needs no changes; it's supplied by
+`AppNavigationView`'s overlay, unconditional on `path` being non-empty.
 
 Finish the header cross-link web so every reference screen is reachable without
 the index.
@@ -202,6 +258,7 @@ the index.
 noise-floor blocks; no navigation path anywhere routes through the old index.
 
 **Commit:** `feat(nav): leaderboard + reveal cross-links to methodology (Plan E4)`
+— not yet made; nothing to commit until A2/D4 lands Methodology.
 
 ---
 
@@ -216,13 +273,19 @@ noise-floor blocks; no navigation path anywhere routes through the old index.
   (leaderboard styling), D8 (onboarding). E rebuilds *routing*; D5–D8 restyle
   the screens E routes to — do E first so D-work targets the final structure.
 
-## Flagged decisions for Kah
+## Flagged decisions for Kah — resolved
 
-1. **E3 bike-management home** — recommendation is the `MANAGE BIKES →` link in
-   the capture picker (vs. a Library-header gear). Confirm before E3.
-2. **Keep `BikeListView`'s own `+`?** — once E2's inline add lands there are two
-   add paths. Recommendation: drop `BikeListView`'s `+`, keep add only in the
-   picker. Decide on device during E3.
-3. **`chromeReserve` after E1** — the 52pt trailing reserve existed for the
-   hamburger. Re-tune per screen once it's gone; don't remove the token (the
-   back caret's leading reserve still uses the same 52pt convention).
+1. **E3 bike-management home** — **decided against the recommendation.**
+   Kah chose the Library-header gear icon over the `MANAGE BIKES →` picker
+   link. Reintroduces one small persistent control the prototype's real IA
+   doesn't have, scoped to the Library screen only (not a global overlay like
+   the old hamburger).
+2. **Keep `BikeListView`'s own `+`?** — **decided: keep both.** Add-bike now
+   has two entry points (E2's inline picker form, and `BikeListView`'s
+   existing `+` → `BikeSetupView` sheet), by Kah's choice rather than the
+   plan's drop-one recommendation.
+3. **`chromeReserve` after E1** — resolved during E1: dropped the extra
+   trailing reserve on Positions specifically (verified on-device), left the
+   token itself untouched since the back caret's leading reserve still needs
+   it. E3 then hit a related-but-separate width problem (see E3 above) fixed
+   with a two-row header, not a token change.
