@@ -7,8 +7,9 @@ struct CaptureView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query private var bikes: [Bike]
+    @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
 
-    @State private var step: CaptureStep = .selectBike
+    @State private var step: CaptureStep = .pickPhoto
     @State private var selectedBike: Bike?
     @State private var pickerItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
@@ -24,7 +25,6 @@ struct CaptureView: View {
     @State private var showingError = false
 
     enum CaptureStep: Equatable {
-        case selectBike
         case pickPhoto          // head-on · 1 OF 2
         case calibrate          // head-on calibration
         case analysing          // head-on analysis
@@ -63,19 +63,20 @@ struct CaptureView: View {
                 Text(error.errorDescription ?? "Unknown error.")
             }
         }
+        .onAppear {
+            if selectedBike == nil {
+                selectedBike = positions.first?.bike ?? bikes.first
+            }
+        }
     }
 
     @ViewBuilder
     private var stepContent: some View {
         Group {
             switch step {
-            case .selectBike:
-                BikePickerStep(bikes: bikes, selected: $selectedBike) {
-                    step = .pickPhoto
-                }
             case .pickPhoto:
                 if let bike = selectedBike {
-                    LiveCameraView(bike: bike, onCapture: { image in
+                    LiveCameraView(bike: bike, bikes: bikes, onBikeChange: { selectedBike = $0 }, onCapture: { image in
                         selectedImage = image  // already normalised in photoOutput delegate
                         assetIdentifier = nil  // live capture has no PHAsset identifier
                         tapPoints = []
@@ -139,7 +140,6 @@ struct CaptureView: View {
 
     private var stepTitle: String {
         switch step {
-        case .selectBike:       "Select bike"
         case .pickPhoto:        "FRONTAL · 1 OF 2"
         case .calibrate:        "Calibrate scale"
         case .analysing:        "Analysing"
@@ -238,70 +238,6 @@ struct CaptureView: View {
 }
 
 // MARK: - Step views
-
-private struct BikePickerStep: View {
-    let bikes: [Bike]
-    @Binding var selected: Bike?
-    let onNext: () -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(bikes, id: \.id) { bike in
-                        Button {
-                            selected = bike
-                        } label: {
-                            BikePickerRow(bike: bike, isSelected: selected?.id == bike.id)
-                        }
-                        .buttonStyle(.plain)
-                        SectionDivider()
-                    }
-                }
-            }
-            AccentButton(label: "NEXT", action: onNext, enabled: selected != nil)
-                .padding(.horizontal, Theme.Space.lg)
-                .padding(.vertical, Theme.Space.md)
-                .background(Theme.Palette.bg0)
-        }
-        .onAppear {
-            if bikes.count == 1 { selected = bikes[0] }
-        }
-    }
-}
-
-private struct BikePickerRow: View {
-    let bike: Bike
-    let isSelected: Bool
-
-    var body: some View {
-        HStack(alignment: .center, spacing: Theme.Space.md) {
-            ZStack {
-                Rectangle()
-                    .stroke(isSelected ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1)
-                    .frame(width: 18, height: 18)
-                if isSelected {
-                    Rectangle()
-                        .fill(Theme.Palette.acc)
-                        .frame(width: 10, height: 10)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(bike.nickname)
-                    .font(Theme.mono(14, weight: .bold))
-                    .foregroundStyle(Theme.Palette.fg)
-                Text("\(Int(bike.handlebarWidthMm)) MM · \(bike.bikeType.displayName.uppercased())")
-                    .font(Theme.mono(11))
-                    .foregroundStyle(Theme.Palette.fg3)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, Theme.Space.lg)
-        .frame(height: 60)
-        .contentShape(Rectangle())
-    }
-}
 
 private struct AnalysingView: View {
     let label: String
