@@ -109,10 +109,14 @@ struct CaptureView: View {
             case .analysingSideOn:
                 AnalysingView(label: "ANALYSING POSTURE…")
             case .reveal:
-                if let result = pendingResult {
-                    RevealStep(result: result, sideOnPose: pendingSideOnPose) {
+                if let result = pendingResult, let photo = selectedImage {
+                    RevealStep(result: result, photo: photo, sideOnPose: pendingSideOnPose, onContinue: {
                         step = .namePosition
-                    }
+                    }, onRetake: {
+                        tapPoints = []
+                        pendingResult = nil
+                        step = .pickPhoto
+                    })
                 }
             case .namePosition:
                 if let result = pendingResult {
@@ -374,8 +378,12 @@ private struct PhotoPickStep: View {
 
 private struct RevealStep: View {
     let result: AnalysisResult
+    let photo: UIImage
     let sideOnPose: SideOnPoseMetrics?
     let onContinue: () -> Void
+    let onRetake: () -> Void
+
+    @State private var showingMask = true
 
     var body: some View {
         ZStack {
@@ -384,53 +392,102 @@ private struct RevealStep: View {
             VStack(alignment: .leading, spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("FRONTAL AREA")
-                            .font(Theme.mono(11, weight: .bold))
-                            .foregroundStyle(Theme.Palette.fg3)
-                            .kerning(0.8)
-                            .padding(.top, Theme.Space.xl)
-
-                        HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
-                            Text("\(Int(result.frontalAreaCm2.rounded()))")
-                                .font(Theme.mono(60, weight: .bold))
-                                .foregroundStyle(Theme.Palette.acc)
-                            Text("cm²")
-                                .font(Theme.mono(18))
-                                .foregroundStyle(Theme.Palette.fg3)
+                        ZStack {
+                            Image(uiImage: photo)
+                                .resizable()
+                                .scaledToFit()
+                            if showingMask {
+                                Image(uiImage: result.maskImage)
+                                    .resizable()
+                                    .renderingMode(.template)
+                                    .scaledToFit()
+                                    .foregroundStyle(Theme.Palette.acc.opacity(0.5))
+                            }
                         }
-                        .padding(.top, Theme.Space.xs)
+                        .frame(maxWidth: .infinity)
+                        .background(Theme.Palette.bg1)
 
-                        Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
-                            .font(Theme.mono(12))
-                            .foregroundStyle(Theme.Palette.fg3)
-                            .padding(.top, Theme.Space.xs)
-                            .padding(.bottom, Theme.Space.xl)
-
+                        MaskToggleBar(showingMask: $showingMask)
                         SectionDivider()
 
-                        MetricRow(key: "Scale",
-                                  value: String(format: "%.1f px/cm", result.pixelsPerCm))
-                        if let shoulder = result.headOnPose?.shoulderWidthCm {
-                            MetricRow(key: "Shoulder width",
-                                      value: String(format: "%.1f cm", shoulder))
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("FRONTAL AREA")
+                                .font(Theme.mono(11, weight: .bold))
+                                .foregroundStyle(Theme.Palette.fg3)
+                                .kerning(0.8)
+                                .padding(.top, Theme.Space.xl)
+
+                            HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
+                                Text("\(Int(result.frontalAreaCm2.rounded()))")
+                                    .font(Theme.mono(60, weight: .bold))
+                                    .foregroundStyle(Theme.Palette.acc)
+                                Text("cm²")
+                                    .font(Theme.mono(18))
+                                    .foregroundStyle(Theme.Palette.fg3)
+                            }
+                            .padding(.top, Theme.Space.xs)
+
+                            Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
+                                .font(Theme.mono(12))
+                                .foregroundStyle(Theme.Palette.fg3)
+                                .padding(.top, Theme.Space.xs)
+                                .padding(.bottom, Theme.Space.xl)
+
+                            SectionDivider()
+
+                            MetricRow(key: "Scale",
+                                      value: String(format: "%.1f px/cm", result.pixelsPerCm))
+                            if let shoulder = result.headOnPose?.shoulderWidthCm {
+                                MetricRow(key: "Shoulder width",
+                                          value: String(format: "%.1f cm", shoulder))
+                            }
+                            if let pose = sideOnPose {
+                                MetricRow(key: "Torso angle",
+                                          value: "\(Int(pose.torsoAngleDeg.rounded()))°")
+                                MetricRow(key: "Hip angle",
+                                          value: "\(Int(pose.hipAngleDeg.rounded()))°")
+                                MetricRow(key: "Head drop",
+                                          value: String(format: "%.1f cm", pose.headDropCm))
+                            }
                         }
-                        if let pose = sideOnPose {
-                            MetricRow(key: "Torso angle",
-                                      value: "\(Int(pose.torsoAngleDeg.rounded()))°")
-                            MetricRow(key: "Hip angle",
-                                      value: "\(Int(pose.hipAngleDeg.rounded()))°")
-                            MetricRow(key: "Head drop",
-                                      value: String(format: "%.1f cm", pose.headDropCm))
-                        }
+                        .padding(.horizontal, Theme.Space.lg)
                     }
-                    .padding(.horizontal, Theme.Space.lg)
                 }
+
+                GhostButton(label: "RETAKE", action: onRetake)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.top, Theme.Space.sm)
 
                 AccentButton(label: "NAME POSITION", action: onContinue)
                     .padding(.horizontal, Theme.Space.lg)
                     .padding(.vertical, Theme.Space.md)
             }
         }
+    }
+}
+
+private struct MaskToggleBar: View {
+    @Binding var showingMask: Bool
+
+    var body: some View {
+        HStack(spacing: 0) {
+            tab("PHOTO", selected: !showingMask) { showingMask = false }
+            tab("MASK", selected: showingMask) { showingMask = true }
+        }
+        .frame(height: 40)
+    }
+
+    private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(Theme.mono(11, weight: selected ? .bold : .regular))
+                .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .bottom) {
+                    if selected { Rectangle().fill(Theme.Palette.acc).frame(height: 2) }
+                }
+        }
+        .buttonStyle(.plain)
     }
 }
 
