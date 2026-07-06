@@ -20,8 +20,7 @@ struct BikeSetupView: View {
     private var handlebarWidth: Double? { Double(handlebarWidthText) }
 
     private var isValid: Bool {
-        !nickname.trimmingCharacters(in: .whitespaces).isEmpty &&
-        (handlebarWidth ?? 0) > 0
+        Bike.isValidInput(nickname: nickname, handlebarWidthText: handlebarWidthText)
     }
 
     var body: some View {
@@ -144,7 +143,7 @@ struct BikeSetupView: View {
 
 // MARK: - Local sub-views
 
-private struct TypeToggle: View {
+struct TypeToggle: View {
     @Binding var selection: BikeType
 
     var body: some View {

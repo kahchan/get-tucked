@@ -33,7 +33,7 @@ struct LiveCameraView: View {
                 VStack(spacing: 0) {
                     HStack {
                         Button {
-                            if bikes.count > 1 { showingBikePicker = true }
+                            showingBikePicker = true
                         } label: {
                             BikeChip(name: bike.nickname)
                         }
@@ -84,62 +84,11 @@ struct LiveCameraView: View {
         .onAppear { session.start(bike: bike) }
         .onDisappear { session.stop() }
         .sheet(isPresented: $showingBikePicker) {
-            BikeSwitcherSheet(bikes: bikes, selected: bike) { picked in
+            BikePickerSheet(bikes: bikes, selected: bike) { picked in
                 onBikeChange(picked)
                 showingBikePicker = false
             }
         }
-    }
-}
-
-// MARK: - Bike switcher sheet
-
-private struct BikeSwitcherSheet: View {
-    let bikes: [Bike]
-    let selected: Bike
-    let onPick: (Bike) -> Void
-
-    var body: some View {
-        ZStack {
-            Theme.Palette.bg0.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 0) {
-                NavHeader(title: "SHOOTING ON")
-                SectionDivider()
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(bikes, id: \.id) { bike in
-                            Button { onPick(bike) } label: {
-                                HStack(alignment: .center, spacing: Theme.Space.md) {
-                                    ZStack {
-                                        Rectangle()
-                                            .stroke(bike.id == selected.id ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1)
-                                            .frame(width: 18, height: 18)
-                                        if bike.id == selected.id {
-                                            Rectangle().fill(Theme.Palette.acc).frame(width: 10, height: 10)
-                                        }
-                                    }
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(bike.nickname)
-                                            .font(Theme.mono(14, weight: .bold))
-                                            .foregroundStyle(Theme.Palette.fg)
-                                        Text("\(Int(bike.handlebarWidthMm)) MM · \(bike.bikeType.displayName.uppercased())")
-                                            .font(Theme.mono(11))
-                                            .foregroundStyle(Theme.Palette.fg3)
-                                    }
-                                    Spacer()
-                                }
-                                .padding(.horizontal, Theme.Space.lg)
-                                .frame(height: 60)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            SectionDivider()
-                        }
-                    }
-                }
-            }
-        }
-        .hideNavBar()
     }
 }
 
@@ -149,19 +98,23 @@ private struct BikeChip: View {
     let name: String
 
     var body: some View {
-        HStack(spacing: 5) {
-            Text("SHOOTING ON")
-                .font(Theme.mono(11))
-                .foregroundStyle(Theme.Palette.fg3)
-            Text("·")
-                .foregroundStyle(Theme.Palette.fg4)
-            Text(name.uppercased())
-                .font(Theme.mono(11, weight: .bold))
-                .foregroundStyle(Theme.Palette.fg)
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("SHOOTING ON")
+                    .font(Theme.mono(8))
+                    .foregroundStyle(Theme.Palette.fg4)
+                    .kerning(1)
+                Text(name.uppercased())
+                    .font(Theme.heading(13))
+                    .foregroundStyle(Theme.Palette.fg)
+            }
+            Text("▾")
+                .font(Theme.mono(9))
+                .foregroundStyle(Theme.Palette.acc)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Theme.Palette.bg0.opacity(0.7))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Theme.Palette.bg0.opacity(0.72))
         .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
     }
 }

@@ -32,4 +32,9 @@ final class Bike {
     }
 
     var handlebarWidthCm: Double { handlebarWidthMm / 10.0 }
+
+    /// Shared by `BikeSetupView` and the capture-time bike picker's inline add form.
+    static func isValidInput(nickname: String, handlebarWidthText: String) -> Bool {
+        !nickname.trimmingCharacters(in: .whitespaces).isEmpty && (Double(handlebarWidthText) ?? 0) > 0
+    }
 }
