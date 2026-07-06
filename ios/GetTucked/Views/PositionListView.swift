@@ -18,9 +18,15 @@ struct PositionListView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                NavHeader(title: "POSITIONS", subtitle: "Tap two to compare.") {
-                    HStack(spacing: Theme.Space.md) {
-                        HeaderLink("LEADERBOARD") { path.append(.leaderboard) }
+                // Bespoke two-row header, not the shared NavHeader: four distinct
+                // controls (select/gear/add on the title row, leaderboard link on
+                // the subtitle row) overflow a single trailing slot at this width.
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .center) {
+                        Text("POSITIONS")
+                            .font(Theme.heading(19))
+                            .foregroundStyle(Theme.Palette.fg)
+                        Spacer()
                         if !positions.isEmpty {
                             Button(selectMode ? "DONE" : "SELECT") {
                                 selectMode.toggle()
@@ -30,6 +36,17 @@ struct PositionListView: View {
                             .foregroundStyle(selectMode ? Theme.Palette.acc : Theme.Palette.fg3)
                         }
                         if !selectMode {
+                            Button {
+                                path.append(.bikeList)
+                            } label: {
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundStyle(Theme.Palette.fg3)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+
                             Button {
                                 path.append(.setTheScene)
                             } label: {
@@ -43,7 +60,18 @@ struct PositionListView: View {
                             .disabled(bikes.isEmpty)
                         }
                     }
+                    HStack(alignment: .center) {
+                        Text("Tap two to compare.")
+                            .font(Theme.mono(11))
+                            .foregroundStyle(Theme.Palette.fg3)
+                        Spacer()
+                        HeaderLink("LEADERBOARD") { path.append(.leaderboard) }
+                    }
                 }
+                .padding(.leading, Theme.Control.chromeReserve)
+                .padding(.trailing, Theme.Space.lg)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 56)
 
                 SectionDivider()
 
