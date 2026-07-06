@@ -62,9 +62,10 @@ struct AppNavigationView: View {
             }
             .tint(Theme.Palette.acc)
 
-            // Hamburger — fixed overlay, always top-left regardless of active screen.
-            // System nav bar is hidden on all screens, so this is the only nav chrome.
-            if !indexOpen {
+            // Hamburger — fixed overlay, top-left on every screen except the
+            // capture flow, where it would collide with the camera HUD's bike
+            // chip and let a mid-flow index tap silently discard a capture.
+            if !indexOpen && path.last != .capture {
                 HamburgerButton { indexOpen = true }
                     .padding(.leading, Theme.Space.lg)
                     .padding(.top, 6)
