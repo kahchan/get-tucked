@@ -29,15 +29,8 @@ struct BikeSetupView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Title bar
-                HStack {
-                    Text(editing == nil ? "BIKE SETUP" : "EDIT BIKE")
-                        .font(Theme.heading(22))
-                        .foregroundStyle(Theme.Palette.fg)
-                    Spacer()
-                }
-                .padding(.horizontal, Theme.Space.lg)
-                .frame(height: 56)
+                NavHeader(title: editing == nil ? "BIKE SETUP" : "EDIT BIKE",
+                          subtitle: "Two facts. Then we shoot.")
 
                 SectionDivider()
 
@@ -104,6 +97,7 @@ struct BikeSetupView: View {
                 .padding(.vertical, Theme.Space.md)
             }
         }
+        .hideNavBar()
         .onAppear(perform: loadIfNeeded)
         .confirmationDialog(deleteMessage, isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete bike", role: .destructive, action: deleteBike)

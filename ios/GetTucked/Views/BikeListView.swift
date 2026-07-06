@@ -21,6 +21,7 @@ struct BikeListView: View {
                             .foregroundStyle(Theme.Palette.acc)
                     }
                     .buttonStyle(.plain)
+                    .padding(.trailing, Theme.Control.hamburgerReserve)
                 }
 
                 SectionDivider()

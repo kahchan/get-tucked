@@ -62,13 +62,22 @@ struct AppNavigationView: View {
             }
             .tint(Theme.Palette.acc)
 
-            // Hamburger — fixed overlay, top-left on every screen except the
+            // Back caret — top-left on any pushed screen (except capture, which
+            // owns its own X dismiss and hides all overlay chrome).
+            if !indexOpen && !path.isEmpty && path.last != .capture {
+                BackButton { path.removeLast() }
+                    .padding(.leading, Theme.Space.lg)
+                    .padding(.top, 6)
+            }
+
+            // Hamburger — fixed overlay, top-right on every screen except the
             // capture flow, where it would collide with the camera HUD's bike
             // chip and let a mid-flow index tap silently discard a capture.
             if !indexOpen && path.last != .capture {
                 HamburgerButton { indexOpen = true }
-                    .padding(.leading, Theme.Space.lg)
+                    .padding(.trailing, Theme.Space.lg)
                     .padding(.top, 6)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
 
             if indexOpen {
@@ -89,6 +98,23 @@ struct HamburgerButton: View {
         Button(action: action) {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Theme.Palette.fg)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Back button
+
+struct BackButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("←")
+                .font(Theme.mono(18, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())

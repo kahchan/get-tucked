@@ -18,7 +18,7 @@ struct PositionListView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                NavHeader(title: "POSITIONS") {
+                NavHeader(title: "POSITIONS", subtitle: "Tap two to compare.") {
                     HStack(spacing: Theme.Space.md) {
                         if !positions.isEmpty {
                             Button(selectMode ? "DONE" : "SELECT") {
@@ -42,6 +42,7 @@ struct PositionListView: View {
                             .disabled(bikes.isEmpty)
                         }
                     }
+                    .padding(.trailing, Theme.Control.hamburgerReserve)
                 }
 
                 SectionDivider()

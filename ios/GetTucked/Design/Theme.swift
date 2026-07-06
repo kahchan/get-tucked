@@ -66,6 +66,9 @@ enum Theme {
         static let ghostButtonHeight: CGFloat = 48
         static let metricRowHeight: CGFloat = 50
         static let hairline: CGFloat = 1
+        /// Trailing space a NavHeader's own trailing content must reserve so it
+        /// doesn't sit under the global top-right hamburger overlay.
+        static let hamburgerReserve: CGFloat = 52
     }
 }
 

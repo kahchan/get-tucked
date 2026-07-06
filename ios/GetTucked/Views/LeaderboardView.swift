@@ -21,7 +21,7 @@ struct LeaderboardView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                NavHeader(title: "LEADERBOARD")
+                NavHeader(title: "LEADERBOARD", subtitle: "Your positions, ranked by frontal area.")
                 SectionDivider()
 
                 // Bike type filter

@@ -14,32 +14,40 @@ extension View {
 /// Standard in-app nav header row (not system NavigationView title).
 struct NavHeader<Trailing: View>: View {
     let title: String
+    var subtitle: String?
     @ViewBuilder var trailing: () -> Trailing
 
-    init(title: String, @ViewBuilder trailing: @escaping () -> Trailing) {
+    init(title: String, subtitle: String? = nil, @ViewBuilder trailing: @escaping () -> Trailing) {
         self.title = title
+        self.subtitle = subtitle
         self.trailing = trailing
     }
 
     var body: some View {
-        ZStack {
-            Text(title)
-                .font(Theme.heading(18))
-                .foregroundStyle(Theme.Palette.fg)
-            HStack {
-                Spacer()
-                trailing()
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(Theme.heading(19))
+                    .foregroundStyle(Theme.Palette.fg)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(Theme.mono(11))
+                        .foregroundStyle(Theme.Palette.fg3)
+                }
             }
-            .padding(.horizontal, Theme.Space.lg)
+            Spacer()
+            trailing()
         }
+        .padding(.horizontal, Theme.Space.lg)
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(minHeight: 56)
     }
 }
 
 extension NavHeader where Trailing == EmptyView {
-    init(title: String) {
+    init(title: String, subtitle: String? = nil) {
         self.title = title
+        self.subtitle = subtitle
         self.trailing = { EmptyView() }
     }
 }

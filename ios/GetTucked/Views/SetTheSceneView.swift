@@ -24,7 +24,7 @@ struct SetTheSceneView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                NavHeader(title: "SET THE SCENE")
+                NavHeader(title: "SET THE SCENE", subtitle: "Good light in, good numbers out.")
 
                 SectionDivider()
 
