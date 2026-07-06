@@ -53,6 +53,29 @@ extension NavHeader where Trailing == EmptyView {
     }
 }
 
+/// `.hdr-link` — small acid-yellow text link for a NavHeader's trailing slot,
+/// e.g. "LEADERBOARD →". The only persistent cross-screen affordance left
+/// once the hamburger index is gone (Plan E1).
+struct HeaderLink: View {
+    let label: String
+    let action: () -> Void
+
+    init(_ label: String, action: @escaping () -> Void) {
+        self.label = label
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text("\(label.uppercased()) →")
+                .font(Theme.mono(10))
+                .foregroundStyle(Theme.Palette.acc)
+                .kerning(0.8)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// Full-height empty state for list screens.
 struct EmptySlate: View {
     let message: String

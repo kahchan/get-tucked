@@ -15,6 +15,8 @@ enum AppScreen: Hashable {
     case bikeSetup
     case leaderboard
     case comparison(PersistentIdentifier, PersistentIdentifier)
+    // No UI entry point since the hamburger index was removed (Plan E1) — reach it
+    // by temporarily seeding `path` with `[.matteCheck]` in AppNavigationView.
     #if DEBUG
     case matteCheck
     #endif
@@ -25,7 +27,6 @@ enum AppScreen: Hashable {
 /// Single NavigationStack driving the whole app. No tab bar.
 struct AppNavigationView: View {
     @State private var path: [AppScreen] = []
-    @State private var indexOpen = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -64,45 +65,12 @@ struct AppNavigationView: View {
 
             // Back caret — top-left on any pushed screen (except capture, which
             // owns its own X dismiss and hides all overlay chrome).
-            if !indexOpen && !path.isEmpty && path.last != .capture {
+            if !path.isEmpty && path.last != .capture {
                 BackButton { path.removeLast() }
                     .padding(.leading, Theme.Space.lg)
                     .padding(.top, 6)
             }
-
-            // Hamburger — fixed overlay, top-right on every screen except the
-            // capture flow, where it would collide with the camera HUD's bike
-            // chip and let a mid-flow index tap silently discard a capture.
-            if !indexOpen && path.last != .capture {
-                HamburgerButton { indexOpen = true }
-                    .padding(.trailing, Theme.Space.lg)
-                    .padding(.top, 6)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-
-            if indexOpen {
-                IndexOverlay(path: $path, isOpen: $indexOpen)
-                    .transition(.opacity)
-            }
         }
-        .animation(.easeInOut(duration: 0.15), value: indexOpen)
-    }
-}
-
-// MARK: - Hamburger button
-
-struct HamburgerButton: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(Theme.Palette.fg)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -156,83 +124,6 @@ private struct ComparisonWrapper: View {
                 .foregroundStyle(Theme.Palette.fg2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Theme.Palette.bg0)
-        }
-    }
-}
-
-// MARK: - Index overlay
-
-struct IndexOverlay: View {
-    @Binding var path: [AppScreen]
-    @Binding var isOpen: Bool
-
-    private let items: [(label: String, screen: AppScreen)] = {
-        var list: [(String, AppScreen)] = [
-            ("POSITIONS", .positionList),
-            ("LEADERBOARD", .leaderboard),
-            ("BIKES", .bikeList),
-        ]
-        #if DEBUG
-        list.append(("MATTE CHECK", .matteCheck))
-        #endif
-        return list
-    }()
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            Theme.Palette.bg0
-                .ignoresSafeArea()
-                .onTapGesture { isOpen = false }
-
-            VStack(alignment: .leading, spacing: 0) {
-                // Header row
-                HStack {
-                    Text("GET TUCKED")
-                        .font(Theme.heading(13))
-                        .foregroundStyle(Theme.Palette.acc)
-                    Spacer()
-                    Button(action: { isOpen = false }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(Theme.Palette.fg2)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, Theme.Space.lg)
-                .frame(height: 56)
-
-                SectionDivider()
-
-                ForEach(items, id: \.label) { item in
-                    Button {
-                        isOpen = false
-                        if item.screen == .positionList {
-                            path = []
-                        } else {
-                            path = [item.screen]
-                        }
-                    } label: {
-                        HStack {
-                            Text(item.label)
-                                .font(Theme.heading(28))
-                                .foregroundStyle(Theme.Palette.fg)
-                            Spacer()
-                            Text("→")
-                                .font(Theme.mono(16))
-                                .foregroundStyle(Theme.Palette.fg4)
-                        }
-                        .padding(.horizontal, Theme.Space.lg)
-                        .frame(height: 72)
-                    }
-                    .buttonStyle(.plain)
-
-                    SectionDivider()
-                }
-
-                Spacer()
-            }
         }
     }
 }

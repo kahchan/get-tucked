@@ -20,6 +20,7 @@ struct PositionListView: View {
             VStack(alignment: .leading, spacing: 0) {
                 NavHeader(title: "POSITIONS", subtitle: "Tap two to compare.") {
                     HStack(spacing: Theme.Space.md) {
+                        HeaderLink("LEADERBOARD") { path.append(.leaderboard) }
                         if !positions.isEmpty {
                             Button(selectMode ? "DONE" : "SELECT") {
                                 selectMode.toggle()
@@ -42,7 +43,6 @@ struct PositionListView: View {
                             .disabled(bikes.isEmpty)
                         }
                     }
-                    .padding(.trailing, Theme.Control.chromeReserve)
                 }
 
                 SectionDivider()
