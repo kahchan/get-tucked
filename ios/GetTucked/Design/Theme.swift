@@ -35,15 +35,15 @@ enum Theme {
         static let heading = "BarlowCondensed-Bold"
     }
 
-    /// Monospace — numbers, labels, metric rows.
+    /// Monospace — numbers, labels, metric rows. Scales with Dynamic Type.
     static func mono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         let name = weight == .regular ? FontName.mono : FontName.monoBold
-        return .custom(name, size: size)
+        return .custom(name, size: size, relativeTo: .body)
     }
 
-    /// Condensed display — headings only.
+    /// Condensed display — headings only. Scales with Dynamic Type.
     static func heading(_ size: CGFloat) -> Font {
-        .custom(FontName.heading, size: size)
+        .custom(FontName.heading, size: size, relativeTo: .title)
     }
 
     // MARK: Layout tokens
