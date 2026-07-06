@@ -198,7 +198,7 @@ private struct MetricsSection: View {
                         .foregroundStyle(Theme.Palette.fg3)
                 }
 
-                Text("±\(String(format: "%.1f", metrics.frontalAreaUncertainty)) cm²")
+                Text(AnalysisMath.uncertaintyDisplay(metrics.frontalAreaUncertainty))
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
             }

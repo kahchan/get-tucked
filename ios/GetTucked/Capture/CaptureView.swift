@@ -354,7 +354,7 @@ private struct RevealStep: View {
                         }
                         .padding(.top, Theme.Space.xs)
 
-                        Text("± \(Int(result.frontalAreaUncertaintyCm2.rounded())) cm² estimated")
+                        Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
                             .font(Theme.mono(12))
                             .foregroundStyle(Theme.Palette.fg4)
                             .padding(.top, Theme.Space.xs)

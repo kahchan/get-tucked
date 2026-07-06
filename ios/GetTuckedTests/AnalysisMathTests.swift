@@ -51,6 +51,11 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(AnalysisMath.uncertaintyCm2(areaCm2: 400), 12, accuracy: acc)
     }
 
+    func testUncertaintyDisplayRoundsAndFormats() {
+        XCTAssertEqual(AnalysisMath.uncertaintyDisplay(154.7), "±155 cm²")
+        XCTAssertEqual(AnalysisMath.uncertaintyDisplay(12.0), "±12 cm²")
+    }
+
     /// End-to-end scale→area chain, verifying the mask-vs-source rescale (HANDOFF §2.2).
     func testAreaChainWithMaskRescale() {
         let px = AnalysisMath.handlebarPixels(

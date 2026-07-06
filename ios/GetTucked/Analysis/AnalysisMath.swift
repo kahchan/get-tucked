@@ -40,6 +40,13 @@ enum AnalysisMath {
         areaCm2 * uncertaintyFraction
     }
 
+    /// Single ± cm² voice shared by every screen that shows uncertainty
+    /// (RevealStep, PositionDetailView, …) so the same quantity never reads
+    /// as two different numbers depending on where it's displayed.
+    static func uncertaintyDisplay(_ cm2: Double) -> String {
+        "±\(Int(cm2.rounded())) cm²"
+    }
+
     // MARK: - Pose geometry (inputs are normalised landmark points, origin bottom-left)
 
     static func shoulderWidthCm(
