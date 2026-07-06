@@ -99,7 +99,8 @@ struct CaptureView: View {
                 PhotoPickStep(
                     pickerItem: $sideOnPickerItem,
                     instructions: "Stand beside your bike and photograph from directly side-on at hub height.",
-                    stepLabel: "SIDE-ON · 2 OF 2"
+                    stepLabel: "SIDE-ON · 2 OF 2",
+                    onSkip: { step = .reveal }
                 ) { image, identifier in
                     sideOnImage = image
                     sideOnAssetIdentifier = identifier
@@ -317,6 +318,7 @@ private struct PhotoPickStep: View {
     @Binding var pickerItem: PhotosPickerItem?
     var instructions: String = "The rider should fill most of the frame, facing the camera directly."
     var stepLabel: String = "FRONTAL · 1 OF 2"
+    var onSkip: (() -> Void)?
     let onPicked: (UIImage, String?) -> Void
     @State private var isLoading = false
 
@@ -370,6 +372,10 @@ private struct PhotoPickStep: View {
                 Text("LOADING…")
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
+            }
+            if let onSkip {
+                GhostButton(label: "SKIP SIDE-ON", action: onSkip)
+                    .padding(.horizontal, Theme.Space.lg)
             }
             Spacer()
         }
