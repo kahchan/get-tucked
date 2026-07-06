@@ -94,8 +94,7 @@ struct CaptureView: View {
                     }
                 }
             case .analysing:
-                ProgressView("Analysing…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                AnalysingView(label: "ANALYSING…")
             case .pickSideOnPhoto:
                 PhotoPickStep(
                     pickerItem: $sideOnPickerItem,
@@ -108,8 +107,7 @@ struct CaptureView: View {
                     Task { await runSideOnAnalysis() }
                 }
             case .analysingSideOn:
-                ProgressView("Analysing posture…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                AnalysingView(label: "ANALYSING POSTURE…")
             case .reveal:
                 if let result = pendingResult {
                     RevealStep(result: result, sideOnPose: pendingSideOnPose) {
@@ -123,9 +121,10 @@ struct CaptureView: View {
                     }
                 }
             case .done:
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.green)
+                Text("SAVED")
+                    .font(Theme.heading(28))
+                    .foregroundStyle(Theme.Palette.acc)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { dismiss() }
                     }
@@ -248,23 +247,10 @@ private struct BikePickerStep: View {
                         Button {
                             selected = bike
                         } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(bike.nickname).font(.headline)
-                                    Text("\(Int(bike.handlebarWidthMm)) mm · \(bike.bikeType.displayName)")
-                                        .font(.subheadline).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if selected?.id == bike.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Color.accentColor)
-                                }
-                            }
-                            .padding()
-                            .contentShape(Rectangle())
+                            BikePickerRow(bike: bike, isSelected: selected?.id == bike.id)
                         }
                         .buttonStyle(.plain)
-                        Divider()
+                        SectionDivider()
                     }
                 }
             }
@@ -279,6 +265,50 @@ private struct BikePickerStep: View {
     }
 }
 
+private struct BikePickerRow: View {
+    let bike: Bike
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Theme.Space.md) {
+            ZStack {
+                Rectangle()
+                    .stroke(isSelected ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1)
+                    .frame(width: 18, height: 18)
+                if isSelected {
+                    Rectangle()
+                        .fill(Theme.Palette.acc)
+                        .frame(width: 10, height: 10)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(bike.nickname)
+                    .font(Theme.mono(14, weight: .bold))
+                    .foregroundStyle(Theme.Palette.fg)
+                Text("\(Int(bike.handlebarWidthMm)) MM · \(bike.bikeType.displayName.uppercased())")
+                    .font(Theme.mono(11))
+                    .foregroundStyle(Theme.Palette.fg3)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, Theme.Space.lg)
+        .frame(height: 60)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct AnalysingView: View {
+    let label: String
+
+    var body: some View {
+        Text(label)
+            .font(Theme.mono(12))
+            .foregroundStyle(Theme.Palette.fg3)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 private struct PhotoPickStep: View {
     @Binding var pickerItem: PhotosPickerItem?
     var instructions: String = "The rider should fill most of the frame, facing the camera directly."
@@ -287,26 +317,38 @@ private struct PhotoPickStep: View {
     @State private var isLoading = false
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Theme.Space.lg) {
             Spacer()
-            Image(systemName: "photo.on.rectangle")
-                .font(.system(size: 64))
-                .foregroundStyle(.secondary)
             Text(stepLabel)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg3)
+                .kerning(0.5)
             Text(instructions)
+                .font(Theme.mono(13))
+                .foregroundStyle(Theme.Palette.fg2)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
                 .padding(.horizontal, 32)
             PhotosPicker(
                 selection: $pickerItem,
                 matching: .images,
                 photoLibrary: .shared()
             ) {
-                Label("Choose from library", systemImage: "photo.badge.plus")
+                HStack {
+                    Text("CHOOSE FROM LIBRARY")
+                        .font(Theme.mono(13, weight: .regular))
+                        .kerning(0.5)
+                    Spacer()
+                }
+                .foregroundStyle(Theme.Palette.fg)
+                .padding(.horizontal, Theme.Space.md)
+                .frame(maxWidth: .infinity)
+                .frame(height: Theme.Control.ghostButtonHeight)
+                .overlay(
+                    Rectangle()
+                        .stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline)
+                )
             }
-            .buttonStyle(.bordered)
+            .allowsHitTesting(!isLoading)
             .onChange(of: pickerItem) { _, newItem in
                 guard let newItem else { return }
                 isLoading = true
@@ -319,10 +361,14 @@ private struct PhotoPickStep: View {
                     isLoading = false
                 }
             }
-            if isLoading { ProgressView() }
+            .padding(.horizontal, Theme.Space.lg)
+            if isLoading {
+                Text("LOADING…")
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg3)
+            }
             Spacer()
         }
-        .padding()
     }
 }
 
@@ -401,34 +447,33 @@ private struct NamePositionStep: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(result.frontalAreaCm2, specifier: "%.0f") cm² · CAPTURED")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 32)
+                Text("\(Int(result.frontalAreaCm2.rounded())) cm² · CAPTURED")
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg3)
+                    .padding(.top, Theme.Space.xl)
                 Text("Name this position.")
-                    .font(.title2.weight(.semibold))
+                    .font(Theme.heading(24))
+                    .foregroundStyle(Theme.Palette.fg)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 30)
-            .padding(.bottom, 24)
+            .padding(.horizontal, Theme.Space.lg)
+            .padding(.bottom, Theme.Space.lg)
 
-            Form {
-                Section {
-                    TextField("Hoods, fully loaded", text: $label)
-                        .font(.title3)
-                } footer: {
-                    Text("You'll compare against this name later.")
-                }
-            }
+            FieldLabel("POSITION NAME")
+            MonoField(placeholder: "Hoods, fully loaded", text: $label)
+
+            Text("You'll compare against this name later.")
+                .font(Theme.mono(12))
+                .foregroundStyle(Theme.Palette.fg3)
+                .padding(.horizontal, Theme.Space.lg)
+                .padding(.top, Theme.Space.sm)
 
             Spacer()
 
-            Button("Save position") { onSave(label.trimmingCharacters(in: .whitespaces)) }
-                .buttonStyle(.borderedProminent)
-                .disabled(!isValid)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(.regularMaterial)
+            AccentButton(label: "SAVE POSITION",
+                         action: { onSave(label.trimmingCharacters(in: .whitespaces)) },
+                         enabled: isValid)
+                .padding(.horizontal, Theme.Space.lg)
+                .padding(.vertical, Theme.Space.md)
         }
     }
 }
@@ -492,10 +537,11 @@ private struct HandlebarCalibrationStep: View {
              : tapPoints.count == 1
              ? "Now tap the right end"
              : "Tap to move a point, or confirm")
-            .font(.subheadline)
+            .font(Theme.mono(12))
+            .foregroundStyle(Theme.Palette.fg)
             .padding(10)
             .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemBackground))
+            .background(Theme.Palette.bg1)
     }
 
     @ViewBuilder
@@ -504,10 +550,10 @@ private struct HandlebarCalibrationStep: View {
             // unit is in image-space (0–1); map to container space via imageRect
             let px = rect.minX + unit.x * rect.width
             let py = rect.minY + unit.y * rect.height
-            Circle()
+            Rectangle()
                 .strokeBorder(.white, lineWidth: 2)
-                .background(Circle().fill(index == 0 ? Color.blue : Color.orange))
-                .frame(width: 22, height: 22)
+                .background(Rectangle().fill(index == 0 ? Theme.Palette.acc : Theme.Palette.amb))
+                .frame(width: 18, height: 18)
                 .position(x: px, y: py)
         }
         if tapPoints.count == 2 {
@@ -560,8 +606,8 @@ private struct HandlebarCalibrationStep: View {
                 y: -(center.y - cropSize / 2) * scale
             )
             .frame(width: cropSize, height: cropSize)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white, lineWidth: 1))
+            .clipShape(Rectangle())
+            .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
             .overlay(crosshair)
     }
 
@@ -573,12 +619,10 @@ private struct HandlebarCalibrationStep: View {
     }
 
     private var confirmButton: some View {
-        Button("Confirm scale →") { onConfirm() }
-            .buttonStyle(.borderedProminent)
-            .disabled(tapPoints.count < 2)
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(.regularMaterial)
+        AccentButton(label: "CONFIRM SCALE", action: onConfirm, enabled: tapPoints.count == 2)
+            .padding(.horizontal, Theme.Space.lg)
+            .padding(.vertical, Theme.Space.md)
+            .background(Theme.Palette.bg0)
     }
 }
 

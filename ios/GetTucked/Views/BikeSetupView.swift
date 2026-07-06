@@ -150,42 +150,6 @@ struct BikeSetupView: View {
 
 // MARK: - Local sub-views
 
-private struct FieldLabel: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        Text(text)
-            .font(Theme.mono(11, weight: .bold))
-            .foregroundStyle(Theme.Palette.fg2)
-            .kerning(0.8)
-            .padding(.horizontal, Theme.Space.lg)
-    }
-}
-
-private struct MonoField: View {
-    let placeholder: String
-    @Binding var text: String
-    var numericOnly: Bool = false
-
-    var body: some View {
-        TextField(placeholder, text: $text)
-            .font(Theme.mono(18))
-            .foregroundStyle(Theme.Palette.fg)
-            #if canImport(UIKit)
-            .keyboardType(numericOnly ? .numberPad : .default)
-            #endif
-            .padding(.horizontal, Theme.Space.lg)
-            .padding(.top, Theme.Space.xs)
-            .padding(.bottom, Theme.Space.sm)
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .fill(Theme.Palette.line)
-                    .frame(height: 1)
-            }
-    }
-}
-
 private struct TypeToggle: View {
     @Binding var selection: BikeType
 
