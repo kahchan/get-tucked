@@ -402,9 +402,9 @@ private struct RevealStep: View {
 
                         Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
                             .font(Theme.mono(12))
-                            .foregroundStyle(Theme.Palette.fg4)
+                            .foregroundStyle(Theme.Palette.fg3)
                             .padding(.top, Theme.Space.xs)
-                            .padding(.bottom, Theme.Space.lg)
+                            .padding(.bottom, Theme.Space.xl)
 
                         SectionDivider()
 
