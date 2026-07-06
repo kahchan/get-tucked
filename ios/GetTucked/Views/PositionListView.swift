@@ -42,7 +42,7 @@ struct PositionListView: View {
                             .disabled(bikes.isEmpty)
                         }
                     }
-                    .padding(.trailing, Theme.Control.hamburgerReserve)
+                    .padding(.trailing, Theme.Control.chromeReserve)
                 }
 
                 SectionDivider()

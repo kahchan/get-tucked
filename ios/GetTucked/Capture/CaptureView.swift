@@ -117,6 +117,9 @@ struct CaptureView: View {
                     }, onRetake: {
                         tapPoints = []
                         pendingResult = nil
+                        sideOnImage = nil
+                        sideOnAssetIdentifier = nil
+                        pendingSideOnPose = nil
                         step = .pickPhoto
                     })
                 }
