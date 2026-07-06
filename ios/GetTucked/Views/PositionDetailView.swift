@@ -7,11 +7,14 @@ import Photos
 
 struct PositionDetailView: View {
     @Bindable var position: Position
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     #if canImport(UIKit)
     @State private var headOnImage: UIImage?
     @State private var sideOnImage: UIImage?
     #endif
     @State private var showingSideOn = false
+    @State private var showDeleteConfirm = false
 
     private var hasSideOn: Bool { position.sideOnPhotoIdentifier != nil }
 
@@ -78,6 +81,9 @@ struct PositionDetailView: View {
                             }
                             .padding(Theme.Space.lg)
                         }
+
+                        GhostButton(label: "DELETE POSITION") { showDeleteConfirm = true }
+                            .padding(Theme.Space.lg)
                     }
                 }
             }
@@ -86,6 +92,13 @@ struct PositionDetailView: View {
         #if canImport(UIKit)
         .task { await loadPhotos() }
         #endif
+        .confirmationDialog("Delete this position?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete position", role: .destructive) {
+                context.delete(position)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     private var photoPlaceholder: some View {
