@@ -153,7 +153,7 @@ private struct TipCell: View {
                 .foregroundStyle(accent)
                 .frame(width: 16)
             Text(text)
-                .font(Theme.mono(11))
+                .font(Theme.mono(12))
                 .foregroundStyle(Theme.Palette.fg2)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()

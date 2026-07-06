@@ -161,7 +161,7 @@ private struct ToggleTab: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(Theme.mono(11, weight: selected ? .bold : .regular))
+                .font(Theme.mono(12, weight: selected ? .bold : .regular))
                 .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .bottom) {
@@ -185,8 +185,8 @@ private struct MetricsSection: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("FRONTAL AREA")
-                    .font(Theme.mono(10))
-                    .foregroundStyle(Theme.Palette.fg4)
+                    .font(Theme.mono(11))
+                    .foregroundStyle(Theme.Palette.fg3)
                     .kerning(0.3)
 
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
@@ -199,8 +199,8 @@ private struct MetricsSection: View {
                 }
 
                 Text("±\(String(format: "%.1f", metrics.frontalAreaUncertainty)) cm²")
-                    .font(Theme.mono(11))
-                    .foregroundStyle(Theme.Palette.fg4)
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg3)
             }
             .padding(.horizontal, Theme.Space.lg)
             .padding(.top, Theme.Space.lg)

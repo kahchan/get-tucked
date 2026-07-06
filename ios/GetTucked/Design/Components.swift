@@ -69,12 +69,12 @@ struct MetricRow: View {
         VStack(spacing: 0) {
             HStack {
                 Text(key.uppercased())
-                    .font(Theme.mono(11))
-                    .foregroundStyle(Theme.Palette.fg3)
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg2)
                     .kerning(0.3)
                 Spacer()
                 Text(value)
-                    .font(Theme.mono(13, weight: .bold))
+                    .font(Theme.mono(15, weight: .bold))
                     .foregroundStyle(valueColor)
             }
             .frame(height: Theme.Control.metricRowHeight)
@@ -133,7 +133,7 @@ struct StatusPill: View {
                 .fill(dotColor)
                 .frame(width: 5, height: 5)
             Text(label.uppercased())
-                .font(Theme.mono(10))
+                .font(Theme.mono(11))
                 .foregroundStyle(dotColor)
                 .kerning(0.3)
         }

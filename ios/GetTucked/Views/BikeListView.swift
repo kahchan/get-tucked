@@ -67,8 +67,8 @@ private struct BikeRow: View {
             }
             Spacer()
             Text("EDIT")
-                .font(Theme.mono(10, weight: .bold))
-                .foregroundStyle(Theme.Palette.fg4)
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg3)
                 .kerning(0.5)
         }
         .padding(.horizontal, Theme.Space.lg)

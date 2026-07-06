@@ -169,7 +169,7 @@ private struct SelectablePositionRow: View {
                     .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.fg)
                 Text(position.capturedAt.formatted(date: .abbreviated, time: .omitted))
                     .font(Theme.mono(11))
-                    .foregroundStyle(Theme.Palette.fg4)
+                    .foregroundStyle(Theme.Palette.fg3)
             }
 
             Spacer()

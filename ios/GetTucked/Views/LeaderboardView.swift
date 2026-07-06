@@ -71,7 +71,7 @@ private struct FilterBar: View {
                     selection = option.value
                 } label: {
                     Text(option.label)
-                        .font(Theme.mono(10, weight: selected ? .bold : .regular))
+                        .font(Theme.mono(11, weight: selected ? .bold : .regular))
                         .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg4)
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
@@ -108,17 +108,17 @@ private struct RankRow: View {
             // Rank number
             Text("\(rank)")
                 .font(Theme.mono(11))
-                .foregroundStyle(rank == 1 ? Theme.Palette.acc : Theme.Palette.fg4)
+                .foregroundStyle(rank == 1 ? Theme.Palette.acc : Theme.Palette.fg3)
                 .frame(width: 24, alignment: .center)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(position.label)
-                    .font(Theme.mono(13, weight: .bold))
+                    .font(Theme.mono(14, weight: .bold))
                     .foregroundStyle(Theme.Palette.fg)
                 if let bike = position.bike {
                     Text(bike.nickname.uppercased())
-                        .font(Theme.mono(10))
-                        .foregroundStyle(Theme.Palette.fg4)
+                        .font(Theme.mono(11))
+                        .foregroundStyle(Theme.Palette.fg3)
                 }
             }
 
@@ -132,7 +132,7 @@ private struct RankRow: View {
                 }
                 if let d = deltaText {
                     Text(d)
-                        .font(Theme.mono(10))
+                        .font(Theme.mono(11))
                         .foregroundStyle(Theme.Palette.amb)
                 }
             }

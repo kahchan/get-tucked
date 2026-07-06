@@ -86,12 +86,12 @@ private struct BikeChip: View {
     var body: some View {
         HStack(spacing: 5) {
             Text("SHOOTING ON")
-                .font(Theme.mono(9))
+                .font(Theme.mono(11))
                 .foregroundStyle(Theme.Palette.fg3)
             Text("·")
                 .foregroundStyle(Theme.Palette.fg4)
             Text(name.uppercased())
-                .font(Theme.mono(9, weight: .bold))
+                .font(Theme.mono(11, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg)
         }
         .padding(.horizontal, 10)
