@@ -81,6 +81,18 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(cm, 20, accuracy: acc)
     }
 
+    func testShoulderWidthPlausibleWithinRange() {
+        XCTAssertTrue(AnalysisMath.isShoulderWidthPlausible(30))
+        XCTAssertTrue(AnalysisMath.isShoulderWidthPlausible(45))
+        XCTAssertTrue(AnalysisMath.isShoulderWidthPlausible(60))
+    }
+
+    func testShoulderWidthImplausibleOutsideRange() {
+        XCTAssertFalse(AnalysisMath.isShoulderWidthPlausible(29.9))
+        XCTAssertFalse(AnalysisMath.isShoulderWidthPlausible(78))
+        XCTAssertFalse(AnalysisMath.isShoulderWidthPlausible(0))
+    }
+
     func testTorsoAngleUpright() {
         // Shoulder directly above hip → 0°.
         let deg = AnalysisMath.torsoAngleDeg(

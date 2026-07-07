@@ -28,6 +28,10 @@ struct AnalysisResult {
     let foregroundPixelCount: Int
     let maskImage: UIImage
     let headOnPose: HeadOnPoseMetrics?
+    /// Set when the computed shoulder width is outside a plausible human
+    /// range — usually a mis-tapped scale reference, not an unusual rider.
+    /// Surfaced on the reveal screen; never blocks the save (Plan A3).
+    let scaleWarning: String?
 }
 
 /// Pose metrics computable from the head-on photo.
@@ -86,13 +90,20 @@ struct AnalysisEngine {
 
         let headOnPose = try? await estimateHeadOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
 
+        var scaleWarning: String?
+        if let shoulderCm = headOnPose?.shoulderWidthCm,
+           !AnalysisMath.isShoulderWidthPlausible(shoulderCm) {
+            scaleWarning = "Shoulder width reads \(Int(shoulderCm.rounded())) cm — check your taps and the bike's bar width."
+        }
+
         return AnalysisResult(
             frontalAreaCm2: areaCm2,
             frontalAreaUncertaintyCm2: uncertainty,
             pixelsPerCm: pixelsPerCm,
             foregroundPixelCount: foregroundCount,
             maskImage: maskUI,
-            headOnPose: headOnPose
+            headOnPose: headOnPose,
+            scaleWarning: scaleWarning
         )
     }
 

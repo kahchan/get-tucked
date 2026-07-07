@@ -57,6 +57,13 @@ enum AnalysisMath {
         return widthPx / pixelsPerCm
     }
 
+    /// A human shoulder width outside this range means the scale is probably
+    /// mis-tapped (or the bike's bar width is wrong), not that the rider is
+    /// genuinely that narrow/wide.
+    static func isShoulderWidthPlausible(_ cm: Double) -> Bool {
+        (30...60).contains(cm)
+    }
+
     /// Angle of the (shoulder − hip) vector from vertical. 0° = upright, 90° = horizontal.
     static func torsoAngleDeg(shoulder: CGPoint, hip: CGPoint) -> Double {
         let dx = Double(shoulder.x - hip.x)

@@ -373,11 +373,18 @@ private struct RevealStep: View {
                             }
                             .padding(.top, Theme.Space.xs)
 
-                            Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
-                                .font(Theme.mono(12))
-                                .foregroundStyle(Theme.Palette.fg3)
-                                .padding(.top, Theme.Space.xs)
-                                .padding(.bottom, Theme.Space.xl)
+                            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                                Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
+                                    .font(Theme.mono(12))
+                                    .foregroundStyle(Theme.Palette.fg3)
+                                if let scaleWarning = result.scaleWarning {
+                                    Text(scaleWarning)
+                                        .font(Theme.mono(11))
+                                        .foregroundStyle(Theme.Palette.amb)
+                                }
+                            }
+                            .padding(.top, Theme.Space.xs)
+                            .padding(.bottom, Theme.Space.xl)
 
                             SectionDivider()
 
