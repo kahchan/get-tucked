@@ -47,6 +47,31 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(area, 400, accuracy: acc)
     }
 
+    func testCountForegroundPixelsIgnoresRowPadding() {
+        // 3 rows of logical width 4, but bytesPerRow 6 (2 padding bytes per
+        // row, deliberately set to 255 — worst case, as if uninitialised
+        // memory happened to read as foreground). Only 2 of the 4 real
+        // pixels per row are >= threshold; padding must not be counted.
+        let bytesPerRow = 6
+        let height = 3
+        var buffer = [UInt8](repeating: 0, count: bytesPerRow * height)
+        for y in 0 ..< height {
+            let row = y * bytesPerRow
+            buffer[row + 0] = 255
+            buffer[row + 1] = 255
+            buffer[row + 2] = 0
+            buffer[row + 3] = 0
+            buffer[row + 4] = 255 // padding — must be ignored
+            buffer[row + 5] = 255 // padding — must be ignored
+        }
+        let count = buffer.withUnsafeBufferPointer { ptr in
+            AnalysisMath.countForegroundPixels(
+                bytes: ptr.baseAddress!, width: 4, height: height, bytesPerRow: bytesPerRow
+            )
+        }
+        XCTAssertEqual(count, 2 * height)
+    }
+
     func testUncertaintyIsThreePercent() {
         XCTAssertEqual(AnalysisMath.uncertaintyCm2(areaCm2: 400), 12, accuracy: acc)
     }

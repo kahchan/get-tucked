@@ -230,14 +230,12 @@ struct AnalysisEngine {
         guard let dataProvider = mask.dataProvider,
               let data = dataProvider.data,
               let bytes = CFDataGetBytePtr(data) else { return 0 }
-        let count = CFDataGetLength(data)
-        var foreground = 0
         // Vision person segmentation: 255 = foreground, 0 = background.
-        // Use threshold of 128 to tolerate soft edges.
-        for i in 0 ..< count {
-            if bytes[i] >= 128 { foreground += 1 }
-        }
-        return foreground
+        // Threshold of 128 tolerates soft edges. Must stride by mask.bytesPerRow,
+        // not scan the buffer linearly — see AnalysisMath.countForegroundPixels.
+        return AnalysisMath.countForegroundPixels(
+            bytes: bytes, width: mask.width, height: mask.height, bytesPerRow: mask.bytesPerRow
+        )
     }
 
     // MARK: - Head-on pose estimation

@@ -36,6 +36,25 @@ enum AnalysisMath {
         Double(foregroundPixelCount) / (maskPixelsPerCm * maskPixelsPerCm)
     }
 
+    /// Counts pixels ≥ threshold in a row-major 8-bit buffer, striding by
+    /// `bytesPerRow` rather than scanning the buffer linearly. Pixel buffers
+    /// are commonly padded to an alignment boundary, so `bytesPerRow` can
+    /// exceed `width` — a linear scan over the raw byte count then reads that
+    /// trailing padding as if it were pixels. That padding is uninitialised
+    /// memory, not zero, so it silently inflates the count.
+    static func countForegroundPixels(
+        bytes: UnsafePointer<UInt8>, width: Int, height: Int, bytesPerRow: Int, threshold: UInt8 = 128
+    ) -> Int {
+        var count = 0
+        for y in 0 ..< height {
+            let row = y * bytesPerRow
+            for x in 0 ..< width where bytes[row + x] >= threshold {
+                count += 1
+            }
+        }
+        return count
+    }
+
     static func uncertaintyCm2(areaCm2: Double) -> Double {
         areaCm2 * uncertaintyFraction
     }
