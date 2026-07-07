@@ -15,6 +15,7 @@ enum AppScreen: Hashable {
     case bikeSetup
     case leaderboard
     case comparison(PersistentIdentifier, PersistentIdentifier)
+    case howItWorks
     // No UI entry point since the hamburger index was removed (Plan E1) — reach it
     // by temporarily seeding `path` with `[.matteCheck]` in AppNavigationView.
     #if DEBUG
@@ -37,12 +38,12 @@ struct AppNavigationView: View {
                         case .positionList:
                             PositionListView(path: $path)
                         case .positionDetail(let id):
-                            PositionDetailWrapper(id: id)
+                            PositionDetailWrapper(id: id, path: $path)
                         case .setTheScene:
                             SetTheSceneView { path.append(.capture) }
                         case .capture:
                             #if canImport(UIKit)
-                            CaptureView()
+                            CaptureView(path: $path)
                             #else
                             Text("Camera not available on this platform")
                             #endif
@@ -53,7 +54,9 @@ struct AppNavigationView: View {
                         case .leaderboard:
                             LeaderboardView(path: $path)
                         case .comparison(let idA, let idB):
-                            ComparisonWrapper(idA: idA, idB: idB)
+                            ComparisonWrapper(idA: idA, idB: idB, path: $path)
+                        case .howItWorks:
+                            HowItWorksView()
                         #if DEBUG
                         case .matteCheck:
                             MatteCheckView()
@@ -95,11 +98,12 @@ struct BackButton: View {
 
 private struct PositionDetailWrapper: View {
     let id: PersistentIdentifier
+    @Binding var path: [AppScreen]
     @Query private var positions: [Position]
 
     var body: some View {
         if let position = positions.first(where: { $0.persistentModelID == id }) {
-            PositionDetailView(position: position)
+            PositionDetailView(position: position, path: $path)
         } else {
             Text("Position not found")
                 .foregroundStyle(Theme.Palette.fg2)
@@ -112,13 +116,14 @@ private struct PositionDetailWrapper: View {
 private struct ComparisonWrapper: View {
     let idA: PersistentIdentifier
     let idB: PersistentIdentifier
+    @Binding var path: [AppScreen]
     @Query private var positions: [Position]
 
     var body: some View {
         let a = positions.first(where: { $0.persistentModelID == idA })
         let b = positions.first(where: { $0.persistentModelID == idB })
         if let a, let b {
-            ComparisonView(positionA: a, positionB: b)
+            ComparisonView(positionA: a, positionB: b, path: $path)
         } else {
             Text("Positions not found")
                 .foregroundStyle(Theme.Palette.fg2)

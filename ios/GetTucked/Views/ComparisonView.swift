@@ -3,6 +3,7 @@ import SwiftUI
 struct ComparisonView: View {
     let positionA: Position   // first selected — the reference
     let positionB: Position   // second selected
+    @Binding var path: [AppScreen]
 
     private var metricsA: PositionMetrics? { positionA.metrics }
     private var metricsB: PositionMetrics? { positionB.metrics }
@@ -68,6 +69,9 @@ struct ComparisonView: View {
 
                         // Metric diff table
                         DiffTable(metricsA: metricsA, metricsB: metricsB)
+
+                        HowItWorksLink(path: $path)
+                            .padding(Theme.Space.lg)
                     }
                 }
             }

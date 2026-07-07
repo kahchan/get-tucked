@@ -7,6 +7,7 @@ import Photos
 
 struct PositionDetailView: View {
     @Bindable var position: Position
+    @Binding var path: [AppScreen]
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     #if canImport(UIKit)
@@ -55,6 +56,9 @@ struct PositionDetailView: View {
 
                         if let metrics = position.metrics {
                             MetricsSection(metrics: metrics)
+                            HowItWorksLink(path: $path)
+                                .padding(.horizontal, Theme.Space.lg)
+                                .padding(.bottom, Theme.Space.md)
                         } else {
                             Text("No metrics computed.")
                                 .font(Theme.mono(13))

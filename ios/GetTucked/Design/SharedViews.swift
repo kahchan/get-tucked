@@ -77,6 +77,23 @@ struct HeaderLink: View {
     }
 }
 
+/// "HOW THE NUMBER IS MADE →" — appears on every screen that shows a computed
+/// number (Reveal, Detail, Comparison), linking to `HowItWorksView` (Plan A2).
+struct HowItWorksLink: View {
+    @Binding var path: [AppScreen]
+
+    var body: some View {
+        Button {
+            path.append(.howItWorks)
+        } label: {
+            Text("HOW THE NUMBER IS MADE →")
+                .font(Theme.mono(11))
+                .foregroundStyle(Theme.Palette.acc)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// Full-height empty state for list screens.
 struct EmptySlate: View {
     let message: String

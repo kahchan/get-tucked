@@ -4,6 +4,7 @@ import PhotosUI
 import Photos
 
 struct CaptureView: View {
+    @Binding var path: [AppScreen]
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query private var bikes: [Bike]
@@ -113,7 +114,7 @@ struct CaptureView: View {
                 AnalysingView(label: "ANALYSING POSTURE…")
             case .reveal:
                 if let result = pendingResult, let photo = selectedImage {
-                    RevealStep(result: result, photo: photo, sideOnPose: pendingSideOnPose, onContinue: {
+                    RevealStep(result: result, photo: photo, sideOnPose: pendingSideOnPose, path: $path, onContinue: {
                         step = .namePosition
                     }, onRetake: {
                         tapPoints = []
@@ -326,6 +327,7 @@ private struct RevealStep: View {
     let result: AnalysisResult
     let photo: UIImage
     let sideOnPose: SideOnPoseMetrics?
+    @Binding var path: [AppScreen]
     let onContinue: () -> Void
     let onRetake: () -> Void
 
@@ -382,6 +384,8 @@ private struct RevealStep: View {
                                         .font(Theme.mono(11))
                                         .foregroundStyle(Theme.Palette.amb)
                                 }
+                                HowItWorksLink(path: $path)
+                                    .padding(.top, Theme.Space.xs)
                             }
                             .padding(.top, Theme.Space.xs)
                             .padding(.bottom, Theme.Space.xl)
