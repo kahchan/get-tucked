@@ -1,6 +1,16 @@
 # Execution plan — matte-display fix + clean capture re-run
 
-Status: **ready to execute** (handoff to a fresh agent). Written 2026-07-07.
+Status: **done** (Tasks 1-4 executed 2026-07-08, commits `db397b7`,
+`776c5f6`, `2104959`). All four coding tasks landed; tests green (36
+pass); PHOTO/MASK toggle and bar-width row verified via seeded reveal
+screenshots (see task sections below for details). The scale warning
+was already positioned above the metric rows near the hero number —
+Task 4's reposition concern didn't apply to current code, only the
+new bar-width row was added. **Next: Kah runs the experiment protocol
+at the bottom of this doc on-device** — that human verdict is still
+outstanding.
+
+Written 2026-07-07.
 This is a focused execution slice, not new analysis — the full diagnosis lives
 in [`plan-h-matte-display-and-storage.md`](plan-h-matte-display-and-storage.md).
 Read that plan's "Problem 1 / Problem 2 root cause" sections first; this
