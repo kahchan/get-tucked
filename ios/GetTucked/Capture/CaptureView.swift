@@ -334,6 +334,7 @@ private struct RevealStep: View {
     let onRetake: () -> Void
 
     @State private var showingMask = true
+    @State private var maskOverlay: UIImage?
 
     var body: some View {
         ZStack {
@@ -346,16 +347,20 @@ private struct RevealStep: View {
                             Image(uiImage: photo)
                                 .resizable()
                                 .scaledToFit()
-                            if showingMask {
-                                Image(uiImage: result.maskImage)
+                            if showingMask, let maskOverlay {
+                                Image(uiImage: maskOverlay)
                                     .resizable()
-                                    .renderingMode(.template)
                                     .scaledToFit()
-                                    .foregroundStyle(Theme.Palette.acc.opacity(0.5))
                             }
                         }
                         .frame(maxWidth: .infinity)
                         .background(Theme.Palette.bg1)
+                        .onAppear {
+                            guard let cgMask = result.maskImage.cgImage else { return }
+                            maskOverlay = MatteRenderer.tintedOverlay(
+                                mask: cgMask, color: UIColor(Theme.Palette.acc), alpha: 0.5
+                            )
+                        }
 
                         MaskToggleBar(showingMask: $showingMask)
                         SectionDivider()
