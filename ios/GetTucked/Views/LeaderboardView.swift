@@ -99,6 +99,13 @@ private struct RankRow: View {
 
     private var deltaText: String? {
         guard let a = area, let b = bestArea, rank > 1 else { return nil }
+        // A delta smaller than the combined noise floor isn't a real ranking
+        // difference — don't claim it as one (Plan A4).
+        if let uA = position.metrics?.frontalAreaUncertainty,
+           let uB = best?.metrics?.frontalAreaUncertainty,
+           !AnalysisMath.isDistinguishable(areaA: a, areaB: b, uncertaintyA: uA, uncertaintyB: uB) {
+            return nil
+        }
         let pct = ((a - b) / b) * 100
         return "+\(String(format: "%.1f", pct))%"
     }

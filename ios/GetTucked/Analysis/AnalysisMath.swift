@@ -47,6 +47,22 @@ enum AnalysisMath {
         "±\(Int(cm2.rounded())) cm²"
     }
 
+    // MARK: - Noise floor
+
+    /// Two independent measurements' uncertainties combine in quadrature, not
+    /// by simple addition — the standard rule for combining independent errors.
+    static func combinedNoiseCm2(uncertaintyA: Double, uncertaintyB: Double) -> Double {
+        (uncertaintyA * uncertaintyA + uncertaintyB * uncertaintyB).squareRoot()
+    }
+
+    /// A delta smaller than the combined noise floor can't be told apart from
+    /// measurement jitter — the spec's "single most important honesty feature".
+    static func isDistinguishable(
+        areaA: Double, areaB: Double, uncertaintyA: Double, uncertaintyB: Double
+    ) -> Bool {
+        abs(areaB - areaA) > combinedNoiseCm2(uncertaintyA: uncertaintyA, uncertaintyB: uncertaintyB)
+    }
+
     // MARK: - Pose geometry (inputs are normalised landmark points, origin bottom-left)
 
     static func shoulderWidthCm(

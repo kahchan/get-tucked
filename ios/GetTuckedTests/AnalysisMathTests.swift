@@ -71,6 +71,26 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(area, 400, accuracy: acc)
     }
 
+    // MARK: - Noise floor
+
+    func testCombinedNoiseCm2CombinesInQuadrature() {
+        // 3-4-5 triangle: sqrt(3^2 + 4^2) = 5.
+        XCTAssertEqual(AnalysisMath.combinedNoiseCm2(uncertaintyA: 3, uncertaintyB: 4), 5, accuracy: acc)
+    }
+
+    func testIsDistinguishableWhenDeltaExceedsNoise() {
+        XCTAssertTrue(AnalysisMath.isDistinguishable(
+            areaA: 400, areaB: 450, uncertaintyA: 12, uncertaintyB: 13.5
+        ))
+    }
+
+    func testIsNotDistinguishableWhenDeltaWithinNoise() {
+        // |401 - 400| = 1, combined noise = sqrt(12^2+12^2) ≈ 17 → within noise.
+        XCTAssertFalse(AnalysisMath.isDistinguishable(
+            areaA: 400, areaB: 401, uncertaintyA: 12, uncertaintyB: 12
+        ))
+    }
+
     // MARK: - Pose geometry
 
     func testShoulderWidthCm() {
