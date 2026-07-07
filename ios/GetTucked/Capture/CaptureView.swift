@@ -116,7 +116,7 @@ struct CaptureView: View {
                 AnalysingView(label: "ANALYSING POSTURE…")
             case .reveal:
                 if let result = pendingResult, let photo = selectedImage {
-                    RevealStep(result: result, photo: photo, sideOnPose: pendingSideOnPose, path: $path, onContinue: {
+                    RevealStep(result: result, photo: photo, sideOnPose: pendingSideOnPose, barWidthMm: selectedBike?.handlebarWidthMm, path: $path, onContinue: {
                         step = .namePosition
                     }, onRetake: {
                         tapPoints = []
@@ -329,6 +329,7 @@ private struct RevealStep: View {
     let result: AnalysisResult
     let photo: UIImage
     let sideOnPose: SideOnPoseMetrics?
+    let barWidthMm: Double?
     @Binding var path: [AppScreen]
     let onContinue: () -> Void
     let onRetake: () -> Void
@@ -401,6 +402,9 @@ private struct RevealStep: View {
 
                             MetricRow(key: "Scale",
                                       value: String(format: "%.1f px/cm", result.pixelsPerCm))
+                            if let barWidthMm {
+                                MetricRow(key: "Bar width", value: "\(Int(barWidthMm)) mm")
+                            }
                             if let shoulder = result.headOnPose?.shoulderWidthCm {
                                 MetricRow(key: "Shoulder width",
                                           value: String(format: "%.1f cm", shoulder))
