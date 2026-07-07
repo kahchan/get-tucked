@@ -1,7 +1,11 @@
 # Plan F — Capture precision, person robustness & nav polish
 
-Status: **not started**. Written 2026-07-07 from a round of on-device testing
-with real photos (a rider in a cluttered room; a bare wheel for scale). Three
+Status: **F1–F4 all done** (2026-07-07, commits `d8287e2` F2, `88c78b8` F4,
+`94c38f8` F1, `ceda8e0` F3). Verified via unit tests + simulator screenshots
+(no tap-simulation tool in this environment — F3's actual drag/pinch feel and
+F4's two real problem-photos still need Kah on-device). Written 2026-07-07
+from a round of on-device testing with real photos (a rider in a cluttered
+room; a bare wheel for scale). Three
 independent findings plus two chrome nits found in the same screens.
 
 **Design authority:** the unpacked prototype in `inspiration/unpacked/`
@@ -206,3 +210,15 @@ rider box is the dominant one; no regression in the clip/height checks.
    also want a nudge control (arrow keys / fine-adjust buttons) for the last
    pixel? Recommendation: ship pinch + loupe first, add nudge only if it's
    still fiddly on device.
+
+## Resolution (2026-07-07 execution session)
+
+Adopted the plan's own recommendations for all three flagged decisions:
+root titles at 24pt (1), F4's deeper instance-mask fix deferred and folded
+into Plan A1 instead (2), F3 shipped pinch+loupe only, no nudge control yet
+(3). F3's gesture math (`CalibrationTransform.swift`, new pure
+screen↔unit-space transform with round-trip unit tests) deliberately keeps
+gesture recognizers on an *untransformed* hit-testing layer, with zoom/pan
+folded in explicitly via the pure transform rather than relying on how
+SwiftUI hit-tests through `.scaleEffect` — avoids a subtle, hard-to-verify
+class of bug in this environment (no interactive gesture testing available).

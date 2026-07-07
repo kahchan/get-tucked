@@ -1,12 +1,23 @@
 # Plan A — Measurement integrity (what the number means)
 
-Status: **in progress**. Written 2026-07-03 from a full code/plan review.
-A1's harness is built (commit `18cb848`). **Product definition now decided
-(2026-07-07): frontal area = the rider + bike + bags *system*** — see A1.
-What's still outstanding is the *feasibility* eyeball (does foreground-instance
-segmentation actually capture that system cleanly on real cluttered-background
-photos → `plans/matte-verdict.md`); it gates A2/A4. A3/A4/A5 not started.
-**A6 added (2026-07-07):** 3D side-on pose trial for posture robustness.
+Status: **A1 (SUBJECT-mode code)/A2/A3/A4/A6 done** (2026-07-07 execution
+session, commits `9b373e5` A1, `ffa3d25` A2, `cd500a6` A3, `0baf435` A4,
+`18e4668` A6). Correcting this doc's earlier note: A2/A4 turned out **not**
+actually gated on A1's feasibility verdict — A2's methodology copy only
+needed the already-decided rider+bike+bags definition (not the verdict on
+*which tech* delivers it), and A4's noise-floor math is independent of mask
+definition entirely. **A5 still deferred** (explicitly gated on A1's verdict
+per this plan). **A1's human step still outstanding**: the feasibility
+eyeball on real cluttered-background photos, and recording the verdict in
+`plans/matte-verdict.md`, needs Kah on-device — only the SUBJECT-mode
+harness code landed. **A6's human step also outstanding**: the DEBUG
+comparison surface (`PoseCheckView`) is built, but the adopt/reject verdict
+on 3D vs 2D under off-axis framing + bike occlusion needs Kah shooting those
+stress photos.
+
+Written 2026-07-03 from a full code/plan review. A1's harness is built
+(commit `18cb848`). **Product definition now decided (2026-07-07): frontal
+area = the rider + bike + bags *system*** — see A1.
 Audience: a smaller model executing tasks one at a time. Do tasks in order.
 Each task is self-contained; commit each with a Conventional Commit message.
 
