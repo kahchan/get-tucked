@@ -4,8 +4,12 @@ import SwiftData
 struct BikeListView: View {
     @Binding var path: [AppScreen]
     @Query(sort: \Bike.createdAt, order: .forward) private var bikes: [Bike]
+    @Environment(\.modelContext) private var context
     @State private var showingAddBike = false
     @State private var editingBike: Bike?
+    #if DEBUG
+    @State private var showResetConfirm = false
+    #endif
 
     var body: some View {
         ZStack {
@@ -51,6 +55,7 @@ struct BikeListView: View {
                         .foregroundStyle(Theme.Palette.fg4)
                         .kerning(1.2)
                     HeaderLink("MATTE CHECK") { path.append(.matteCheck) }
+                    HeaderLink("RESET ALL DATA") { showResetConfirm = true }
                 }
                 .padding(Theme.Space.lg)
                 #endif
@@ -63,6 +68,16 @@ struct BikeListView: View {
         .sheet(item: $editingBike) { bike in
             BikeSetupView(editing: bike)
         }
+        #if DEBUG
+        .confirmationDialog("Delete all bikes and positions?", isPresented: $showResetConfirm, titleVisibility: .visible) {
+            Button("Reset all data", role: .destructive) {
+                try? context.delete(model: Position.self)
+                try? context.delete(model: Bike.self)
+                try? context.save()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        #endif
     }
 }
 
