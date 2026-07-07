@@ -1,9 +1,12 @@
 # Plan A — Measurement integrity (what the number means)
 
 Status: **in progress**. Written 2026-07-03 from a full code/plan review.
-A1's harness is built (commit `18cb848`); the human matte verdict (real
-outdoor photos → `plans/matte-verdict.md`) is still outstanding and gates
-A2/A4. A3/A4/A5 not started.
+A1's harness is built (commit `18cb848`). **Product definition now decided
+(2026-07-07): frontal area = the rider + bike + bags *system*** — see A1.
+What's still outstanding is the *feasibility* eyeball (does foreground-instance
+segmentation actually capture that system cleanly on real cluttered-background
+photos → `plans/matte-verdict.md`); it gates A2/A4. A3/A4/A5 not started.
+**A6 added (2026-07-07):** 3D side-on pose trial for posture robustness.
 Audience: a smaller model executing tasks one at a time. Do tasks in order.
 Each task is self-contained; commit each with a Conventional Commit message.
 
@@ -24,18 +27,26 @@ be presented as real. Neither is fully true today.
 
 ## A1. Decide what "frontal area" includes — experiment first (HIGH priority)
 
-**Harness: done** (commit `18cb848`). **Human verdict: outstanding** — waiting
-on Kah to shoot ≥5 outdoor photos and record the verdict in
-`plans/matte-verdict.md`.
+**Harness: done** (commit `18cb848`). **Definition: decided** (2026-07-07).
+**Feasibility eyeball: outstanding** — waiting on Kah to shoot real
+cluttered-background photos and record the verdict in `plans/matte-verdict.md`.
 
-**The open product question:** `VNGeneratePersonSegmentationRequest` is trained
-on *people*. It may or may not include the bike, and will not reliably include
-bags. But a bikepacking setup's drag is the **rider + bike + bags system** —
-the reference render Kah produced (rider + full bike masked, ~5170 cm²) implies
-the system is the intended quantity. The code spec instead treats frontal area
-as person-only, with bags added separately via tap-to-segment (Phase 3).
-If the person mask includes *some* bike inconsistently between captures, the
-comparison — the hero feature — is corrupted either way.
+**Product decision (2026-07-07):** frontal area = the **rider + bike + bags
+system** — the whole lit foreground silhouette, not the rider alone. Rationale:
+(a) it matches Kah's reference render (rider + full bike, ~5170 cm²) and the
+prototype Methodology copy ("you *and the bike*"); (b) for a bikepacking /
+ultra audience the **bags** are a large, differentiating part of the drag; and
+(c) it's the only definition an on-device request can capture *including bags* —
+`VNGeneratePersonSegmentationRequest` is person-only (no bike, no bags), and a
+semantic model like DeepLabV3 (person ∪ bicycle classes) still can't see bags,
+which have no semantic segmenter. Only saliency-based subject lifting
+(`VNGenerateForegroundInstanceMaskRequest`) is class-agnostic enough to grab
+them. So the definition dictates the tech: **foreground-instance masking.**
+
+**What the experiment now decides is feasibility, not intent:** can
+foreground-instance masking capture the rider+bike+bags cleanly on a real,
+cluttered background — and can we reliably drop the clutter (a coat on the wall,
+a spare wheel leaning nearby) that saliency will also pick up?
 
 **Task:** extend the DEBUG matte-check harness to answer this empirically.
 
@@ -44,27 +55,50 @@ comparison — the hero feature — is corrupted either way.
   pattern): `PERSON` (current, `VNGeneratePersonSegmentationRequest.accurate`)
   vs `FOREGROUND` (`VNGenerateForegroundInstanceMaskRequest`, iOS 17 — combine
   **all** instances into one mask via
-  `generateScaledMaskForImage(forInstances:from:)`).
+  `generateScaledMaskForImage(forInstances:from:)`). Already built.
+- **Add a third mode `SUBJECT` (the real proposed pipeline):** instead of
+  unioning *all* foreground instances, select the **rider instance** (the one
+  overlapping the `VNDetectHumanRectanglesRequest` box / frame centre) **plus
+  instances spatially connected to it** (the bike/bags the rider is on), and
+  drop everything else (coat on the wall, leaning spare wheel, background
+  clutter). This is what production would actually count — eyeball *this*, not
+  raw all-instances. It also subsumes Plan F4's dominant-rider gate: same
+  instance-selection logic replaces the brittle `count == 1` reject.
 - Show coverage % for each mode, and keep the PHOTO/MATTE display toggle.
 - No schema or shipping-UI changes. DEBUG-only.
 
-**Acceptance:** on the same picked photo you can flip between PERSON matte and
-FOREGROUND matte and read both coverage figures.
+**Watch for:** **shadows** — saliency may grab a hard shadow behind the rider
+(inflating area); semantic wouldn't. Note it in the verdict; mitigation is the
+Set-the-Scene diffuse-light coaching, possibly a later low-saturation shadow
+reject. **Thin structures** (spokes, cables) may drop out — fine for *area*
+(wheels-as-discs and frame tubes dominate), but note where it fails.
 
-**Then (human step — stop and ask Kah):** run ≥5 real outdoor cyclist photos
-(loaded bike, cluttered background — the fixtures in `fixtures/` do NOT count)
-through both modes and record the verdict in `plans/matte-verdict.md`:
-does PERSON mode bleed onto the bike? does FOREGROUND mode capture rider+bike
-cleanly? The verdict decides the product definition:
+**Acceptance:** on the same picked photo you can flip between PERSON, FOREGROUND
+(all-instances), and SUBJECT (rider + connected) mattes and read each coverage
+figure.
 
-- If FOREGROUND is stable → frontal area = rider+bike system (matches intent).
-- If not → frontal area = rider-only, documented loudly, bags/bike via Phase 3
-  tap-to-segment as additive areas.
+**Then (human step — stop and ask Kah):** run ≥5 real photos (loaded bike with
+bags, cluttered background — the fixtures in `fixtures/` do NOT count) through
+all three modes and record the verdict in `plans/matte-verdict.md`: does
+`SUBJECT` mode capture rider + bike + **bags** cleanly and drop the clutter?
+The definition is fixed (rider+bike+bags); the verdict decides **which tech
+delivers it**:
 
-Note: the design prototype's Methodology screen
-(`inspiration/unpacked/template.html`, screen 14) explicitly promises
-"We separate you **and the bike** from everything behind you" — the design
-intends the rider+bike system. The experiment decides feasibility, not intent.
+- If `SUBJECT` (foreground-instance + rider-connected selection) is clean →
+  adopt it as the measurement pipeline; retire person-only.
+- If saliency is too noisy (shadows, clutter it won't drop) → fall back, and
+  say so loudly in the Methodology copy: e.g. person ∪ bicycle via DeepLabV3
+  for the rigid system with **bags excluded and labelled as such**, or
+  rider-only + Phase-3 tap-to-add bag areas. These are *fallbacks from the
+  intended definition*, flagged honestly — not a silent redefinition.
+
+Whatever ships, the reveal already shows the matte (Plan C1) and must carry a
+label stating what's counted ("RIDER + BIKE + BAGS"), so the number is
+defensible even when the matte is imperfect and the user can retake.
+
+Note: the prototype Methodology screen (`template.html` screen 14) already
+promises "We separate you **and the bike** from everything behind you" — the
+design intends the system. The experiment decides feasibility, not intent.
 
 Do **not** change `AnalysisEngine` until the verdict is recorded.
 
@@ -143,3 +177,55 @@ feature". Don't wait for the Phase-4 self-test — use the existing ±3% model n
 Already fully specced as item 1 of `plans/phase2-live-capture-plan.md`
 (half-range across 3 frames, floored at 3%). Execute from there **after**
 A1's verdict lands, since re-validating numbers twice is wasted work.
+
+## A6. 3D side-on pose trial — experiment first (posture, not area)
+
+**Frame this correctly before touching it:** 3D pose does **nothing** for the
+hero number. Frontal area already captures upright-vs-tucked (a tuck *is* a
+smaller area, straight off the head-on matte). 3D body pose is a **posture**
+tool — it explains *how* a rider achieved an area (hip hinge vs rounded back vs
+arm width) and could make the posture angles better. Its job is to be evaluated
+against the **2D** side-on pose the app already computes
+(`VNDetectHumanBodyPoseRequest` → `AnalysisMath` torso/hip/head-drop), not to
+add a new headline metric.
+
+**Why it might help** (`VNDetectHumanBodyPose3DRequest`, iOS 17 — lifts a 3D
+skeleton from a *single* RGB image, no LiDAR needed; joints in metres relative
+to a root, single most-prominent person; monocular depth is approximate):
+- **Alignment robustness.** The 2D angles assume a near-perfect perpendicular
+  side-on; any camera yaw foreshortens them. 3D recovers the true sagittal
+  torso/hip angles regardless of squareness. A clean side-on is hard to shoot,
+  so this is a real gain.
+- **Cross-session comparability.** A 3D-normalised tuck/torso angle is
+  comparable between sessions even when framing differs — which is the whole
+  point of iterating a position over time.
+
+**Why it might not** (the honest risks — this is a *measurement-integrity*
+plan):
+- **Monocular depth is approximate.** A "torso 42°" off noisy 3D depth risks
+  fake precision (spec §3). If adopted, the angle needs an honest, wider ± than
+  the in-plane 2D version — not a tighter one.
+- **Bike occlusion is the specific threat.** Side-on, the wheel and frame
+  occlude the **hips and knees** — the exact aero-relevant joints. Both 2D and
+  3D degrade under occlusion; 3D's depth inference may degrade unpredictably.
+  This is the crux and can only be settled empirically.
+- Newest of the Vision pose requests; least-proven on this hard case.
+
+**Task (experiment, do not wire into the pipeline yet):**
+- Extend the side-on analysis to run `VNDetectHumanBodyPose3DRequest`
+  *alongside* the existing 2D request (DEBUG comparison surface — reuse the
+  `MatteCheckView` harness pattern or add a sibling), and put the 3D-joint →
+  angle math in pure functions in `ios/GetTucked/Analysis/AnalysisMath.swift`
+  (testable next to the 2D ones).
+- On the same side-on photo, compare 3D vs 2D torso/hip angles under two
+  deliberate stresses: **(a) off-perpendicular framing** (where 2D is known to
+  break) and **(b) bike occlusion of the lower body.**
+
+**Then (human step — stop and ask Kah):** record in `plans/matte-verdict.md`
+(or a sibling `pose-3d-verdict.md`) whether 3D beats 2D on both stresses
+*without* inflating uncertainty. **Adopt only if it does.** If occlusion wrecks
+the hip/knee joints, keep 2D and lean on the PERP pill to keep side-ons square.
+
+**Acceptance:** a DEBUG surface shows 3D and 2D angles side by side on the same
+photo; the comparison verdict is recorded; `AnalysisEngine`'s shipping pipeline
+is unchanged until the verdict says adopt.
