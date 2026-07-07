@@ -166,6 +166,47 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(deg, 0, accuracy: acc)
     }
 
+    // MARK: - 3D pose geometry (Plan A6)
+
+    func testTorsoAngle3DUprightIsZero() {
+        let deg = AnalysisMath.torsoAngleDeg3D(shoulder: (x: 0, y: 0.5, z: 0), hip: (x: 0, y: 0, z: 0))
+        XCTAssertEqual(deg, 0, accuracy: 1e-9)
+    }
+
+    func testTorsoAngle3DHorizontalIsNinety() {
+        let deg = AnalysisMath.torsoAngleDeg3D(shoulder: (x: 0.5, y: 0, z: 0), hip: (x: 0, y: 0, z: 0))
+        XCTAssertEqual(deg, 90, accuracy: 1e-9)
+    }
+
+    func testTorsoAngle3DIsInvariantToYaw() {
+        // The whole point of 3D: the same physical lean, rotated about the
+        // vertical axis, must read the same angle from vertical.
+        let degFacingX = AnalysisMath.torsoAngleDeg3D(shoulder: (x: 0.3, y: 0.4, z: 0), hip: (x: 0, y: 0, z: 0))
+        let degFacingZ = AnalysisMath.torsoAngleDeg3D(shoulder: (x: 0, y: 0.4, z: 0.3), hip: (x: 0, y: 0, z: 0))
+        XCTAssertEqual(degFacingX, degFacingZ, accuracy: 1e-9)
+    }
+
+    func testHipAngle3DStraight() {
+        let deg = AnalysisMath.hipAngleDeg3D(
+            shoulder: (x: 0, y: 0.4, z: 0), hip: (x: 0, y: 0, z: 0), knee: (x: 0, y: -0.4, z: 0)
+        )
+        XCTAssertEqual(deg, 180, accuracy: 1e-6)
+    }
+
+    func testHipAngle3DRight() {
+        let deg = AnalysisMath.hipAngleDeg3D(
+            shoulder: (x: 0, y: 0.4, z: 0), hip: (x: 0, y: 0, z: 0), knee: (x: 0.4, y: 0, z: 0)
+        )
+        XCTAssertEqual(deg, 90, accuracy: 1e-6)
+    }
+
+    func testHipAngle3DDegenerateReturnsZero() {
+        let deg = AnalysisMath.hipAngleDeg3D(
+            shoulder: (x: 0, y: 0, z: 0), hip: (x: 0, y: 0, z: 0), knee: (x: 0, y: 0, z: 0)
+        )
+        XCTAssertEqual(deg, 0, accuracy: acc)
+    }
+
     func testHeadDropBelowShoulderIsPositive() {
         // Ear 0.2 (normalised) below shoulder over 1000px at 10 px/cm → 20cm.
         let cm = AnalysisMath.headDropCm(

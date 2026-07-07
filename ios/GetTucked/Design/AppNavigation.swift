@@ -20,6 +20,9 @@ enum AppScreen: Hashable {
     // by temporarily seeding `path` with `[.matteCheck]` in AppNavigationView.
     #if DEBUG
     case matteCheck
+    // Same code-only reachability as matteCheck — seed `path` with
+    // `[.poseCheck]` to reach it (Plan A6).
+    case poseCheck
     #endif
 }
 
@@ -60,6 +63,8 @@ struct AppNavigationView: View {
                         #if DEBUG
                         case .matteCheck:
                             MatteCheckView()
+                        case .poseCheck:
+                            PoseCheckView()
                         #endif
                         }
                     }

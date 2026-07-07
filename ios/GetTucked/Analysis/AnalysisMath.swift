@@ -106,4 +106,38 @@ enum AnalysisMath {
     ) -> Double {
         (shoulderY - earY) * Double(imageHeightPx) / pixelsPerCm
     }
+
+    // MARK: - 3D pose geometry (Plan A6 — DEBUG comparison only; inputs are
+    // Vision's root-relative joint positions in metres, (x, y, z) tuples
+    // rather than `simd_float4x4` so this stays a pure, framework-light,
+    // testable function. Assumes Vision's Y-axis is "up" — verify against a
+    // known-upright photo before trusting the number; not wired into the
+    // shipping pipeline until that verdict lands.)
+
+    /// 3D analogue of `torsoAngleDeg`: angle of the (shoulder − hip) vector
+    /// from vertical, using the full 3D lean (not just the image-plane
+    /// projection) — so unlike the 2D version, this is unaffected by camera yaw.
+    static func torsoAngleDeg3D(shoulder: (x: Double, y: Double, z: Double),
+                                 hip: (x: Double, y: Double, z: Double)) -> Double {
+        let dx = shoulder.x - hip.x
+        let dy = shoulder.y - hip.y
+        let dz = shoulder.z - hip.z
+        let horizontal = (dx * dx + dz * dz).squareRoot()
+        return abs(atan2(horizontal, dy) * 180 / .pi)
+    }
+
+    /// 3D analogue of `hipAngleDeg`: interior angle at the hip between torso
+    /// (hip→shoulder) and thigh (hip→knee), generalised from 2D to 3D vectors.
+    static func hipAngleDeg3D(shoulder: (x: Double, y: Double, z: Double),
+                               hip: (x: Double, y: Double, z: Double),
+                               knee: (x: Double, y: Double, z: Double)) -> Double {
+        let sx = shoulder.x - hip.x, sy = shoulder.y - hip.y, sz = shoulder.z - hip.z
+        let kx = knee.x - hip.x, ky = knee.y - hip.y, kz = knee.z - hip.z
+        let dot = sx * kx + sy * ky + sz * kz
+        let magA = (sx * sx + sy * sy + sz * sz).squareRoot()
+        let magB = (kx * kx + ky * ky + kz * kz).squareRoot()
+        guard magA > 0, magB > 0 else { return 0 }
+        let cosine = max(-1.0, min(1.0, dot / (magA * magB)))
+        return acos(cosine) * 180 / .pi
+    }
 }
