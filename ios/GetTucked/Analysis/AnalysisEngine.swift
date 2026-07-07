@@ -114,13 +114,38 @@ struct AnalysisEngine {
         let handler = VNImageRequestHandler(cgImage: cgImage)
         try handler.perform([request])
 
-        guard let observations = request.results, !observations.isEmpty else {
+        // Drop low-confidence detections first (a coat, a poster) before counting.
+        let confidenceFloor: VNConfidence = 0.5
+        guard let results = request.results else {
             throw AnalysisError.noPersonDetected
         }
-        guard observations.count == 1 else {
-            throw AnalysisError.multiplePersonsDetected
+        let observations = results.filter { $0.confidence >= confidenceFloor }
+        guard !observations.isEmpty else {
+            throw AnalysisError.noPersonDetected
         }
-        let box = observations[0].boundingBox // normalised, origin bottom-left
+
+        // Spec §3: the rider fills the frame, so their box dwarfs incidental
+        // detections — a coat on the wall, a person printed on the rider's shirt.
+        // Pick the dominant (largest) box as the rider instead of hard-rejecting
+        // on `count != 1`, which refused perfectly good solo shots.
+        let sorted = observations.sorted {
+            $0.boundingBox.width * $0.boundingBox.height > $1.boundingBox.width * $1.boundingBox.height
+        }
+        let dominant = sorted[0]
+
+        // Only flag a genuine second person: a box that's also large — nearly
+        // as big as the dominant one, and tall enough to be a real human in
+        // frame — not decor.
+        if sorted.count > 1 {
+            let second = sorted[1]
+            let dominantArea = dominant.boundingBox.width * dominant.boundingBox.height
+            let secondArea = second.boundingBox.width * second.boundingBox.height
+            if secondArea >= 0.6 * dominantArea, second.boundingBox.height >= 0.5 {
+                throw AnalysisError.multiplePersonsDetected
+            }
+        }
+
+        let box = dominant.boundingBox // normalised, origin bottom-left
 
         // Spec §3: rider should fill the frame. Require bbox height > 50% of frame.
         // Do NOT reject for touching the bottom edge — full-body cycling shots
