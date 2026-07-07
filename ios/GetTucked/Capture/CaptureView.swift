@@ -486,7 +486,26 @@ private struct HandlebarCalibrationStep: View {
     @Binding var tapPoints: [CGPoint]
     let onConfirm: () -> Void
 
-    @State private var zoomPoint: CGPoint?
+    // Persisted zoom/pan (committed at gesture end) plus the in-flight gesture
+    // deltas, combined for the live transform each frame.
+    @State private var zoomScale: CGFloat = 1
+    @State private var panOffset: CGSize = .zero
+    @GestureState private var pinchDelta: CGFloat = 1
+    @GestureState private var panDelta: CGSize = .zero
+
+    // Which point (if any) is being dragged, and its live screen position —
+    // drives the floating loupe. `nil` when not dragging.
+    @State private var draggingIndex: Int?
+    @State private var dragScreenPoint: CGPoint?
+    // Captured once per drag gesture: the point's screen position *before*
+    // this drag started. `DragGesture.translation` is cumulative from
+    // gesture-start, not incremental, so this has to stay fixed for the
+    // duration of one drag rather than being re-derived from `tapPoints`
+    // (which mutates on every callback).
+    @State private var dragStartUnit: CGPoint?
+
+    private let minZoom: CGFloat = 1
+    private let maxZoom: CGFloat = 8
 
     var body: some View {
         VStack(spacing: 0) {
@@ -495,42 +514,55 @@ private struct HandlebarCalibrationStep: View {
             GeometryReader { proxy in
                 // §2.1 fix: compute the actual displayed image rect (aspect-fit)
                 // so taps are measured against the image, not the letterbox container.
-                let rect = aspectFitRect(imageSize: image.size, in: proxy.size)
+                let imageRect = CalibrationTransform.aspectFitRect(imageSize: image.size, in: proxy.size)
+                let viewport = CalibrationTransform.Viewport(
+                    containerSize: proxy.size,
+                    imageRect: imageRect,
+                    zoomScale: zoomScale * pinchDelta,
+                    panOffset: CGSize(width: panOffset.width + panDelta.width,
+                                       height: panOffset.height + panDelta.height)
+                )
                 ZStack {
+                    // Visual-only layer: the scale/offset here is a rendering
+                    // transform, not a hit-testing one — gestures live on the
+                    // untransformed layers above so their locations/deltas are
+                    // always in plain container space, with zoom/pan folded in
+                    // explicitly via `CalibrationTransform` instead of relying
+                    // on how SwiftUI hit-tests through `scaleEffect`.
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
-                    tapOverlay(in: rect)
+                        .scaleEffect(viewport.zoomScale, anchor: .center)
+                        .offset(x: viewport.panOffset.width, y: viewport.panOffset.height)
+                        .allowsHitTesting(false)
+
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .gesture(backgroundGesture(viewport: viewport))
+                        .onTapGesture { location in
+                            handleTap(location: location, viewport: viewport)
+                        }
+
+                    // Handles + connecting line, positioned via the pure
+                    // transform on this same untransformed layer — their own
+                    // drag gestures take priority over the background pan
+                    // when a touch starts inside a handle.
+                    pointOverlay(viewport: viewport)
+
+                    if let dragScreenPoint {
+                        loupe(forScreenPoint: dragScreenPoint, in: viewport)
+                            .position(x: dragScreenPoint.x, y: max(60, dragScreenPoint.y - 110))
+                            .allowsHitTesting(false)
+                    }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture { location in
-                    handleTap(location: location, imageRect: rect)
-                }
+                .clipped()
             }
 
-            if let zp = zoomPoint {
-                zoomPreview(center: zp)
-                    .frame(height: 120)
-                    .padding(.vertical, 8)
+            if zoomScale > 1.01 || panOffset != .zero {
+                resetViewButton
             }
 
             confirmButton
-        }
-    }
-
-    /// Returns the CGRect (in container coords) where the image is actually drawn
-    /// when using `.scaledToFit()`. Outside this rect is letterbox/pillarbox padding.
-    private func aspectFitRect(imageSize: CGSize, in container: CGSize) -> CGRect {
-        let imageAspect = imageSize.width / imageSize.height
-        let containerAspect = container.width / container.height
-        if imageAspect > containerAspect {
-            // Wider than container → letterboxed top/bottom
-            let h = container.width / imageAspect
-            return CGRect(x: 0, y: (container.height - h) / 2, width: container.width, height: h)
-        } else {
-            // Taller than container → pillarboxed left/right
-            let w = container.height * imageAspect
-            return CGRect(x: (container.width - w) / 2, y: 0, width: w, height: container.height)
         }
     }
 
@@ -539,7 +571,7 @@ private struct HandlebarCalibrationStep: View {
              ? "Tap the left end of your handlebars"
              : tapPoints.count == 1
              ? "Now tap the right end"
-             : "Tap to move a point, or confirm")
+             : "Pinch to zoom, drag a point to fine-tune")
             .font(Theme.mono(12))
             .foregroundStyle(Theme.Palette.fg)
             .padding(10)
@@ -547,71 +579,119 @@ private struct HandlebarCalibrationStep: View {
             .background(Theme.Palette.bg1)
     }
 
-    @ViewBuilder
-    private func tapOverlay(in rect: CGRect) -> some View {
-        ForEach(Array(tapPoints.enumerated()), id: \.offset) { index, unit in
-            // unit is in image-space (0–1); map to container space via imageRect
-            let px = rect.minX + unit.x * rect.width
-            let py = rect.minY + unit.y * rect.height
-            Rectangle()
-                .strokeBorder(.white, lineWidth: 2)
-                .background(Rectangle().fill(index == 0 ? Theme.Palette.acc : Theme.Palette.amb))
-                .frame(width: 18, height: 18)
-                .position(x: px, y: py)
+    private var resetViewButton: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.2)) {
+                zoomScale = 1
+                panOffset = .zero
+            }
+        } label: {
+            Text("RESET VIEW")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg2)
+                .kerning(0.5)
+                .padding(.vertical, 6)
         }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .background(Theme.Palette.bg1)
+    }
+
+    @ViewBuilder
+    private func pointOverlay(viewport: CalibrationTransform.Viewport) -> some View {
         if tapPoints.count == 2 {
             Path { path in
-                let p0 = CGPoint(x: rect.minX + tapPoints[0].x * rect.width,
-                                 y: rect.minY + tapPoints[0].y * rect.height)
-                let p1 = CGPoint(x: rect.minX + tapPoints[1].x * rect.width,
-                                 y: rect.minY + tapPoints[1].y * rect.height)
-                path.move(to: p0)
-                path.addLine(to: p1)
+                path.move(to: CalibrationTransform.screenPoint(forUnit: tapPoints[0], in: viewport))
+                path.addLine(to: CalibrationTransform.screenPoint(forUnit: tapPoints[1], in: viewport))
             }
             .stroke(Color.white.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
         }
-    }
-
-    private func handleTap(location: CGPoint, imageRect: CGRect) {
-        // Ignore taps in the letterbox/pillarbox area outside the image.
-        guard imageRect.contains(location) else { return }
-        // Store as unit coords within the image (0–1), not within the container.
-        let unit = CGPoint(
-            x: (location.x - imageRect.minX) / imageRect.width,
-            y: (location.y - imageRect.minY) / imageRect.height
-        )
-        zoomPoint = location
-
-        if tapPoints.count < 2 {
-            tapPoints.append(unit)
-        } else {
-            let d0 = hypot(
-                (tapPoints[0].x * imageRect.width + imageRect.minX) - location.x,
-                (tapPoints[0].y * imageRect.height + imageRect.minY) - location.y
-            )
-            let d1 = hypot(
-                (tapPoints[1].x * imageRect.width + imageRect.minX) - location.x,
-                (tapPoints[1].y * imageRect.height + imageRect.minY) - location.y
-            )
-            if d0 < d1 { tapPoints[0] = unit } else { tapPoints[1] = unit }
+        ForEach(Array(tapPoints.enumerated()), id: \.offset) { index, unit in
+            let screen = CalibrationTransform.screenPoint(forUnit: unit, in: viewport)
+            Rectangle()
+                .strokeBorder(.white, lineWidth: 2)
+                .background(Rectangle().fill(index == 0 ? Theme.Palette.acc : Theme.Palette.amb))
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+                .position(screen)
+                .gesture(pointDragGesture(index: index, viewport: viewport))
         }
     }
 
-    private func zoomPreview(center: CGPoint) -> some View {
-        let cropSize: CGFloat = 80
-        let scale: CGFloat = 2.5
-        return Image(uiImage: image)
+    private func pointDragGesture(index: Int, viewport: CalibrationTransform.Viewport) -> some Gesture {
+        // `value.location` is relative to the handle's own small hit frame,
+        // not the container — useless as an absolute position. `.translation`
+        // is a stable delta since gesture-start regardless of that, so anchor
+        // it to the point's screen position captured once at drag-start.
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                if dragStartUnit == nil { dragStartUnit = tapPoints[index] }
+                guard let startUnit = dragStartUnit else { return }
+                let startScreen = CalibrationTransform.screenPoint(forUnit: startUnit, in: viewport)
+                let liveScreen = CGPoint(x: startScreen.x + value.translation.width,
+                                          y: startScreen.y + value.translation.height)
+                draggingIndex = index
+                dragScreenPoint = liveScreen
+                tapPoints[index] = CalibrationTransform.unitPoint(forScreen: liveScreen, in: viewport)
+            }
+            .onEnded { _ in
+                dragStartUnit = nil
+                draggingIndex = nil
+                dragScreenPoint = nil
+            }
+    }
+
+    /// Pinch-to-zoom + pan on the image itself. A small `minimumDistance` on
+    /// the pan drag lets a plain tap (placing the first two points) still
+    /// fall through to `.onTapGesture`.
+    private func backgroundGesture(viewport: CalibrationTransform.Viewport) -> some Gesture {
+        let magnify = MagnificationGesture()
+            .updating($pinchDelta) { value, state, _ in state = value }
+            .onEnded { value in
+                zoomScale = min(maxZoom, max(minZoom, zoomScale * value))
+            }
+        let pan = DragGesture(minimumDistance: 10)
+            .updating($panDelta) { value, state, _ in state = value.translation }
+            .onEnded { value in
+                panOffset.width += value.translation.width
+                panOffset.height += value.translation.height
+            }
+        return magnify.simultaneously(with: pan)
+    }
+
+    private func handleTap(location: CGPoint, viewport: CalibrationTransform.Viewport) {
+        guard tapPoints.count < 2 else { return }
+        // Ignore taps outside the image — in the letterbox/pillarbox padding,
+        // or panned/zoomed off-canvas.
+        let unit = CalibrationTransform.unitPoint(forScreen: location, in: viewport)
+        guard (0...1).contains(unit.x), (0...1).contains(unit.y) else { return }
+        tapPoints.append(unit)
+    }
+
+    /// Zoomed crop of the source image centred on the live drag point, shown
+    /// floating above the fingertip so the fingertip doesn't occlude it.
+    private func loupe(forScreenPoint screen: CGPoint, in viewport: CalibrationTransform.Viewport) -> some View {
+        let unit = CalibrationTransform.unitPoint(forScreen: screen, in: viewport)
+        return Image(uiImage: loupeCrop(forUnit: unit))
             .resizable()
-            .scaledToFill()
-            .frame(width: cropSize * scale, height: cropSize * scale)
-            .offset(
-                x: -(center.x - cropSize / 2) * scale,
-                y: -(center.y - cropSize / 2) * scale
-            )
-            .frame(width: cropSize, height: cropSize)
+            .aspectRatio(contentMode: .fill)
+            .frame(width: 110, height: 110)
             .clipShape(Rectangle())
-            .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+            .overlay(Rectangle().stroke(Theme.Palette.acc, lineWidth: 1.5))
             .overlay(crosshair)
+            .shadow(radius: 6)
+    }
+
+    private func loupeCrop(forUnit unit: CGPoint) -> UIImage {
+        guard let cg = image.cgImage else { return image }
+        let w = CGFloat(cg.width), h = CGFloat(cg.height)
+        let windowPx = min(w, h) * 0.08
+        let cx = min(max(unit.x, 0), 1) * w
+        let cy = min(max(unit.y, 0), 1) * h
+        let rect = CGRect(x: cx - windowPx / 2, y: cy - windowPx / 2, width: windowPx, height: windowPx)
+            .intersection(CGRect(x: 0, y: 0, width: w, height: h))
+        guard rect.width > 0, rect.height > 0, let cropped = cg.cropping(to: rect) else { return image }
+        return UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
     }
 
     private var crosshair: some View {
