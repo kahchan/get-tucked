@@ -71,6 +71,13 @@ enum Theme {
         /// 44pt tap target, not centred, so this only needs to clear the glyph
         /// plus a real gap, not the whole tap frame.
         static let headerTitleInset: CGFloat = 58
+        /// Shared by every bare-icon control (back arrow, close, add, gear) so
+        /// icons read as one consistent family across the app, not a mix of
+        /// whatever size felt right on each screen.
+        static let iconSize: CGFloat = 22
+        /// Apple HIG minimum tappable target — applies regardless of how
+        /// small the glyph inside it is.
+        static let iconTapTarget: CGFloat = 44
     }
 }
 

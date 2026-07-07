@@ -40,9 +40,9 @@ struct PositionListView: View {
                                 path.append(.bikeList)
                             } label: {
                                 Image(systemName: "gearshape")
-                                    .font(.system(size: 22, weight: .medium))
+                                    .font(.system(size: Theme.Control.iconSize, weight: .medium))
                                     .foregroundStyle(Theme.Palette.fg3)
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -51,9 +51,9 @@ struct PositionListView: View {
                                 path.append(.setTheScene)
                             } label: {
                                 Image(systemName: "plus")
-                                    .font(.system(size: 22, weight: .medium))
+                                    .font(.system(size: Theme.Control.iconSize, weight: .medium))
                                     .foregroundStyle(bikes.isEmpty ? Theme.Palette.fg4 : Theme.Palette.acc)
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)

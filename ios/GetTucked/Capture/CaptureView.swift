@@ -47,8 +47,10 @@ struct CaptureView: View {
                             dismiss()
                         } label: {
                             Text("✕")
-                                .font(Theme.mono(18))
+                                .font(Theme.mono(Theme.Control.iconSize))
                                 .foregroundStyle(Theme.Palette.fg3)
+                                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }

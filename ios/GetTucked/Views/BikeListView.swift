@@ -17,8 +17,10 @@ struct BikeListView: View {
                         showingAddBike = true
                     } label: {
                         Text("+")
-                            .font(Theme.mono(22))
+                            .font(Theme.mono(Theme.Control.iconSize))
                             .foregroundStyle(Theme.Palette.acc)
+                            .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

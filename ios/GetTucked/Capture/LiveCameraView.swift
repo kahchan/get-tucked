@@ -41,9 +41,10 @@ struct LiveCameraView: View {
                         Spacer()
                         Button(action: onCancel) {
                             Text("✕")
-                                .font(Theme.mono(18))
+                                .font(Theme.mono(Theme.Control.iconSize))
                                 .foregroundStyle(Theme.Palette.fg)
-                                .frame(width: 40, height: 40)
+                                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }

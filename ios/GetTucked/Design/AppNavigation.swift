@@ -89,9 +89,9 @@ struct BackButton: View {
     var body: some View {
         Button(action: action) {
             Text("←")
-                .font(Theme.mono(24, weight: .bold))
+                .font(Theme.mono(Theme.Control.iconSize, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg2)
-                .frame(width: 44, height: 44, alignment: .leading)
+                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget, alignment: .leading)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
