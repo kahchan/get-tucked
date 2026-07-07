@@ -40,7 +40,7 @@ struct PositionListView: View {
                                 path.append(.bikeList)
                             } label: {
                                 Image(systemName: "gearshape")
-                                    .font(.system(size: 18, weight: .medium))
+                                    .font(.system(size: 22, weight: .medium))
                                     .foregroundStyle(Theme.Palette.fg3)
                                     .frame(width: 44, height: 44)
                                     .contentShape(Rectangle())
@@ -51,7 +51,7 @@ struct PositionListView: View {
                                 path.append(.setTheScene)
                             } label: {
                                 Image(systemName: "plus")
-                                    .font(.system(size: 20, weight: .medium))
+                                    .font(.system(size: 22, weight: .medium))
                                     .foregroundStyle(bikes.isEmpty ? Theme.Palette.fg4 : Theme.Palette.acc)
                                     .frame(width: 44, height: 44)
                                     .contentShape(Rectangle())
@@ -68,8 +68,12 @@ struct PositionListView: View {
                         HeaderLink("LEADERBOARD") { path.append(.leaderboard) }
                     }
                 }
-                .padding(.leading, Theme.Control.chromeReserve)
+                // Root screen — no floating back arrow to clear, so the title
+                // aligns with body content at the standard margin instead of
+                // the wider pushed-screen inset (Plan F1).
+                .padding(.leading, Theme.Space.lg)
                 .padding(.trailing, Theme.Space.lg)
+                .padding(.top, Theme.Space.sm)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 56)
 

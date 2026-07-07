@@ -38,8 +38,9 @@ struct NavHeader<Trailing: View>: View {
             Spacer()
             trailing()
         }
-        .padding(.leading, Theme.Control.chromeReserve)
+        .padding(.leading, Theme.Control.headerTitleInset)
         .padding(.trailing, Theme.Space.lg)
+        .padding(.top, Theme.Space.sm)
         .frame(maxWidth: .infinity)
         .frame(minHeight: 56)
     }

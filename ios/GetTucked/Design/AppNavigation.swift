@@ -68,7 +68,7 @@ struct AppNavigationView: View {
             if !path.isEmpty && path.last != .capture {
                 BackButton { path.removeLast() }
                     .padding(.leading, Theme.Space.lg)
-                    .padding(.top, 6)
+                    .padding(.top, Theme.Space.sm + 6)
             }
         }
     }
@@ -82,9 +82,9 @@ struct BackButton: View {
     var body: some View {
         Button(action: action) {
             Text("←")
-                .font(Theme.mono(18, weight: .bold))
-                .foregroundStyle(Theme.Palette.fg)
-                .frame(width: 44, height: 44)
+                .font(Theme.mono(24, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg2)
+                .frame(width: 44, height: 44, alignment: .leading)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

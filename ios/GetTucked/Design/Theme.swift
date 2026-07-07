@@ -66,10 +66,11 @@ enum Theme {
         static let ghostButtonHeight: CGFloat = 48
         static let metricRowHeight: CGFloat = 50
         static let hairline: CGFloat = 1
-        /// Space reserved for the global back-caret (leading) / hamburger
-        /// (trailing) overlays floating above every NavHeader, so neither
-        /// collides with a screen's own title or header controls.
-        static let chromeReserve: CGFloat = 52
+        /// Leading title inset for pushed screens (NavHeader), wide enough to
+        /// clear the floating BackButton — which is left-aligned in its own
+        /// 44pt tap target, not centred, so this only needs to clear the glyph
+        /// plus a real gap, not the whole tap frame.
+        static let headerTitleInset: CGFloat = 58
     }
 }
 
