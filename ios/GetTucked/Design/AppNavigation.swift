@@ -16,12 +16,11 @@ enum AppScreen: Hashable {
     case leaderboard
     case comparison(PersistentIdentifier, PersistentIdentifier)
     case howItWorks
-    // No UI entry point since the hamburger index was removed (Plan E1) — reach it
-    // by temporarily seeding `path` with `[.matteCheck]` in AppNavigationView.
+    // Reachable via a DEBUG-only "TOOLS" section on BikeListView.
     #if DEBUG
     case matteCheck
-    // Same code-only reachability as matteCheck — seed `path` with
-    // `[.poseCheck]` to reach it (Plan A6).
+    // No UI entry point yet (Plan A6 experiment) — reach it by temporarily
+    // seeding `path` with `[.poseCheck]` in AppNavigationView.
     case poseCheck
     #endif
 }

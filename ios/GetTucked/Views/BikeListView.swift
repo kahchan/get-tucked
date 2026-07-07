@@ -40,6 +40,18 @@ struct BikeListView: View {
                         }
                     }
                 }
+
+                #if DEBUG
+                SectionDivider()
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    Text("DEBUG")
+                        .font(Theme.mono(9, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg4)
+                        .kerning(1.2)
+                    HeaderLink("MATTE CHECK") { path.append(.matteCheck) }
+                }
+                .padding(Theme.Space.lg)
+                #endif
             }
         }
         .hideNavBar()
