@@ -5,6 +5,7 @@ enum AnalysisError: LocalizedError {
     case noPersonDetected
     case multiplePersonsDetected
     case personClipsFrame
+    case personTooSmallInFrame
     case segmentationFailed
     case scaleNotCalibrated
     case poseNotDetected
@@ -14,6 +15,7 @@ enum AnalysisError: LocalizedError {
         case .noPersonDetected: "No rider found. Step back so your full body is visible."
         case .multiplePersonsDetected: "More than one person detected. Ask helpers to step aside."
         case .personClipsFrame: "Part of your body is cut off. Step back or recompose."
+        case .personTooSmallInFrame: "You're too far away. Step closer so your body fills the frame."
         case .segmentationFailed: "Couldn't compute a segmentation mask."
         case .scaleNotCalibrated: "Scale reference not set. Tap both ends of your handlebars first."
         case .poseNotDetected: "Couldn't detect body pose. Make sure your full body is visible."
@@ -159,13 +161,18 @@ struct AnalysisEngine {
         let box = dominant.boundingBox // normalised, origin bottom-left
 
         // Spec §3: rider should fill the frame. Require bbox height > 50% of frame.
+        // This is a DIFFERENT physical problem from clipping below — too small
+        // means too far away (fix: step closer), not too close (fix: step back).
+        // Conflating the two under one message told "too far away" users to do
+        // the opposite of what would fix it.
+        if box.height < 0.5 {
+            throw AnalysisError.personTooSmallInFrame
+        }
+
         // Do NOT reject for touching the bottom edge — full-body cycling shots
         // routinely have feet at the frame bottom. Only reject if the top, left, or
         // right clips significantly (rider is too close / poorly framed).
         let clipMargin = 5.0 / min(imageSize.width, imageSize.height)
-        if box.height < 0.5 {
-            throw AnalysisError.personClipsFrame
-        }
         if box.minX < clipMargin || box.maxX > 1 - clipMargin || box.maxY > 1 - clipMargin {
             throw AnalysisError.personClipsFrame
         }
