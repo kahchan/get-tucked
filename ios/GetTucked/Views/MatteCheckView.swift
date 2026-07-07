@@ -10,6 +10,11 @@ import Vision
 private enum SegMode: String, CaseIterable {
     case person = "PERSON"
     case foreground = "FOREGROUND"
+    // The proposed production pipeline (Plan A1): rider instance + whatever's
+    // spatially connected to it (bike/bags), dropping unconnected clutter —
+    // unlike FOREGROUND, which unions every instance including a coat on the
+    // wall or a leaning spare wheel.
+    case subject = "SUBJECT"
 }
 
 struct MatteCheckView: View {
@@ -19,12 +24,20 @@ struct MatteCheckView: View {
     @State private var personCoverage: Double?
     @State private var foregroundMatte: UIImage?
     @State private var foregroundCoverage: Double?
+    @State private var subjectMatte: UIImage?
+    @State private var subjectCoverage: Double?
     @State private var mode: SegMode = .person
     @State private var showingMatte = false
     @State private var running = false
     @State private var failed = false
 
-    private var matte: UIImage? { mode == .person ? personMatte : foregroundMatte }
+    private var matte: UIImage? {
+        switch mode {
+        case .person: personMatte
+        case .foreground: foregroundMatte
+        case .subject: subjectMatte
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -74,6 +87,11 @@ struct MatteCheckView: View {
                                       value: String(format: "%.1f%%", foregroundCoverage * 100))
                                 .padding(.horizontal, Theme.Space.lg)
                         }
+                        if let subjectCoverage {
+                            MetricRow(key: "Subject coverage",
+                                      value: String(format: "%.1f%%", subjectCoverage * 100))
+                                .padding(.horizontal, Theme.Space.lg)
+                        }
                         if let photo {
                             MetricRow(key: "Source",
                                       value: "\(Int(photo.size.width))×\(Int(photo.size.height))")
@@ -115,12 +133,15 @@ struct MatteCheckView: View {
         personCoverage = nil
         foregroundMatte = nil
         foregroundCoverage = nil
+        subjectMatte = nil
+        subjectCoverage = nil
         showingMatte = false
         failed = false
         running = true
         let personFailed = await segmentPerson(image)
         let foregroundFailed = await segmentForeground(image)
-        failed = personFailed && foregroundFailed
+        let subjectFailed = await segmentSubject(image)
+        failed = personFailed && foregroundFailed && subjectFailed
         running = false
     }
 
@@ -160,6 +181,113 @@ struct MatteCheckView: View {
         foregroundMatte = matteImage
         foregroundCoverage = coverage
         return matteImage == nil
+    }
+
+    /// The proposed production pipeline (Plan A1): pick the foreground instance
+    /// that overlaps the detected rider rectangle, then union in whatever else
+    /// is spatially connected to it (the bike/bags the rider is on) — dropping
+    /// disconnected clutter (a coat on the wall, a leaning spare wheel) that
+    /// FOREGROUND's blanket union would also pick up.
+    private func segmentSubject(_ image: UIImage) async -> Bool {
+        guard let cgImage = image.cgImage else { return true }
+        let instanceRequest = VNGenerateForegroundInstanceMaskRequest()
+        let rectRequest = VNDetectHumanRectanglesRequest()
+        rectRequest.upperBodyOnly = false
+        let handler = VNImageRequestHandler(cgImage: cgImage)
+        do {
+            try handler.perform([instanceRequest, rectRequest])
+        } catch {
+            return true
+        }
+        guard let result = instanceRequest.results?.first, !result.allInstances.isEmpty else { return true }
+        guard let instanceBoxes = instanceBoundingBoxes(mask: result.instanceMask), !instanceBoxes.isEmpty else {
+            return true
+        }
+
+        // Rider anchor: the largest detected human rectangle, or frame-centre
+        // if Vision found none (e.g. a badly occluded shot) — both boxes are
+        // in Vision's normalised bottom-left-origin convention.
+        let riderBox: CGRect
+        if let rects = rectRequest.results,
+           let largest = rects.max(by: { $0.boundingBox.width * $0.boundingBox.height
+                                        < $1.boundingBox.width * $1.boundingBox.height }) {
+            riderBox = largest.boundingBox
+        } else {
+            riderBox = CGRect(x: 0.35, y: 0.25, width: 0.3, height: 0.5)
+        }
+
+        guard let riderInstance = instanceBoxes.max(by: {
+            overlapArea($0.value, riderBox) < overlapArea($1.value, riderBox)
+        })?.key else { return true }
+        let riderInstanceBox = instanceBoxes[riderInstance]!
+
+        // "Connected" = the instance's box falls within a small margin of the
+        // rider's box — the bike/bags the rider is on. A margin, not exact
+        // pixel-adjacency, since a bike frame/wheel often doesn't touch the
+        // rider's silhouette bounding box exactly.
+        let margin: CGFloat = 0.06
+        let expandedRiderBox = riderInstanceBox.insetBy(dx: -margin, dy: -margin)
+        var selected = IndexSet([riderInstance])
+        for (index, box) in instanceBoxes where index != riderInstance && expandedRiderBox.intersects(box) {
+            selected.insert(index)
+        }
+
+        guard let buffer = try? result.generateScaledMaskForImage(forInstances: selected, from: handler) else {
+            return true
+        }
+        let (matteImage, coverage) = renderMatte(buffer)
+        subjectMatte = matteImage
+        subjectCoverage = coverage
+        return matteImage == nil
+    }
+
+    /// Scans the (low-res) per-instance mask once and returns each instance's
+    /// bounding box, converted to Vision's normalised bottom-left-origin
+    /// convention so it's directly comparable to `VNDetectedObjectObservation.boundingBox`.
+    private func instanceBoundingBoxes(mask: CVPixelBuffer) -> [Int: CGRect]? {
+        CVPixelBufferLockBaseAddress(mask, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(mask, .readOnly) }
+        let w = CVPixelBufferGetWidth(mask)
+        let h = CVPixelBufferGetHeight(mask)
+        let rowBytes = CVPixelBufferGetBytesPerRow(mask)
+        guard let base = CVPixelBufferGetBaseAddress(mask) else { return nil }
+        let floats = base.assumingMemoryBound(to: Float32.self)
+        let floatsPerRow = rowBytes / MemoryLayout<Float32>.size
+
+        var minX: [Int: Int] = [:], maxX: [Int: Int] = [:], minY: [Int: Int] = [:], maxY: [Int: Int] = [:]
+        for y in 0 ..< h {
+            let row = y * floatsPerRow
+            for x in 0 ..< w {
+                let value = Int(floats[row + x].rounded())
+                guard value != 0 else { continue }
+                minX[value] = min(minX[value] ?? x, x)
+                maxX[value] = max(maxX[value] ?? x, x)
+                minY[value] = min(minY[value] ?? y, y)
+                maxY[value] = max(maxY[value] ?? y, y)
+            }
+        }
+        guard !minX.isEmpty else { return nil }
+
+        var boxes: [Int: CGRect] = [:]
+        for (instance, x0) in minX {
+            guard let x1 = maxX[instance], let y0 = minY[instance], let y1 = maxY[instance] else { continue }
+            let xFrac0 = CGFloat(x0) / CGFloat(w)
+            let xFrac1 = CGFloat(x1 + 1) / CGFloat(w)
+            // y0/y1 are top-down row indices; flip to bottom-left-origin
+            // fractional coords to match Vision's boundingBox convention.
+            let yTopFrac0 = CGFloat(y0) / CGFloat(h)
+            let yTopFrac1 = CGFloat(y1 + 1) / CGFloat(h)
+            boxes[instance] = CGRect(
+                x: xFrac0, y: 1 - yTopFrac1,
+                width: xFrac1 - xFrac0, height: yTopFrac1 - yTopFrac0
+            )
+        }
+        return boxes
+    }
+
+    private func overlapArea(_ a: CGRect, _ b: CGRect) -> CGFloat {
+        let intersection = a.intersection(b)
+        return intersection.isNull ? 0 : intersection.width * intersection.height
     }
 
     private func renderMatte(_ buffer: CVPixelBuffer) -> (UIImage?, Double?) {
