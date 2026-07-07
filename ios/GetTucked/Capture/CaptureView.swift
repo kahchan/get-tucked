@@ -63,6 +63,7 @@ struct CaptureView: View {
                 Text(error.errorDescription ?? "Unknown error.")
             }
         }
+        .hideNavBar()
         .onAppear {
             if selectedBike == nil {
                 selectedBike = positions.first?.bike ?? bikes.first
@@ -144,13 +145,13 @@ struct CaptureView: View {
     private var stepTitle: String {
         switch step {
         case .pickPhoto:        "FRONTAL · 1 OF 2"
-        case .calibrate:        "Calibrate scale"
-        case .analysing:        "Analysing"
+        case .calibrate:        "CALIBRATE SCALE"
+        case .analysing:        "ANALYSING"
         case .pickSideOnPhoto:  "SIDE-ON · 2 OF 2"
-        case .analysingSideOn:  "Analysing"
-        case .reveal:           "Result"
-        case .namePosition:     "Name position"
-        case .done:             "Done"
+        case .analysingSideOn:  "ANALYSING"
+        case .reveal:           "RESULT"
+        case .namePosition:     "NAME POSITION"
+        case .done:             "DONE"
         }
     }
 
