@@ -150,6 +150,36 @@ Commit: `refactor(ui): single shared formatter for displayed frontal area`
   methodology-screen candidate, and mostly cancels in comparisons on the
   same bike — do NOT "correct" for it numerically (spec §3).
 
+## Experiment protocol — ruler ground truth (any human, tape measure required)
+
+Added 2026-07-08. The tester does **not** need adult shoulders — the check is
+app-reading vs *measured* ground truth, not vs the 30–60 cm plausibility
+range (which is adult-calibrated and will keep flagging a child; ignore the
+amber line for this test, it's advisory).
+
+1. Tape-measure the tester's shoulder span, joint-to-joint across the front
+   (Vision's shoulder landmarks sit roughly at the joint centres, slightly
+   inside the outer shoulder edge). Write it down: `S_true`.
+2. **Shot A — bar held against the chest** (same depth plane as the body).
+   Capture, read the app's shoulder width. With the bar and body coplanar the
+   perspective bias vanishes: reading ≈ `S_true` ⇒ the ruler (bar width +
+   taps) is right. A mismatch here is a genuine calibration bug — investigate
+   taps / bar entry before anything else.
+3. **Shot B — bar held at arms' length** (riding-position geometry, same
+   camera spot). Reading will come in *below* `S_true`; the ratio
+   `reading / S_true` is the linear perspective bias, and its square is the
+   area bias. Record both numbers in this doc.
+4. Expected shape of the result: Shot A ≈ `S_true`, Shot B ≈ 0.8–0.9 ×
+   `S_true` at typical indoor distances. Bias shrinks as the camera moves
+   back — worth one extra shot from farther away if room allows.
+
+This needs no new code and settles, separately: (a) is the ruler right, and
+(b) how big is the scale-plane bias in practice. If (b) turns out large and
+Kah wants the app to *measure* it per-capture rather than document it, that
+is a depth-capture feature (LiDAR `AVDepthData` at the tap points at shutter
+time) — a new plan, flagged as a product decision, not something to fold in
+here.
+
 ## Acceptance
 
 A position captured after I1 shows a PHOTO/MASK toggle on its detail screen
