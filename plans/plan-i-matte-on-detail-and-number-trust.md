@@ -1,6 +1,17 @@
 # Plan I — Matte on the recorded position + number trust carried through
 
-Status: **not started**. Written 2026-07-08 after a review session. Two
+Status: **done** (I1–I6 executed 2026-07-08, commits `cfee250`,
+`9ce285b`, `51f25f3`, `4ed519b`, `8df962b`, `b8df82d`). All six tasks
+landed; tests green (43 pass, up from 36). I2's PHOTO/MASK toggle
+verified via the seeded-position screenshot technique (temporary
+`AppNavigationView` seed inserting a synthetic photo + mask, jumped
+straight to the detail screen, reverted before commit — see I2's
+commit message). I5's "bonus check" (confirm `.accurate` mask
+dimensions on a real device capture) is the only human-gated item
+left, and it's advisory, not blocking — the aspect guard itself
+shipped and is unit-tested against a realistic rounding case.
+
+Written 2026-07-08 after a review session. Two
 strands, deliberately in one plan because they touch the same files:
 
 1. **Finish the matte track** — Plan H's H3/H4 (persist the mask, show it on
