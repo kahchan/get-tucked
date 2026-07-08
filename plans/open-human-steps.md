@@ -36,6 +36,12 @@ more code; all of it needs Kah's eyes, hands, or tape measure.
   a real capture on-device: does the shutter gate feel right, does LEVEL/
   PERP behave sensibly in practice. See [`plan-g-side-on-live-capture.md`](plan-g-side-on-live-capture.md).
 
+- [ ] **Plan L landscape rotation.** Once L1–L4 land, live rotation
+  behaviour (does the HUD reflow feel right mid-rotation) and captured-
+  photo orientation (does a landscape-held shot actually save landscape)
+  need a physical device — Simulator has no reliable rotation signal.
+  See [`plan-l-landscape-side-on.md`](plan-l-landscape-side-on.md).
+
 ## Decisions waiting on an answer
 
 - [ ] **Matte-bleed threshold.** TEST 1's mask showed some bleed (soft
