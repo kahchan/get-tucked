@@ -38,7 +38,7 @@ struct LiveCameraView: View {
                 PermissionDeniedOverlay(onCancel: onCancel)
             } else {
                 // Camera feed
-                CameraPreviewLayer(session: session.captureSession)
+                CameraPreviewLayer(session: session.captureSession, rotationAngle: session.orientationBucket.videoRotationAngle)
                     .ignoresSafeArea()
 
                 // HUD overlay. Branch on layout geometry, not
@@ -367,20 +367,33 @@ private struct PermissionDeniedOverlay: View {
 
 struct CameraPreviewLayer: UIViewRepresentable {
     let session: AVCaptureSession
+    // Without an explicit rotation angle the back-camera connection defaults
+    // to landscape and the feed shows sideways. Driven by CameraSession's
+    // orientationBucket (Plan L4) rather than hardcoded, so the live preview
+    // stays upright as the phone rotates during side-on capture.
+    let rotationAngle: CGFloat
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
-        // Lock the preview to portrait — without an explicit rotation angle the
-        // back-camera connection defaults to landscape and the feed shows sideways.
-        if let conn = view.previewLayer.connection, conn.isVideoRotationAngleSupported(90) {
-            conn.videoRotationAngle = 90
-        }
+        applyRotation(to: view)
         return view
     }
 
-    func updateUIView(_ uiView: PreviewView, context: Context) {}
+    // Without this, SwiftUI never propagates a changed rotationAngle to the
+    // already-created preview layer — makeUIView only runs once, so a
+    // mid-capture rotation would show a sideways preview despite the HUD
+    // reflowing correctly.
+    func updateUIView(_ uiView: PreviewView, context: Context) {
+        applyRotation(to: uiView)
+    }
+
+    private func applyRotation(to view: PreviewView) {
+        if let conn = view.previewLayer.connection, conn.isVideoRotationAngleSupported(rotationAngle) {
+            conn.videoRotationAngle = rotationAngle
+        }
+    }
 
     class PreviewView: UIView {
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
@@ -400,6 +413,9 @@ final class CameraSession: NSObject, ObservableObject {
     @Published var perpOK = false
     @Published var bgOK = false
     @Published var permissionDenied = false
+    // Which way the phone is physically held — always .portrait unless
+    // OrientationLock permits landscape (Plan L4).
+    @Published var orientationBucket: OrientationBucket = .portrait
 
     // LEVEL + PERP are physically enforced and gate the shutter. BG is advisory —
     // a low-contrast background degrades the matte but shouldn't dead-lock capture.
@@ -439,8 +455,20 @@ final class CameraSession: NSObject, ObservableObject {
     func capturePhoto(completion: @escaping (UIImage) -> Void) {
         captureCompletion = completion
         let settings = AVCapturePhotoSettings()
+        // Read on the caller's thread (always main — this is only ever
+        // called from a SwiftUI button action) rather than inside the
+        // session-queue block below, so a mid-rotation shot uses whichever
+        // bucket the gravity read had settled on at the moment of the
+        // shutter press, not whatever it drifts to by the time the session
+        // queue gets around to it.
+        let rotationAngle = orientationBucket.videoRotationAngle
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            // Connection configuration belongs on the session queue.
+            if let conn = self.photoOutput.connection(with: .video),
+               conn.isVideoRotationAngleSupported(rotationAngle) {
+                conn.videoRotationAngle = rotationAngle
+            }
             self.photoOutput.capturePhoto(with: settings, delegate: self)
         }
     }
@@ -476,8 +504,10 @@ final class CameraSession: NSObject, ObservableObject {
         if captureSession.canAddOutput(videoOutput) { captureSession.addOutput(videoOutput) }
 
         // Portrait rotation for the captured still, matching the preview.
-        if let conn = photoOutput.connection(with: .video), conn.isVideoRotationAngleSupported(90) {
-            conn.videoRotationAngle = 90
+        // capturePhoto overrides this per-shot once landscape is possible.
+        let angle = OrientationBucket.portrait.videoRotationAngle
+        if let conn = photoOutput.connection(with: .video), conn.isVideoRotationAngleSupported(angle) {
+            conn.videoRotationAngle = angle
         }
 
         captureSession.commitConfiguration()
@@ -495,12 +525,33 @@ final class CameraSession: NSObject, ObservableObject {
         motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
             guard let self, let motion else { return }
             let g = motion.gravity
-            // Roll: phone tilt left/right. 0° = perfectly upright.
+            // Raw roll: deviation from PORTRAIT-upright. Held level in
+            // landscape this reads ±90°, so it must be re-zeroed against the
+            // current bucket below before it means "level" in general
+            // (Plan L4 correctness trap 1) — a naive `abs(roll) < 2°` would
+            // permanently fail and dead-lock the shutter in landscape.
             let roll  = atan2(g.x, -g.y) * 180.0 / .pi
-            // Pitch: camera tilt up/down from horizontal. 0° = facing straight ahead.
+            // Pitch measures rotation about the screen normal via g.z, which
+            // doesn't change as the phone spins within the screen plane —
+            // unaffected by orientation, no bucket correction needed.
             let pitch = atan2(-g.z, sqrt(g.x * g.x + g.y * g.y)) * 180.0 / .pi
-            self.tiltDeg = roll
-            self.levelOK = abs(roll)  < self.levelThresholdDeg
+
+            // `to: .main` guarantees this closure runs on the main thread;
+            // OrientationLock.allowsLandscape is @MainActor-isolated but the
+            // compiler can't statically see that guarantee through CoreMotion's
+            // callback-based API, hence the explicit assumeIsolated.
+            let allowsLandscape = MainActor.assumeIsolated { OrientationLock.allowsLandscape }
+            let bucket: OrientationBucket = allowsLandscape
+                ? OrientationBucket.pick(gravityX: g.x, gravityY: g.y, current: self.orientationBucket)
+                : .portrait
+            self.orientationBucket = bucket
+
+            var deviation = roll - bucket.referenceRollDeg
+            if deviation > 180 { deviation -= 360 }
+            if deviation <= -180 { deviation += 360 }
+
+            self.tiltDeg = deviation
+            self.levelOK = abs(deviation) < self.levelThresholdDeg
             self.perpOK  = abs(pitch) < self.perpThresholdDeg
         }
     }
