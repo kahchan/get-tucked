@@ -41,67 +41,22 @@ struct LiveCameraView: View {
                 CameraPreviewLayer(session: session.captureSession)
                     .ignoresSafeArea()
 
-                // HUD overlay
-                VStack(spacing: 0) {
-                    HStack {
-                        if showsBikeChip {
-                            Button {
-                                showingBikePicker = true
-                            } label: {
-                                BikeChip(name: bike.nickname)
-                            }
-                            .buttonStyle(.plain)
-                        } else if let stepLabel {
-                            StepLabelChip(label: stepLabel)
-                        }
-                        Spacer()
-                        Button(action: onCancel) {
-                            Text("✕")
-                                .font(Theme.mono(Theme.Control.iconSize))
-                                .foregroundStyle(Theme.Palette.fg)
-                                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
+                // HUD overlay. Branch on layout geometry, not
+                // UIDevice.current.orientation (Plan L3) — geometry is
+                // synchronised with the actual rotation animation, whereas
+                // device-orientation notifications fire before layout
+                // settles and can report states like `.faceUp` that don't
+                // correspond to any interface orientation at all. When
+                // OrientationLock forbids landscape (head-on, or side-on
+                // before it's entered) the interface itself can never
+                // report landscape geometry, so this always resolves to
+                // portraitHUD there regardless of how the phone is held.
+                GeometryReader { geo in
+                    if geo.size.width > geo.size.height {
+                        landscapeHUD
+                    } else {
+                        portraitHUD
                     }
-                    .padding(.horizontal, Theme.Space.lg)
-                    .padding(.top, Theme.Space.md)
-
-                    LevelLine(deviationDeg: session.tiltDeg)
-                        .padding(.top, Theme.Space.sm)
-
-                    Spacer()
-
-                    VStack(spacing: Theme.Space.lg) {
-                        StatusPillRow(
-                            levelOK: session.levelOK,
-                            perpOK: session.perpOK,
-                            bgOK: session.bgOK,
-                            showsBackgroundPill: showsBackgroundPill
-                        )
-                        CaptureButton(enabled: session.allPassed) {
-                            session.capturePhoto { image in
-                                captureFlash = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                    captureFlash = false
-                                    onCapture(image)
-                                }
-                            }
-                        }
-                        if let onPickFromLibrary {
-                            LibraryFallbackLink(onPicked: onPickFromLibrary)
-                        }
-                        if let onSkip {
-                            Button(action: onSkip) {
-                                Text(skipLabel.uppercased())
-                                    .font(Theme.mono(11, weight: .bold))
-                                    .foregroundStyle(Theme.Palette.fg3)
-                                    .kerning(0.5)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.bottom, 48)
                 }
 
                 if captureFlash {
@@ -117,6 +72,110 @@ struct LiveCameraView: View {
             BikePickerSheet(bikes: bikes, selected: bike) { picked in
                 onBikeChange(picked)
                 showingBikePicker = false
+            }
+        }
+    }
+
+    // MARK: - HUD layouts (Plan L3)
+
+    private var portraitHUD: some View {
+        VStack(spacing: 0) {
+            topBar
+            LevelLine(deviationDeg: session.tiltDeg)
+                .padding(.top, Theme.Space.sm)
+            Spacer()
+            VStack(spacing: Theme.Space.lg) {
+                StatusPillRow(
+                    levelOK: session.levelOK,
+                    perpOK: session.perpOK,
+                    bgOK: session.bgOK,
+                    showsBackgroundPill: showsBackgroundPill
+                )
+                controlStack
+            }
+            .padding(.bottom, 48)
+        }
+    }
+
+    /// Only the `showsBikeChip == false` configuration (side-on) can ever
+    /// reach this — `OrientationLock` never permits landscape geometry
+    /// otherwise, so head-on's `.pickPhoto` call site and `BikePickerSheet`
+    /// never need to look right here.
+    private var landscapeHUD: some View {
+        VStack(spacing: 0) {
+            topBar
+            LevelLine(deviationDeg: session.tiltDeg)
+                .padding(.top, Theme.Space.sm)
+            Spacer()
+            HStack {
+                Spacer()
+                VStack(spacing: Theme.Space.lg) {
+                    StatusPillRow(
+                        levelOK: session.levelOK,
+                        perpOK: session.perpOK,
+                        bgOK: session.bgOK,
+                        showsBackgroundPill: showsBackgroundPill,
+                        isVertical: true
+                    )
+                    controlStack
+                }
+                .padding(.trailing, Theme.Space.xl)
+            }
+            .padding(.bottom, Theme.Space.xl)
+        }
+    }
+
+    private var topBar: some View {
+        HStack {
+            if showsBikeChip {
+                Button {
+                    showingBikePicker = true
+                } label: {
+                    BikeChip(name: bike.nickname)
+                }
+                .buttonStyle(.plain)
+            } else if let stepLabel {
+                StepLabelChip(label: stepLabel)
+            }
+            Spacer()
+            Button(action: onCancel) {
+                Text("✕")
+                    .font(Theme.mono(Theme.Control.iconSize))
+                    .foregroundStyle(Theme.Palette.fg)
+                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, Theme.Space.lg)
+        .padding(.top, Theme.Space.md)
+    }
+
+    /// Capture button + optional library/skip links — identical content in
+    /// both orientations, just laid out inside a differently-arranged
+    /// parent (bottom stack in portrait, trailing rail in landscape).
+    private var controlStack: some View {
+        Group {
+            CaptureButton(enabled: session.allPassed) {
+                session.capturePhoto { image in
+                    captureFlash = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        captureFlash = false
+                        onCapture(image)
+                    }
+                }
+            }
+            if let onPickFromLibrary {
+                LibraryFallbackLink(onPicked: onPickFromLibrary)
+            }
+            if let onSkip {
+                Button(action: onSkip) {
+                    Text(skipLabel.uppercased())
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg3)
+                        .kerning(0.5)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -233,14 +292,23 @@ private struct StatusPillRow: View {
     let perpOK: Bool
     let bgOK: Bool
     var showsBackgroundPill: Bool = true
+    // Landscape's trailing-rail layout (Plan L3) stacks the pills instead
+    // of running them in a row — there's no horizontal room for a row once
+    // they're sharing a narrow rail with the shutter button.
+    var isVertical: Bool = false
 
     var body: some View {
-        HStack(spacing: Theme.Space.sm) {
+        let pills = Group {
             StatusPill(label: "LEVEL", state: levelOK ? .ok : .warning)
             StatusPill(label: "PERP",  state: perpOK  ? .ok : .warning)
             if showsBackgroundPill {
                 StatusPill(label: "BG", state: bgOK ? .ok : .warning)
             }
+        }
+        if isVertical {
+            VStack(spacing: Theme.Space.sm) { pills }
+        } else {
+            HStack(spacing: Theme.Space.sm) { pills }
         }
     }
 }
