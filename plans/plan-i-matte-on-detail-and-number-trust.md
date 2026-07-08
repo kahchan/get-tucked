@@ -184,6 +184,18 @@ amber line for this test, it's advisory).
    `S_true` at typical indoor distances. Bias shrinks as the camera moves
    back — worth one extra shot from farther away if room allows.
 
+**Results (2026-07-08, Kah, tape measure confirmed).** FUNNY BOI's
+normal-riding-position capture (bar at arms' length — Shot B geometry):
+`S_true = 31 cm` (tape), app read `21.8 cm` → ratio `0.70`, i.e. a ~30%
+linear undershoot — bigger than the "typical indoor distances" 0.8–0.9×
+estimate above. Confirms the scale-plane perspective bias is real and
+non-trivial, not just a theoretical concern. **Shot A (bar at chest) not
+yet done** — without it we can't yet separate "pure perspective bias"
+(expected, geometry-only) from "the ruler itself is also off" (a real
+bug, e.g. mis-tapped bar ends or wrong bar width on record) for this
+specific capture. Worth doing before deciding whether this stays a
+documentation matter or escalates to the depth-capture idea below.
+
 This needs no new code and settles, separately: (a) is the ruler right, and
 (b) how big is the scale-plane bias in practice. If (b) turns out large and
 Kah wants the app to *measure* it per-capture rather than document it, that
