@@ -130,6 +130,53 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(area, 400, accuracy: acc)
     }
 
+    // MARK: - Wheel-ruler verification (Plan K)
+
+    func testOverallWheelDiameterMm() {
+        // 700C bead seat (622mm) + 2 * 45mm tire → 712mm.
+        let d = AnalysisMath.overallWheelDiameterMm(beadSeatMm: 622, tireWidthMm: 45)
+        XCTAssertEqual(d, 712, accuracy: acc)
+    }
+
+    func testWheelPixelsPerCm() {
+        // 356px vertical tap span, 712mm (=71.2cm) wheel → 5 px/cm.
+        let ppc = AnalysisMath.wheelPixelsPerCm(
+            groundTap: CGPoint(x: 0.5, y: 0.9),
+            topTap: CGPoint(x: 0.5, y: 0.544),
+            imageSize: CGSize(width: 1000, height: 1000),
+            wheelDiameterMm: 712
+        )
+        XCTAssertEqual(ppc, 5, accuracy: 0.01)
+    }
+
+    func testRulerDisagreementFractionZeroWhenEqual() {
+        XCTAssertEqual(AnalysisMath.rulerDisagreementFraction(barPixelsPerCm: 10, wheelPixelsPerCm: 10), 0, accuracy: acc)
+    }
+
+    func testRulerDisagreementFractionDetectsMismatch() {
+        // Wheel reads 18% higher than the bar-derived scale.
+        let fraction = AnalysisMath.rulerDisagreementFraction(barPixelsPerCm: 10, wheelPixelsPerCm: 11.8)
+        XCTAssertEqual(fraction, 0.18, accuracy: 1e-9)
+    }
+
+    func testWheelCheckDisplayAgreesWithinThreshold() {
+        let result = AnalysisMath.wheelCheckDisplay(0.03)
+        XCTAssertEqual(result.text, "agrees ±3%")
+        XCTAssertFalse(result.isWarning)
+    }
+
+    func testWheelCheckDisplayAtThresholdBoundaryAgrees() {
+        // Exactly at the threshold — inclusive, still "agrees".
+        let result = AnalysisMath.wheelCheckDisplay(AnalysisMath.wheelCheckDisagreementThreshold)
+        XCTAssertFalse(result.isWarning)
+    }
+
+    func testWheelCheckDisplayWarnsAboveThreshold() {
+        let result = AnalysisMath.wheelCheckDisplay(0.18)
+        XCTAssertEqual(result.text, "disagrees 18%")
+        XCTAssertTrue(result.isWarning)
+    }
+
     // MARK: - Noise floor
 
     func testCombinedNoiseCm2CombinesInQuadrature() {

@@ -87,6 +87,47 @@ enum AnalysisMath {
         "±\(Int(cm2.rounded())) cm²"
     }
 
+    // MARK: - Wheel-ruler verification (Plan K — optional, never gates capture)
+
+    /// Approximates a tire's overall (inflated) diameter from its rim's ISO
+    /// bead-seat diameter and tire width — good to ~±1-2%, plenty for a
+    /// mis-entry check at the disagreement threshold below.
+    static func overallWheelDiameterMm(beadSeatMm: Double, tireWidthMm: Double) -> Double {
+        beadSeatMm + 2 * tireWidthMm
+    }
+
+    /// Scale derived from tapping the front wheel's ground contact and tire
+    /// top (a vertical span, like the handlebar taps) against its known
+    /// overall diameter — reuses the same tap-distance-to-scale geometry as
+    /// the bar ruler, just with a different known length.
+    static func wheelPixelsPerCm(groundTap: CGPoint, topTap: CGPoint, imageSize: CGSize, wheelDiameterMm: Double) -> Double {
+        let wheelPixels = handlebarPixels(tap0: groundTap, tap1: topTap, imageSize: imageSize)
+        return pixelsPerCm(handlebarPixels: wheelPixels, handlebarWidthMm: wheelDiameterMm)
+    }
+
+    /// Amber threshold above which the bar-tap and wheel-tap rulers disagree
+    /// enough to flag a likely mis-entry (e.g. a wrong bar width) — advisory
+    /// only, same posture as `isShoulderWidthPlausible`.
+    static let wheelCheckDisagreementThreshold = 0.10
+
+    /// Relative disagreement between the two independent scale estimates,
+    /// expressed against the bar ruler (the ruler that stays authoritative —
+    /// spec §3 forbids silent replacement).
+    static func rulerDisagreementFraction(barPixelsPerCm: Double, wheelPixelsPerCm: Double) -> Double {
+        abs(wheelPixelsPerCm - barPixelsPerCm) / barPixelsPerCm
+    }
+
+    /// Display copy for the wheel-check MetricRow — "agrees ±3%" or the
+    /// amber "disagrees 18%" — shared by the reveal and detail screens so
+    /// the two never drift (mirrors `shoulderWidthWarning`'s pattern).
+    static func wheelCheckDisplay(_ disagreementFraction: Double) -> (text: String, isWarning: Bool) {
+        let pct = Int((disagreementFraction * 100).rounded())
+        if disagreementFraction <= wheelCheckDisagreementThreshold {
+            return ("agrees ±\(pct)%", false)
+        }
+        return ("disagrees \(pct)%", true)
+    }
+
     // MARK: - Noise floor
 
     /// Two independent measurements' uncertainties combine in quadrature, not
