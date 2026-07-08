@@ -180,6 +180,48 @@ is a depth-capture feature (LiDAR `AVDepthData` at the tap points at shutter
 time) — a new plan, flagged as a product decision, not something to fold in
 here.
 
+## Idea stage (2026-07-08, Kah) — cross-scale verification via the front wheel
+
+Not a task yet; direction discussed, no go-ahead. Question: given optionally
+entered figures (bar width, wheelbase), can the app *derive or verify* one
+dimension from the images?
+
+**Directly, no** — each ruler is only visible in one view. The bar spans the
+frontal photo but points at the camera side-on; the wheelbase spans the
+side-on photo but foreshortens to nothing head-on. Neither photo can measure
+the other's ruler.
+
+**Via a bridge, yes: the front wheel is visible in both photos**, and it
+sits at (nearly) the bar's depth plane — which makes the chain
+perspective-consistent:
+
+- *Side-on:* wheelbase taps → side-on px/cm → measure the front wheel's
+  diameter in cm (full circle, trivial to tap top+bottom of tire).
+- *Frontal:* the same wheel edge-on — a vertical circle parallel to the
+  camera axis, so its projected **height** equals its true diameter
+  (foreshortening squashes its width, not its height). Tap ground contact +
+  tire top → frontal px/cm at the front-wheel≈bar plane.
+- Compare against the bar-tap ruler. Disagreement beyond a few % ⇒ one of
+  the entered figures (or a tap) is wrong — surfaced as a warning.
+
+**Shorter chain, frontal photo alone:** tire overall diameter is known-ish
+without side-on at all (spec'd per tire, e.g. 700×28 ≈ 684 mm; 29er ≈ 740 mm;
+or tape-measured once) → a second independent ruler in the same photo as the
+bar taps. Two rulers, one photo, no new capture step.
+
+**Use as verification, never silent replacement** (spec §3): the entered bar
+width stays the ruler; the derived figure exists to *catch* the single most
+dangerous silent error in the pipeline — a wrong bar width, which enters the
+area squared. Copy shape: "Bar taps and wheel size disagree by 18% — check
+the bar width on this bike." Chained tap error is maybe ±3–5%, which is
+plenty for a mis-entry check (440 vs 760 is a 73% disagreement) but not good
+enough to *be* the ruler.
+
+Also decided: `reach` may be recorded as optional setup metadata if wanted,
+but it is a poor ruler — its endpoints (BB centre, head-tube top) are far
+less tappable than hub centres or a tire's ground contact. Don't build a
+scale on it.
+
 ## Acceptance
 
 A position captured after I1 shows a PHOTO/MASK toggle on its detail screen
