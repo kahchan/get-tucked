@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import AVFoundation
 import CoreMotion
 import Vision
@@ -11,6 +12,17 @@ struct LiveCameraView: View {
     let bike: Bike
     var bikes: [Bike] = []
     var onBikeChange: (Bike) -> Void = { _ in }
+    // Side-on reuses this view (Plan G1) with the bike already locked in from
+    // head-on — showing the switchable chip there would let someone silently
+    // desync the scale reference between the two photos in a pair.
+    var showsBikeChip: Bool = true
+    var stepLabel: String? = nil
+    // BG confidence gauges background contrast for the frontal matte — side-on
+    // computes no matte, so showing it there would measure something irrelevant.
+    var showsBackgroundPill: Bool = true
+    var onSkip: (() -> Void)? = nil
+    var skipLabel: String = "SKIP"
+    var onPickFromLibrary: ((UIImage, String?) -> Void)? = nil
     let onCapture: (UIImage) -> Void
     let onCancel: () -> Void
 
@@ -32,12 +44,16 @@ struct LiveCameraView: View {
                 // HUD overlay
                 VStack(spacing: 0) {
                     HStack {
-                        Button {
-                            showingBikePicker = true
-                        } label: {
-                            BikeChip(name: bike.nickname)
+                        if showsBikeChip {
+                            Button {
+                                showingBikePicker = true
+                            } label: {
+                                BikeChip(name: bike.nickname)
+                            }
+                            .buttonStyle(.plain)
+                        } else if let stepLabel {
+                            StepLabelChip(label: stepLabel)
                         }
-                        .buttonStyle(.plain)
                         Spacer()
                         Button(action: onCancel) {
                             Text("✕")
@@ -60,7 +76,8 @@ struct LiveCameraView: View {
                         StatusPillRow(
                             levelOK: session.levelOK,
                             perpOK: session.perpOK,
-                            bgOK: session.bgOK
+                            bgOK: session.bgOK,
+                            showsBackgroundPill: showsBackgroundPill
                         )
                         CaptureButton(enabled: session.allPassed) {
                             session.capturePhoto { image in
@@ -70,6 +87,18 @@ struct LiveCameraView: View {
                                     onCapture(image)
                                 }
                             }
+                        }
+                        if let onPickFromLibrary {
+                            LibraryFallbackLink(onPicked: onPickFromLibrary)
+                        }
+                        if let onSkip {
+                            Button(action: onSkip) {
+                                Text(skipLabel.uppercased())
+                                    .font(Theme.mono(11, weight: .bold))
+                                    .foregroundStyle(Theme.Palette.fg3)
+                                    .kerning(0.5)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.bottom, 48)
@@ -120,6 +149,55 @@ private struct BikeChip: View {
     }
 }
 
+/// Non-interactive stand-in for `BikeChip` — same container, no `▾` picker
+/// affordance, single line. Used where the bike is already locked in and
+/// switching mid-pair would silently desync the scale reference (Plan G1).
+private struct StepLabelChip: View {
+    let label: String
+
+    var body: some View {
+        Text(label.uppercased())
+            .font(Theme.heading(13))
+            .foregroundStyle(Theme.Palette.fg)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Theme.Palette.bg0.opacity(0.72))
+            .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+    }
+}
+
+/// "OR CHOOSE FROM LIBRARY" — a device/lighting problem with live capture
+/// shouldn't leave a step with no path forward (Plan G decision 5). Reuses
+/// the same PhotosPicker flow `PhotoPickStep` uses.
+private struct LibraryFallbackLink: View {
+    let onPicked: (UIImage, String?) -> Void
+
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var isLoading = false
+
+    var body: some View {
+        PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
+            Text(isLoading ? "LOADING…" : "OR CHOOSE FROM LIBRARY")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg3)
+                .kerning(0.5)
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(!isLoading)
+        .onChange(of: pickerItem) { _, newItem in
+            guard let newItem else { return }
+            isLoading = true
+            Task {
+                if let data = try? await newItem.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    onPicked(image, newItem.itemIdentifier)
+                }
+                isLoading = false
+            }
+        }
+    }
+}
+
 private struct LevelLine: View {
     let deviationDeg: Double
 
@@ -154,12 +232,15 @@ private struct StatusPillRow: View {
     let levelOK: Bool
     let perpOK: Bool
     let bgOK: Bool
+    var showsBackgroundPill: Bool = true
 
     var body: some View {
         HStack(spacing: Theme.Space.sm) {
             StatusPill(label: "LEVEL", state: levelOK ? .ok : .warning)
             StatusPill(label: "PERP",  state: perpOK  ? .ok : .warning)
-            StatusPill(label: "BG",    state: bgOK    ? .ok : .warning)
+            if showsBackgroundPill {
+                StatusPill(label: "BG", state: bgOK ? .ok : .warning)
+            }
         }
     }
 }
