@@ -131,7 +131,9 @@ struct BikePickerSheet: View {
             bikeType: bikeType
         )
         bike.rimStandard = rimStandard
-        bike.tireWidthMm = Double(tireWidthText)
+        bike.tireWidthMm = Double(tireWidthText).map {
+            AnalysisMath.tireWidthMm(fromEntry: $0, unit: rimStandard?.tireWidthUnit ?? .mm)
+        }
         bike.wheelbaseMm = Double(wheelbaseText)
         context.insert(bike)
         addingBike = false

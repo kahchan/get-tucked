@@ -125,7 +125,9 @@ struct MonoField: View {
             .font(Theme.mono(18))
             .foregroundStyle(Theme.Palette.fg)
             #if canImport(UIKit)
-            .keyboardType(numericOnly ? .numberPad : .default)
+            // .decimalPad, not .numberPad — tire width in inches (e.g. "2.1")
+            // needs a decimal point; whole-number fields work fine on it too.
+            .keyboardType(numericOnly ? .decimalPad : .default)
             #endif
             .padding(.horizontal, Theme.Space.lg)
             .padding(.top, Theme.Space.xs)

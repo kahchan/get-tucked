@@ -137,7 +137,8 @@ struct BikeSetupView: View {
         handlebarWidthText = String(Int(bike.handlebarWidthMm))
         bikeType = bike.bikeType
         rimStandard = bike.rimStandard
-        tireWidthText = bike.tireWidthMm.map { String(Int($0)) } ?? ""
+        let tireWidthUnit = rimStandard?.tireWidthUnit ?? .mm
+        tireWidthText = bike.tireWidthMm.map { formattedTireWidth($0, unit: tireWidthUnit) } ?? ""
         wheelbaseText = bike.wheelbaseMm.map { String(Int($0)) } ?? ""
         showWheelSize = rimStandard != nil || bike.tireWidthMm != nil || bike.wheelbaseMm != nil
     }
@@ -150,11 +151,28 @@ struct BikeSetupView: View {
         bike.handlebarWidthMm = width
         bike.bikeType = bikeType
         bike.rimStandard = rimStandard
-        bike.tireWidthMm = Double(tireWidthText)
+        bike.tireWidthMm = Double(tireWidthText).map {
+            AnalysisMath.tireWidthMm(fromEntry: $0, unit: rimStandard?.tireWidthUnit ?? .mm)
+        }
         bike.wheelbaseMm = Double(wheelbaseText)
         if editing == nil { context.insert(bike) }
         onSave?()
         dismiss()
+    }
+
+    /// Redisplays a stored mm value in whichever unit its rim standard uses —
+    /// integer mm, or inches trimmed to at most 2 decimals ("2.1", not "2.10").
+    private func formattedTireWidth(_ mm: Double, unit: TireWidthUnit) -> String {
+        let value = AnalysisMath.tireWidthDisplayValue(fromMm: mm, unit: unit)
+        switch unit {
+        case .mm:
+            return String(Int(value.rounded()))
+        case .inches:
+            var text = String(format: "%.2f", value)
+            while text.hasSuffix("0") { text.removeLast() }
+            if text.hasSuffix(".") { text.removeLast() }
+            return text
+        }
     }
 
     private func deleteBike() {
@@ -271,19 +289,35 @@ struct WheelSizeFields: View {
     @Binding var tireWidthText: String
     @Binding var wheelbaseText: String
 
+    // Road/gravel tires read in mm off the sidewall ("700x40c"); mountain
+    // bike tires in inches ("27.5x2.35") — default to mm until a rim
+    // standard narrows it down.
+    private var tireWidthUnit: TireWidthUnit { rimStandard?.tireWidthUnit ?? .mm }
+
     var body: some View {
         Group {
             FieldLabel("RIM SIZE")
                 .padding(.top, Theme.Space.md)
             RimStandardToggle(selection: $rimStandard)
 
-            FieldLabel("TIRE WIDTH (MM)")
+            FieldLabel(tireWidthUnit.fieldLabel)
                 .padding(.top, Theme.Space.md)
-            MonoField(placeholder: "45", text: $tireWidthText, numericOnly: true)
+            MonoField(placeholder: tireWidthUnit.placeholder, text: $tireWidthText, numericOnly: true)
 
             FieldLabel("WHEELBASE (MM)")
                 .padding(.top, Theme.Space.md)
             MonoField(placeholder: "1050", text: $wheelbaseText, numericOnly: true)
+        }
+        // Switching rim families (mm ↔ inches) would otherwise silently
+        // reinterpret an already-typed number under the wrong unit — clear
+        // it rather than guess. Switching within the same family (e.g.
+        // 700C → 650B, both mm) leaves the entry alone.
+        .onChange(of: rimStandard) { oldValue, newValue in
+            let oldUnit = oldValue?.tireWidthUnit ?? .mm
+            let newUnit = newValue?.tireWidthUnit ?? .mm
+            if oldUnit != newUnit {
+                tireWidthText = ""
+            }
         }
     }
 }

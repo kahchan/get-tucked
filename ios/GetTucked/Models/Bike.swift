@@ -30,6 +30,35 @@ enum RimStandard: String, Codable, CaseIterable {
         case .in29: 622
         }
     }
+
+    /// Road/gravel tires are labelled in mm off the sidewall (e.g. "700x40c");
+    /// mountain-bike tires in inches (e.g. "27.5x2.35") — the tire-width field
+    /// should read in whichever unit riders actually see on the tire.
+    var tireWidthUnit: TireWidthUnit {
+        switch self {
+        case .c700, .b650: .mm
+        case .in26, .in275, .in29: .inches
+        }
+    }
+}
+
+enum TireWidthUnit: Equatable {
+    case mm
+    case inches
+
+    var fieldLabel: String {
+        switch self {
+        case .mm: "TIRE WIDTH (MM)"
+        case .inches: "TIRE WIDTH (IN)"
+        }
+    }
+
+    var placeholder: String {
+        switch self {
+        case .mm: "40"
+        case .inches: "2.1"
+        }
+    }
 }
 
 @Model

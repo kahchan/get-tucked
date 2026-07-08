@@ -96,6 +96,26 @@ enum AnalysisMath {
         beadSeatMm + 2 * tireWidthMm
     }
 
+    /// The tire-width field reads in whichever unit matches the rim
+    /// standard's convention (mm for road/gravel, inches for MTB) — this
+    /// converts what the rider typed into the mm the model stores.
+    static func tireWidthMm(fromEntry value: Double, unit: TireWidthUnit) -> Double {
+        switch unit {
+        case .mm: value
+        case .inches: value * 25.4
+        }
+    }
+
+    /// Inverse of `tireWidthMm(fromEntry:unit:)` — for pre-filling the field
+    /// when editing a bike, so a stored mm value redisplays in whichever
+    /// unit its rim standard uses.
+    static func tireWidthDisplayValue(fromMm mm: Double, unit: TireWidthUnit) -> Double {
+        switch unit {
+        case .mm: mm
+        case .inches: mm / 25.4
+        }
+    }
+
     /// Scale derived from tapping the front wheel's ground contact and tire
     /// top (a vertical span, like the handlebar taps) against its known
     /// overall diameter — reuses the same tap-distance-to-scale geometry as

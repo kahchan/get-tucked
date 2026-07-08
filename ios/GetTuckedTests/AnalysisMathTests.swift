@@ -177,6 +177,25 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertTrue(result.isWarning)
     }
 
+    func testTireWidthMmPassesThroughForMmUnit() {
+        XCTAssertEqual(AnalysisMath.tireWidthMm(fromEntry: 40, unit: .mm), 40, accuracy: acc)
+    }
+
+    func testTireWidthMmConvertsInchesToMm() {
+        // 2.1" tire → 53.34mm.
+        XCTAssertEqual(AnalysisMath.tireWidthMm(fromEntry: 2.1, unit: .inches), 53.34, accuracy: acc)
+    }
+
+    func testTireWidthDisplayValueRoundTripsInches() {
+        let mm = AnalysisMath.tireWidthMm(fromEntry: 2.35, unit: .inches)
+        let backToInches = AnalysisMath.tireWidthDisplayValue(fromMm: mm, unit: .inches)
+        XCTAssertEqual(backToInches, 2.35, accuracy: acc)
+    }
+
+    func testTireWidthDisplayValuePassesThroughForMmUnit() {
+        XCTAssertEqual(AnalysisMath.tireWidthDisplayValue(fromMm: 45, unit: .mm), 45, accuracy: acc)
+    }
+
     // MARK: - Noise floor
 
     func testCombinedNoiseCm2CombinesInQuadrature() {
