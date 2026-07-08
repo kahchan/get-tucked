@@ -16,6 +16,11 @@ struct BikeSetupView: View {
     @State private var showHandlebarTip = false
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
+    // Wheel size + wheelbase — optional cross-scale verification metadata (Plan K1).
+    @State private var showWheelSize = false
+    @State private var rimStandard: RimStandard?
+    @State private var tireWidthText = ""
+    @State private var wheelbaseText = ""
 
     private var handlebarWidth: Double? { Double(handlebarWidthText) }
 
@@ -79,6 +84,20 @@ struct BikeSetupView: View {
                         SectionDivider()
                             .padding(.top, Theme.Space.lg)
 
+                        // Wheel size + wheelbase — optional, kept collapsed by
+                        // default so the required fields above don't read as
+                        // longer/scarier, but still an explicit, discoverable
+                        // control rather than hidden functionality.
+                        OptionalSectionToggle(
+                            label: showWheelSize ? "Hide wheel size" : "Wheel size & wheelbase (optional)",
+                            expanded: $showWheelSize
+                        )
+                        if showWheelSize {
+                            WheelSizeFields(rimStandard: $rimStandard, tireWidthText: $tireWidthText, wheelbaseText: $wheelbaseText)
+                        }
+                        SectionDivider()
+                            .padding(.top, Theme.Space.lg)
+
                         Spacer(minLength: Theme.Space.xl)
                     }
                     .padding(.horizontal, Theme.Space.lg)
@@ -117,18 +136,23 @@ struct BikeSetupView: View {
         nickname = bike.nickname
         handlebarWidthText = String(Int(bike.handlebarWidthMm))
         bikeType = bike.bikeType
+        rimStandard = bike.rimStandard
+        tireWidthText = bike.tireWidthMm.map { String(Int($0)) } ?? ""
+        wheelbaseText = bike.wheelbaseMm.map { String(Int($0)) } ?? ""
+        showWheelSize = rimStandard != nil || bike.tireWidthMm != nil || bike.wheelbaseMm != nil
     }
 
     private func save() {
         guard let width = handlebarWidth, isValid else { return }
         let name = nickname.trimmingCharacters(in: .whitespaces)
-        if let bike = editing {
-            bike.nickname = name
-            bike.handlebarWidthMm = width
-            bike.bikeType = bikeType
-        } else {
-            context.insert(Bike(nickname: name, handlebarWidthMm: width, bikeType: bikeType))
-        }
+        let bike = editing ?? Bike(nickname: name, handlebarWidthMm: width, bikeType: bikeType)
+        bike.nickname = name
+        bike.handlebarWidthMm = width
+        bike.bikeType = bikeType
+        bike.rimStandard = rimStandard
+        bike.tireWidthMm = Double(tireWidthText)
+        bike.wheelbaseMm = Double(wheelbaseText)
+        if editing == nil { context.insert(bike) }
         onSave?()
         dismiss()
     }
@@ -169,5 +193,97 @@ struct TypeToggle: View {
         }
         .padding(.horizontal, Theme.Space.lg)
         .padding(.top, Theme.Space.xs)
+    }
+}
+
+/// Collapsed-by-default disclosure for an optional field group — visible and
+/// discoverable (unlike a hidden gesture), but doesn't lengthen the form
+/// until the rider opts in (Plan K1).
+struct OptionalSectionToggle: View {
+    let label: String
+    @Binding var expanded: Bool
+
+    var body: some View {
+        Button { expanded.toggle() } label: {
+            HStack(spacing: Theme.Space.xs) {
+                Text(expanded ? "−" : "+")
+                    .font(Theme.mono(14, weight: .bold))
+                Text(label.uppercased())
+                    .font(Theme.mono(11, weight: .bold))
+                    .kerning(0.5)
+                Spacer()
+            }
+            .foregroundStyle(Theme.Palette.fg3)
+            .padding(.horizontal, Theme.Space.lg)
+            .frame(height: 40)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Rim-size picker — five ISO bead-seat standards across two rows so every
+/// option stays visible (no horizontal scroll to hide a choice). Tapping the
+/// selected standard again deselects it, since this field is optional.
+struct RimStandardToggle: View {
+    @Binding var selection: RimStandard?
+
+    private let topRow: [RimStandard] = [.c700, .b650, .in26]
+    private let bottomRow: [RimStandard] = [.in275, .in29]
+
+    var body: some View {
+        VStack(spacing: 1) {
+            row(topRow)
+            row(bottomRow)
+        }
+        .padding(.horizontal, Theme.Space.lg)
+        .padding(.top, Theme.Space.xs)
+    }
+
+    private func row(_ standards: [RimStandard]) -> some View {
+        HStack(spacing: 0) {
+            ForEach(standards, id: \.self) { standard in
+                let selected = selection == standard
+                Button {
+                    selection = selected ? nil : standard
+                } label: {
+                    Text(standard.displayName)
+                        .font(Theme.mono(12, weight: selected ? .bold : .regular))
+                        .foregroundStyle(selected ? Color.black : Theme.Palette.fg2)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(selected ? Theme.Palette.acc : Color.clear)
+                        .overlay(
+                            Rectangle()
+                                .stroke(Theme.Palette.line, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+/// Rim standard + tire width + wheelbase — shared by `BikeSetupView` and the
+/// capture-time bike picker's inline add form (Plan K1).
+struct WheelSizeFields: View {
+    @Binding var rimStandard: RimStandard?
+    @Binding var tireWidthText: String
+    @Binding var wheelbaseText: String
+
+    var body: some View {
+        Group {
+            FieldLabel("RIM SIZE")
+                .padding(.top, Theme.Space.md)
+            RimStandardToggle(selection: $rimStandard)
+
+            FieldLabel("TIRE WIDTH (MM)")
+                .padding(.top, Theme.Space.md)
+            MonoField(placeholder: "45", text: $tireWidthText, numericOnly: true)
+
+            FieldLabel("WHEELBASE (MM)")
+                .padding(.top, Theme.Space.md)
+            MonoField(placeholder: "1050", text: $wheelbaseText, numericOnly: true)
+        }
     }
 }

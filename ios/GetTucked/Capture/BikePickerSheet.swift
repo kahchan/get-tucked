@@ -15,6 +15,11 @@ struct BikePickerSheet: View {
     @State private var handlebarWidthText = ""
     @State private var bikeType: BikeType = .road
     @State private var pendingSelection: Bike?
+    // Wheel size + wheelbase — optional cross-scale verification metadata (Plan K1).
+    @State private var showWheelSize = false
+    @State private var rimStandard: RimStandard?
+    @State private var tireWidthText = ""
+    @State private var wheelbaseText = ""
 
     private var isValid: Bool {
         Bike.isValidInput(nickname: nickname, handlebarWidthText: handlebarWidthText)
@@ -79,6 +84,15 @@ struct BikePickerSheet: View {
                                     .padding(.top, Theme.Space.md)
                                 MonoField(placeholder: "420", text: $handlebarWidthText, numericOnly: true)
 
+                                OptionalSectionToggle(
+                                    label: showWheelSize ? "Hide wheel size" : "Wheel size & wheelbase (optional)",
+                                    expanded: $showWheelSize
+                                )
+                                .padding(.top, Theme.Space.sm)
+                                if showWheelSize {
+                                    WheelSizeFields(rimStandard: $rimStandard, tireWidthText: $tireWidthText, wheelbaseText: $wheelbaseText)
+                                }
+
                                 AccentButton(label: "SAVE & SELECT", action: saveBike, enabled: isValid)
                                     .padding(.horizontal, Theme.Space.lg)
                                     .padding(.top, Theme.Space.lg)
@@ -96,6 +110,10 @@ struct BikePickerSheet: View {
         nickname = ""
         handlebarWidthText = ""
         bikeType = .road
+        showWheelSize = false
+        rimStandard = nil
+        tireWidthText = ""
+        wheelbaseText = ""
     }
 
     private func select(_ bike: Bike, after seconds: Double) {
@@ -112,6 +130,9 @@ struct BikePickerSheet: View {
             handlebarWidthMm: width,
             bikeType: bikeType
         )
+        bike.rimStandard = rimStandard
+        bike.tireWidthMm = Double(tireWidthText)
+        bike.wheelbaseMm = Double(wheelbaseText)
         context.insert(bike)
         addingBike = false
         resetForm()
