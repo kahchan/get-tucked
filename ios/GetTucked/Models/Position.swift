@@ -25,6 +25,12 @@ final class Position {
     // Side-on photo asset identifier — populated after Phase 2.5 side-on capture
     var sideOnPhotoIdentifier: String?
 
+    // Side-on photo bytes — populated for live captures (Plan G0), which have
+    // no PHAsset identifier, mirroring photosData's head-on handling. Without
+    // this a live side-on shot computes posture metrics whose source photo
+    // is unviewable forever, and the FRONTAL/SIDE-ON toggle never appears.
+    var sideOnPhotoData: Data?
+
     // Scale calibration: two tap points in unit coordinates (0–1)
     // stored as [x0, y0, x1, y1]
     var handlebarTapPoints: [Double]?

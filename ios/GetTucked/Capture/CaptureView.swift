@@ -258,6 +258,11 @@ struct CaptureView: View {
             metrics.headDropCm    = pose.headDropCm
         }
         position.sideOnPhotoIdentifier = sideOnAssetIdentifier
+        // Live side-on capture has no PHAsset identifier — persist the bytes,
+        // mirroring the head-on photosData handling (Plan G0).
+        if sideOnAssetIdentifier == nil {
+            position.sideOnPhotoData = sideOnImage?.compressedForStorage()
+        }
         position.metrics = metrics
         context.insert(position)
         step = .done

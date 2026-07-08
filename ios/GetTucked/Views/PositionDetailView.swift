@@ -19,7 +19,7 @@ struct PositionDetailView: View {
     @State private var showingMask = false
     @State private var showDeleteConfirm = false
 
-    private var hasSideOn: Bool { position.sideOnPhotoIdentifier != nil }
+    private var hasSideOn: Bool { position.sideOnPhotoIdentifier != nil || position.sideOnPhotoData != nil }
 
     var body: some View {
         ZStack {
@@ -140,7 +140,13 @@ struct PositionDetailView: View {
         } else {
             headOnImage = await loadAsset(identifier: position.headOnPhotoIdentifier)
         }
-        sideOnImage = await loadAsset(identifier: position.sideOnPhotoIdentifier)
+        // Side-on: live capture has no PHAsset identifier — prefer the stored
+        // bytes over a re-fetch, same as head-on (Plan G0).
+        if let data = position.sideOnPhotoData, let image = UIImage(data: data) {
+            sideOnImage = image
+        } else {
+            sideOnImage = await loadAsset(identifier: position.sideOnPhotoIdentifier)
+        }
         buildMaskOverlay()
     }
 
