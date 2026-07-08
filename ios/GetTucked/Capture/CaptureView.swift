@@ -83,6 +83,17 @@ struct CaptureView: View {
                 selectedBike = positions.first?.bike ?? bikes.first
             }
         }
+        // Derived from `step` rather than hand-audited per exit closure, so
+        // no path (capture, library-pick, skip, retry, retake) can leave the
+        // lock stuck on (Plan L2). Covers every step transition in one place.
+        .onChange(of: step) { _, newStep in
+            OrientationLock.allowsLandscape = (newStep == .pickSideOnPhoto)
+        }
+        // Covers dismiss() (✕ / cancel) and any other navigation pop, which
+        // onChange(of: step) can't see.
+        .onDisappear {
+            OrientationLock.allowsLandscape = false
+        }
     }
 
     @ViewBuilder
