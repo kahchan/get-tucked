@@ -92,11 +92,7 @@ struct AnalysisEngine {
 
         let headOnPose = try? await estimateHeadOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
 
-        var scaleWarning: String?
-        if let shoulderCm = headOnPose?.shoulderWidthCm,
-           !AnalysisMath.isShoulderWidthPlausible(shoulderCm) {
-            scaleWarning = "Shoulder width reads \(Int(shoulderCm.rounded())) cm — check your taps and the bike's bar width."
-        }
+        let scaleWarning = headOnPose.flatMap { AnalysisMath.shoulderWidthWarning($0.shoulderWidthCm) }
 
         return AnalysisResult(
             frontalAreaCm2: areaCm2,

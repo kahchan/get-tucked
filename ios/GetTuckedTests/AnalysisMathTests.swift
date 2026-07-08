@@ -138,6 +138,17 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertFalse(AnalysisMath.isShoulderWidthPlausible(0))
     }
 
+    func testShoulderWidthWarningNilWhenPlausible() {
+        XCTAssertNil(AnalysisMath.shoulderWidthWarning(45))
+    }
+
+    func testShoulderWidthWarningPresentWhenImplausible() {
+        XCTAssertEqual(
+            AnalysisMath.shoulderWidthWarning(21.8),
+            "Shoulder width reads 22 cm — check your taps and the bike's bar width."
+        )
+    }
+
     func testTorsoAngleUpright() {
         // Shoulder directly above hip → 0°.
         let deg = AnalysisMath.torsoAngleDeg(

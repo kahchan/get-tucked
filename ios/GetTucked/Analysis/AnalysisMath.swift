@@ -99,6 +99,15 @@ enum AnalysisMath {
         (30...60).contains(cm)
     }
 
+    /// Copy shown when a computed shoulder width falls outside the plausible
+    /// range — shared by the reveal (from a live AnalysisResult) and the
+    /// detail screen (recomputed from a stored position) so the two never
+    /// drift apart (Plan I4).
+    static func shoulderWidthWarning(_ cm: Double) -> String? {
+        guard !isShoulderWidthPlausible(cm) else { return nil }
+        return "Shoulder width reads \(Int(cm.rounded())) cm — check your taps and the bike's bar width."
+    }
+
     /// Angle of the (shoulder − hip) vector from vertical. 0° = upright, 90° = horizontal.
     static func torsoAngleDeg(shoulder: CGPoint, hip: CGPoint) -> Double {
         let dx = Double(shoulder.x - hip.x)

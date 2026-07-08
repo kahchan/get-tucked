@@ -212,6 +212,14 @@ private struct MetricsSection: View {
                 Text(AnalysisMath.uncertaintyDisplay(metrics.frontalAreaUncertainty))
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
+
+                if let shoulder = metrics.shoulderWidthCm,
+                   let warning = AnalysisMath.shoulderWidthWarning(shoulder) {
+                    Text(warning)
+                        .font(Theme.mono(11))
+                        .foregroundStyle(Theme.Palette.amb)
+                        .padding(.top, Theme.Space.xs)
+                }
             }
             .padding(.horizontal, Theme.Space.lg)
             .padding(.top, Theme.Space.lg)
