@@ -87,7 +87,17 @@ struct AnalysisEngine {
         let areaCm2 = AnalysisMath.frontalAreaCm2(
             foregroundPixelCount: foregroundCount, maskPixelsPerCm: maskPixelsPerCm
         )
-        let uncertainty = AnalysisMath.uncertaintyCm2(areaCm2: areaCm2)
+        var uncertainty = AnalysisMath.uncertaintyCm2(areaCm2: areaCm2)
+        // Plan I5: maskPixelsPerCm rescales by width ratio only, correct only
+        // if the mask preserves the source's aspect ratio. That assumption is
+        // unverified in general — when it doesn't hold, the scale is less
+        // trustworthy than usual. Widen the uncertainty honestly rather than
+        // silently proceeding as if nothing were wrong (spec §3).
+        let aspectMatches = AnalysisMath.maskMatchesSourceAspect(
+            maskWidth: mask.width, maskHeight: mask.height,
+            sourceWidth: cgImage.width, sourceHeight: cgImage.height
+        )
+        if !aspectMatches { uncertainty *= 2 }
         let maskUI = UIImage(cgImage: mask)
 
         let headOnPose = try? await estimateHeadOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)

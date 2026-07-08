@@ -29,6 +29,19 @@ enum AnalysisMath {
         sourcePixelsPerCm * (Double(maskWidth) / Double(sourceWidth))
     }
 
+    /// `maskPixelsPerCm` rescales by width ratio only, which is correct only
+    /// if the mask preserves the source's aspect ratio. True for Vision's
+    /// person segmentation in practice, but unverified in general — this
+    /// predicate lets callers check rather than assume (Plan I5/H5).
+    static func maskMatchesSourceAspect(
+        maskWidth: Int, maskHeight: Int, sourceWidth: Int, sourceHeight: Int, tolerance: Double = 0.02
+    ) -> Bool {
+        guard maskHeight > 0, sourceHeight > 0 else { return false }
+        let maskAspect = Double(maskWidth) / Double(maskHeight)
+        let sourceAspect = Double(sourceWidth) / Double(sourceHeight)
+        return abs(maskAspect - sourceAspect) / sourceAspect <= tolerance
+    }
+
     // MARK: - Area
 
     /// Frontal area in cm² from a foreground pixel count and the mask-space scale.

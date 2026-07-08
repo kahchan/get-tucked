@@ -39,6 +39,34 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(ppc, 5, accuracy: acc)
     }
 
+    func testMaskMatchesSourceAspectExactMatch() {
+        // Both exactly 4:3.
+        XCTAssertTrue(AnalysisMath.maskMatchesSourceAspect(
+            maskWidth: 512, maskHeight: 384, sourceWidth: 4032, sourceHeight: 3024
+        ))
+    }
+
+    func testMaskMatchesSourceAspectWithinRoundingTolerance() {
+        // Mask width off by one from an exact 4:3 scale — real Vision output
+        // sizes don't land on an exact integer scale of the source.
+        XCTAssertTrue(AnalysisMath.maskMatchesSourceAspect(
+            maskWidth: 513, maskHeight: 384, sourceWidth: 4032, sourceHeight: 3024
+        ))
+    }
+
+    func testMaskMatchesSourceAspectDetectsMismatch() {
+        // Square mask against a 4:3 source — a real distortion, not rounding noise.
+        XCTAssertFalse(AnalysisMath.maskMatchesSourceAspect(
+            maskWidth: 512, maskHeight: 512, sourceWidth: 4032, sourceHeight: 3024
+        ))
+    }
+
+    func testMaskMatchesSourceAspectZeroHeightIsFalseNotCrash() {
+        XCTAssertFalse(AnalysisMath.maskMatchesSourceAspect(
+            maskWidth: 512, maskHeight: 0, sourceWidth: 4032, sourceHeight: 3024
+        ))
+    }
+
     // MARK: - Area
 
     func testFrontalAreaCm2() {

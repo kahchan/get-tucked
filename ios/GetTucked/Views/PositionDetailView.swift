@@ -154,9 +154,10 @@ struct PositionDetailView: View {
               let cgMask = mask.cgImage,
               let photo = headOnImage,
               let cgPhoto = photo.cgImage else { return }
-        let maskAspect = Double(cgMask.width) / Double(cgMask.height)
-        let photoAspect = Double(cgPhoto.width) / Double(cgPhoto.height)
-        guard abs(maskAspect - photoAspect) / photoAspect < 0.02 else { return }
+        guard AnalysisMath.maskMatchesSourceAspect(
+            maskWidth: cgMask.width, maskHeight: cgMask.height,
+            sourceWidth: cgPhoto.width, sourceHeight: cgPhoto.height
+        ) else { return }
         maskOverlay = MatteRenderer.tintedOverlay(mask: cgMask, color: UIColor(Theme.Palette.acc), alpha: 0.5)
     }
 
