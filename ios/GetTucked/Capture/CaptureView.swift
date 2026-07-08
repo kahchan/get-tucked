@@ -24,7 +24,6 @@ struct CaptureView: View {
     // drift from the value that produced pendingResult.
     @State private var usedHandlebarWidthMm: Double?
     // Side-on state
-    @State private var sideOnPickerItem: PhotosPickerItem?
     @State private var sideOnImage: UIImage?
     @State private var sideOnAssetIdentifier: String?
     @State private var pendingSideOnPose: SideOnPoseMetrics?
@@ -109,16 +108,29 @@ struct CaptureView: View {
             case .analysing:
                 AnalysingView(label: "ANALYSING…")
             case .pickSideOnPhoto:
-                PhotoPickStep(
-                    pickerItem: $sideOnPickerItem,
-                    instructions: "Stand beside your bike and photograph from directly side-on at hub height.",
-                    stepLabel: "SIDE-ON · 2 OF 2",
-                    onSkip: { step = .reveal }
-                ) { image, identifier in
-                    sideOnImage = image
-                    sideOnAssetIdentifier = identifier
-                    step = .analysingSideOn
-                    Task { await runSideOnAnalysis() }
+                if let bike = selectedBike {
+                    LiveCameraView(
+                        bike: bike,
+                        showsBikeChip: false,
+                        stepLabel: "SIDE-ON · 2 OF 2",
+                        showsBackgroundPill: false,
+                        onSkip: { step = .reveal },
+                        skipLabel: "SKIP SIDE-ON",
+                        onPickFromLibrary: { image, identifier in
+                            sideOnImage = image
+                            sideOnAssetIdentifier = identifier
+                            step = .analysingSideOn
+                            Task { await runSideOnAnalysis() }
+                        },
+                        onCapture: { image in
+                            sideOnImage = image
+                            sideOnAssetIdentifier = nil  // live capture has no PHAsset identifier
+                            step = .analysingSideOn
+                            Task { await runSideOnAnalysis() }
+                            Task { await saveToCameraRoll(image) }
+                        },
+                        onCancel: { dismiss() }
+                    )
                 }
             case .analysingSideOn:
                 AnalysingView(label: "ANALYSING POSTURE…")
@@ -279,74 +291,6 @@ private struct AnalysingView: View {
             .font(Theme.mono(12))
             .foregroundStyle(Theme.Palette.fg3)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct PhotoPickStep: View {
-    @Binding var pickerItem: PhotosPickerItem?
-    var instructions: String = "The rider should fill most of the frame, facing the camera directly."
-    var stepLabel: String = "FRONTAL · 1 OF 2"
-    var onSkip: (() -> Void)?
-    let onPicked: (UIImage, String?) -> Void
-    @State private var isLoading = false
-
-    var body: some View {
-        VStack(spacing: Theme.Space.lg) {
-            Spacer()
-            Text(stepLabel)
-                .font(Theme.mono(11, weight: .bold))
-                .foregroundStyle(Theme.Palette.fg3)
-                .kerning(0.5)
-            Text(instructions)
-                .font(Theme.mono(13))
-                .foregroundStyle(Theme.Palette.fg2)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            PhotosPicker(
-                selection: $pickerItem,
-                matching: .images,
-                photoLibrary: .shared()
-            ) {
-                HStack {
-                    Text("CHOOSE FROM LIBRARY")
-                        .font(Theme.mono(13, weight: .regular))
-                        .kerning(0.5)
-                    Spacer()
-                }
-                .foregroundStyle(Theme.Palette.fg)
-                .padding(.horizontal, Theme.Space.md)
-                .frame(maxWidth: .infinity)
-                .frame(height: Theme.Control.ghostButtonHeight)
-                .overlay(
-                    Rectangle()
-                        .stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline)
-                )
-            }
-            .allowsHitTesting(!isLoading)
-            .onChange(of: pickerItem) { _, newItem in
-                guard let newItem else { return }
-                isLoading = true
-                Task {
-                    if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        let identifier = newItem.itemIdentifier
-                        onPicked(image, identifier)
-                    }
-                    isLoading = false
-                }
-            }
-            .padding(.horizontal, Theme.Space.lg)
-            if isLoading {
-                Text("LOADING…")
-                    .font(Theme.mono(12))
-                    .foregroundStyle(Theme.Palette.fg3)
-            }
-            if let onSkip {
-                GhostButton(label: "SKIP SIDE-ON", action: onSkip)
-                    .padding(.horizontal, Theme.Space.lg)
-            }
-            Spacer()
-        }
     }
 }
 
