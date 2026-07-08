@@ -182,7 +182,11 @@ here.
 
 ## Idea stage (2026-07-08, Kah) — cross-scale verification via the front wheel
 
-Not a task yet; direction discussed, no go-ahead. Question: given optionally
+**Promoted same day to [`plan-k-wheel-size-and-scale-verifier.md`](plan-k-wheel-size-and-scale-verifier.md)**
+after Kah adopted it (verifier taps to be optional; wheel size captured as
+bike-setup metadata). Analysis kept below for the reasoning record.
+
+Question: given optionally
 entered figures (bar width, wheelbase), can the app *derive or verify* one
 dimension from the images?
 
