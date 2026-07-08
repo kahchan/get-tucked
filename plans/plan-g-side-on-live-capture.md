@@ -1,6 +1,20 @@
 # Plan G — Side-on live capture
 
-Status: **not started**. Written 2026-07-07 after Kah noticed side-on capture
+Status: **done** (G0–G3 executed 2026-07-08, commits `0efa07f`,
+`be7c2de`, `26396a5`, `0a8983f`). All four tasks landed, adopting the
+plan's own recommendations for decisions 1/2/3/5 (decision 4 — the
+wheelbase axle-tap ruler — was already settled and its model field
+landed as part of this session's Plan K work). Tests green (50 pass,
+no change in count — this plan was HUD/wiring only, no new pure
+functions). `PhotoPickStep` deleted (zero remaining callers once G2
+replaced its only use). Verified via seeded screenshots exactly as
+the plan's own verification note anticipated: HUD layout/copy/chrome
+confirmed (step chip, LEVEL+PERP-only pills, library-fallback and
+skip links, no more double NavHeader); actual live-capture behaviour
+(shutter feel, LEVEL/PERP gating in practice) still needs Kah on a
+physical device — the simulator has no camera hardware.
+
+Written 2026-07-07 after Kah noticed side-on capture
 only offers a library picker (`PhotoPickStep`), never got the live-camera
 treatment head-on has (`LiveCameraView` — HUD, LEVEL/PERP enforcement).
 
