@@ -1,6 +1,19 @@
 # Plan L — Landscape side-on capture
 
-Status: **not started.** Written 2026-07-08 after Kah asked for side-on
+Status: **done** (L1–L4 executed 2026-07-08, commits `9b98fee`,
+`27e735b`, `051e61f`, `2f17dfc`). All four tasks landed, including the
+three correctness traps and the gravity→bucket→rotation mapping added
+to this doc before implementation. Tests green (63 pass, up from 54 —
+9 new `OrientationBucketTests` covering the mapping tables and the
+hysteresis behaviour at the 45° diagonal). L3's HUD layout was
+verified via a forced-branch screenshot (real device rotation isn't
+producible here — `simctl` has no rotate command and there's no GUI-
+automation tool for Simulator.app); L4's rotation/LEVEL fix has no
+UI to screenshot and was verified by build + unit tests only. The
+full on-device checklist from this doc's Acceptance section is the
+next step — added to `plans/open-human-steps.md`.
+
+Written 2026-07-08 after Kah asked for side-on
 capture to support landscape, with the HUD actually reflowing when the
 phone is rotated — not the lighter "portrait-locked shell, photo tagged
 with rotation metadata" approach that was offered as the cheaper default

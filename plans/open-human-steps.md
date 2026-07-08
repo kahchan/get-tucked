@@ -36,10 +36,14 @@ more code; all of it needs Kah's eyes, hands, or tape measure.
   a real capture on-device: does the shutter gate feel right, does LEVEL/
   PERP behave sensibly in practice. See [`plan-g-side-on-live-capture.md`](plan-g-side-on-live-capture.md).
 
-- [ ] **Plan L landscape rotation.** Once L1–L4 land, live rotation
-  behaviour (does the HUD reflow feel right mid-rotation) and captured-
-  photo orientation (does a landscape-held shot actually save landscape)
-  need a physical device — Simulator has no reliable rotation signal.
+- [ ] **Plan L landscape rotation — L1–L4 landed 2026-07-08, needs the
+  device checklist from the plan's Acceptance section:**
+  1. Rotate mid-side-on → HUD reflows, preview stays upright (not sideways).
+  2. Landscape-level phone → LEVEL green, shutter enabled; captured photo is
+     landscape-shaped and right-way-up (if upside-down, swap the
+     landscapeLeft/Right `videoRotationAngle` values in `OrientationBucket`).
+  3. Skip/capture/✕ while held landscape → app returns to portrait.
+  4. Head-on step → still refuses to rotate.
   See [`plan-l-landscape-side-on.md`](plan-l-landscape-side-on.md).
 
 ## Decisions waiting on an answer
