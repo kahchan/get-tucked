@@ -221,6 +221,9 @@ struct CaptureView: View {
         // Live capture has no PHAsset identifier — persist the image bytes so the
         // detail view can display the frontal photo.
         position.photosData = selectedImage?.compressedForStorage()
+        if let cgMask = result.maskImage.cgImage {
+            position.maskData = MatteRenderer.downscaledMaskPNGData(mask: cgMask)
+        }
         position.handlebarTapPoints = [
             tapPoints[0].x, tapPoints[0].y,
             tapPoints[1].x, tapPoints[1].y,

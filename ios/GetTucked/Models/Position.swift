@@ -14,6 +14,11 @@ final class Position {
     // since PhotoRef has no identity outside its Position.
     var photosData: Data?
 
+    // Raw segmentation mask (grayscale PNG) that produced frontalAreaCm2 —
+    // stored untinted so a future accent/opacity change never leaves old
+    // positions with a stale baked-in tint.
+    var maskData: Data?
+
     // Head-on photo asset identifier (PHAsset local ID)
     var headOnPhotoIdentifier: String?
 

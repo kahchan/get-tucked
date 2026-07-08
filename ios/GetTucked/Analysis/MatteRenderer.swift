@@ -60,5 +60,29 @@ enum MatteRenderer {
         guard let cgImage = context.makeImage() else { return nil }
         return UIImage(cgImage: cgImage)
     }
+
+    /// Encodes a raw segmentation mask as lossless PNG, downscaling (never
+    /// upscaling) so its long edge doesn't exceed `maxDimension` — mirrors
+    /// `UIImage.compressedForStorage`'s cap on the stored photo. Preserves the
+    /// mask's DeviceGray, alpha-none format rather than routing through a
+    /// UIGraphicsImageRenderer, which would produce RGBA.
+    static func downscaledMaskPNGData(mask: CGImage, maxDimension: CGFloat = 1400) -> Data? {
+        let longEdge = CGFloat(max(mask.width, mask.height))
+        guard longEdge > maxDimension else {
+            return UIImage(cgImage: mask).pngData()
+        }
+        let scale = maxDimension / longEdge
+        let targetWidth = max(1, Int((CGFloat(mask.width) * scale).rounded()))
+        let targetHeight = max(1, Int((CGFloat(mask.height) * scale).rounded()))
+        guard let context = CGContext(
+            data: nil, width: targetWidth, height: targetHeight, bitsPerComponent: 8,
+            bytesPerRow: targetWidth, space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(mask, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        guard let scaled = context.makeImage() else { return nil }
+        return UIImage(cgImage: scaled).pngData()
+    }
 }
 #endif
