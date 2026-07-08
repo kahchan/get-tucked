@@ -110,7 +110,7 @@ private struct PositionPanel: View {
                 .foregroundStyle(Theme.Palette.fg)
                 .lineLimit(2)
             if let area = position.metrics?.frontalAreaCm2 {
-                Text("\(Int(area)) cm²")
+                Text("\(AnalysisMath.areaDisplay(area)) cm²")
                     .font(Theme.mono(24, weight: .bold))
                     .foregroundStyle(Theme.Palette.acc)
             }
@@ -205,8 +205,8 @@ private struct DiffTable: View {
             // Frontal area (always present)
             DiffRow(
                 key: "Frontal area",
-                valA: metricsA.map { "\(Int($0.frontalAreaCm2)) cm²" },
-                valB: metricsB.map { "\(Int($0.frontalAreaCm2)) cm²" },
+                valA: metricsA.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
+                valB: metricsB.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
                 diff: diff(metricsA?.frontalAreaCm2, metricsB?.frontalAreaCm2, unit: "cm²", fmt: "%.0f")
             )
 

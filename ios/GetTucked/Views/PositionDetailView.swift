@@ -202,7 +202,7 @@ private struct MetricsSection: View {
                     .kerning(0.3)
 
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text("\(Int(metrics.frontalAreaCm2))")
+                    Text(AnalysisMath.areaDisplay(metrics.frontalAreaCm2))
                         .font(Theme.mono(60, weight: .bold))
                         .foregroundStyle(Theme.Palette.acc)
                     Text("cm²")

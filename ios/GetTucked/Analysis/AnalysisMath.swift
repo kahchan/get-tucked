@@ -72,6 +72,14 @@ enum AnalysisMath {
         areaCm2 * uncertaintyFraction
     }
 
+    /// Single ± cm² voice for a displayed area — rounds like
+    /// `uncertaintyDisplay`, not truncates, so the same position can't read
+    /// 1 cm² differently depending on which screen shows it (Plan I6).
+    /// Callers append their own unit/style (bare hero number vs "N cm²").
+    static func areaDisplay(_ cm2: Double) -> String {
+        "\(Int(cm2.rounded()))"
+    }
+
     /// Single ± cm² voice shared by every screen that shows uncertainty
     /// (RevealStep, PositionDetailView, …) so the same quantity never reads
     /// as two different numbers depending on where it's displayed.

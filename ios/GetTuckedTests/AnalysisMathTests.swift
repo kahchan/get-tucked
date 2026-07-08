@@ -109,6 +109,12 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(AnalysisMath.uncertaintyDisplay(12.0), "±12 cm²")
     }
 
+    func testAreaDisplayRoundsRatherThanTruncates() {
+        // 2537.6 must read "2538", not "2537" (Plan I6 — the detail-screen bug).
+        XCTAssertEqual(AnalysisMath.areaDisplay(2537.6), "2538")
+        XCTAssertEqual(AnalysisMath.areaDisplay(400.0), "400")
+    }
+
     /// End-to-end scale→area chain, verifying the mask-vs-source rescale (HANDOFF §2.2).
     func testAreaChainWithMaskRescale() {
         let px = AnalysisMath.handlebarPixels(

@@ -162,7 +162,7 @@ private struct PositionRow: View {
             }
             Spacer()
             if let area = position.metrics?.frontalAreaCm2 {
-                Text("\(Int(area)) cm²")
+                Text("\(AnalysisMath.areaDisplay(area)) cm²")
                     .font(Theme.mono(13, weight: .bold))
                     .foregroundStyle(Theme.Palette.acc)
             } else {
@@ -207,7 +207,7 @@ private struct SelectablePositionRow: View {
             Spacer()
 
             if let area = position.metrics?.frontalAreaCm2 {
-                Text("\(Int(area)) cm²")
+                Text("\(AnalysisMath.areaDisplay(area)) cm²")
                     .font(Theme.mono(13, weight: .bold))
                     .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.acc)
             }

@@ -133,7 +133,7 @@ private struct RankRow: View {
 
             VStack(alignment: .trailing, spacing: 3) {
                 if let a = area {
-                    Text("\(Int(a)) cm²")
+                    Text("\(AnalysisMath.areaDisplay(a)) cm²")
                         .font(Theme.mono(13, weight: .bold))
                         .foregroundStyle(rank == 1 ? Theme.Palette.acc : Theme.Palette.fg)
                 }

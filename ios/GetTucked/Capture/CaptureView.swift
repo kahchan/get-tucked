@@ -384,7 +384,7 @@ private struct RevealStep: View {
                                 .padding(.top, Theme.Space.xl)
 
                             HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
-                                Text("\(Int(result.frontalAreaCm2.rounded()))")
+                                Text(AnalysisMath.areaDisplay(result.frontalAreaCm2))
                                     .font(Theme.mono(60, weight: .bold))
                                     .foregroundStyle(Theme.Palette.acc)
                                 Text("cm²")
@@ -457,7 +457,7 @@ private struct NamePositionStep: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(Int(result.frontalAreaCm2.rounded())) cm² · CAPTURED")
+                Text("\(AnalysisMath.areaDisplay(result.frontalAreaCm2)) cm² · CAPTURED")
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
                     .padding(.top, Theme.Space.xl)
