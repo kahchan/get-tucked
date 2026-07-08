@@ -32,6 +32,8 @@ targets:
         UILaunchStoryboardName: ""
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: "Get Tucked needs camera access to photograph your riding position."
         NSPhotoLibraryUsageDescription: "Get Tucked saves source photos to your library."
         NSPhotoLibraryAddUsageDescription: "Get Tucked saves source photos to your library."
