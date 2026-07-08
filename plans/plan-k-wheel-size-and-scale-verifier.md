@@ -1,6 +1,18 @@
 # Plan K — Wheel size on the bike + optional tap-to-verify scale check
 
-Status: **not started.** Written 2026-07-08 after Kah adopted both halves of
+Status: **done** (K1–K4 executed 2026-07-08, commits `a3ad477`,
+`5ebee31`, `6f51082`, `613b2b3`). All four tasks landed using this
+doc's own stated recommendations for the three flagged decisions
+(rim+tire picker over a raw diameter field, 10% amber threshold,
+ghost-link taps after the bar taps that never gate CONFIRM SCALE).
+Tests green (50 pass, up from 43). Also renamed the pre-existing,
+never-populated `Bike.wheelbaseCm` to `wheelbaseMm` as part of K1 —
+it was dead code with zero call sites, so this lands Plan G's agreed
+side-on ruler field in the same change rather than adding a second,
+duplicate field. K3's calibration-screen states (bar-taps-only,
+wheel-tap-in-progress) verified via seeded screenshots.
+
+Written 2026-07-08 after Kah adopted both halves of
 the cross-scale idea recorded in
 [`plan-i-matte-on-detail-and-number-trust.md`](plan-i-matte-on-detail-and-number-trust.md)
 (idea-stage section), with one directive: **the verification taps are
