@@ -29,6 +29,9 @@ struct CaptureView: View {
     @State private var pendingSideOnPose: SideOnPoseMetrics?
     @State private var analysisError: AnalysisError?
     @State private var showingError = false
+    // Set at the end of savePosition — lets the success screen offer a
+    // direct link to the position it just created.
+    @State private var savedPositionID: PersistentIdentifier?
 
     enum CaptureStep: Equatable {
         case pickPhoto          // head-on · 1 OF 2
@@ -142,14 +145,7 @@ struct CaptureView: View {
                     RevealStep(result: result, photo: photo, sideOnPose: pendingSideOnPose, barWidthMm: selectedBike?.handlebarWidthMm, path: $path, onContinue: {
                         step = .namePosition
                     }, onRetake: {
-                        tapPoints = []
-                        wheelTapPoints = []
-                        pendingResult = nil
-                        usedHandlebarWidthMm = nil
-                        sideOnImage = nil
-                        sideOnAssetIdentifier = nil
-                        pendingSideOnPose = nil
-                        step = .pickPhoto
+                        resetForNewCapture()
                     })
                 }
             case .namePosition:
@@ -159,13 +155,17 @@ struct CaptureView: View {
                     }
                 }
             case .done:
-                Text("SAVED")
-                    .font(Theme.heading(28))
-                    .foregroundStyle(Theme.Palette.acc)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { dismiss() }
+                CaptureSuccessStep(
+                    areaCm2: pendingResult?.frontalAreaCm2,
+                    onViewAnalysis: {
+                        guard let savedPositionID else { return }
+                        if !path.isEmpty { path.removeLast() }
+                        path.append(.positionDetail(savedPositionID))
+                    },
+                    onCaptureAnother: {
+                        resetForNewCapture()
                     }
+                )
             }
         }
     }
@@ -213,6 +213,21 @@ struct CaptureView: View {
             showingError = true
             step = .calibrate
         }
+    }
+
+    /// Shared by RETAKE (from Reveal) and "CAPTURE ANOTHER POSITION" (from
+    /// the success screen) — clears everything from this position's capture
+    /// so the next one starts clean. Keeps the same bike selected.
+    private func resetForNewCapture() {
+        tapPoints = []
+        wheelTapPoints = []
+        pendingResult = nil
+        usedHandlebarWidthMm = nil
+        sideOnImage = nil
+        sideOnAssetIdentifier = nil
+        pendingSideOnPose = nil
+        savedPositionID = nil
+        step = .pickPhoto
     }
 
     private func runSideOnAnalysis() async {
@@ -273,13 +288,16 @@ struct CaptureView: View {
             metrics.headDropCm    = pose.headDropCm
         }
         position.sideOnPhotoIdentifier = sideOnAssetIdentifier
-        // Live side-on capture has no PHAsset identifier — persist the bytes,
-        // mirroring the head-on photosData handling (Plan G0).
-        if sideOnAssetIdentifier == nil {
-            position.sideOnPhotoData = sideOnImage?.compressedForStorage()
-        }
+        // Always persist the bytes too, not just when there's no PHAsset
+        // identifier — mirrors head-on's photosData, which is unconditional.
+        // A PHAsset re-fetch needs Photos read authorization and can fail
+        // silently; PositionDetailView already prefers the stored bytes over
+        // the re-fetch, so this is a reliable fallback for the library-pick
+        // path, not just the live-capture one.
+        position.sideOnPhotoData = sideOnImage?.compressedForStorage()
         position.metrics = metrics
         context.insert(position)
+        savedPositionID = position.persistentModelID
         step = .done
     }
 }
@@ -451,6 +469,44 @@ private struct NamePositionStep: View {
                          enabled: isValid)
                 .padding(.horizontal, Theme.Space.lg)
                 .padding(.vertical, Theme.Space.md)
+        }
+    }
+}
+
+private struct CaptureSuccessStep: View {
+    let areaCm2: Double?
+    let onViewAnalysis: () -> Void
+    let onCaptureAnother: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            Text("SAVED")
+                .font(Theme.mono(12, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg3)
+                .kerning(0.8)
+
+            if let areaCm2 {
+                HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
+                    Text(AnalysisMath.areaDisplay(areaCm2))
+                        .font(Theme.mono(52, weight: .bold))
+                        .foregroundStyle(Theme.Palette.acc)
+                    Text("cm²")
+                        .font(Theme.mono(16))
+                        .foregroundStyle(Theme.Palette.fg3)
+                }
+                .padding(.top, Theme.Space.sm)
+            }
+
+            Spacer()
+
+            AccentButton(label: "VIEW ANALYSIS", action: onViewAnalysis)
+                .padding(.horizontal, Theme.Space.lg)
+            GhostButton(label: "CAPTURE ANOTHER POSITION", action: onCaptureAnother)
+                .padding(.horizontal, Theme.Space.lg)
+                .padding(.top, Theme.Space.sm)
+                .padding(.bottom, Theme.Space.md)
         }
     }
 }
