@@ -409,8 +409,12 @@ private struct RevealStep: View {
                                           value: "\(Int(pose.torsoAngleDeg.rounded()))°")
                                 MetricRow(key: "Hip angle",
                                           value: "\(Int(pose.hipAngleDeg.rounded()))°")
-                                MetricRow(key: "Head drop",
-                                          value: String(format: "%.1f cm", pose.headDropCm))
+                                // Head drop hidden for now (Plan G decision 4) — its cm
+                                // figure borrows the frontal photo's pixelsPerCm, which
+                                // is only valid if both shots share a camera distance
+                                // (unenforced) and inherits the frontal scale-plane bias.
+                                // Still computed and stored; just not shown until it has
+                                // its own ruler.
                             }
                         }
                         .padding(.horizontal, Theme.Space.lg)

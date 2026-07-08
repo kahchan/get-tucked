@@ -244,9 +244,8 @@ private struct MetricsSection: View {
                 if let h = metrics.hipAngleDeg {
                     MetricRow(key: "Hip angle", value: "\(String(format: "%.0f", h))°")
                 }
-                if let d = metrics.headDropCm {
-                    MetricRow(key: "Head drop", value: "\(String(format: "%.1f", d)) cm")
-                }
+                // Head drop hidden for now (Plan G decision 4) — see RevealStep
+                // for why. Still stored on metrics.headDropCm; not shown here.
                 MetricRow(
                     key: "Scale",
                     value: "\(String(format: "%.1f", metrics.pixelsPerCm)) px/cm"

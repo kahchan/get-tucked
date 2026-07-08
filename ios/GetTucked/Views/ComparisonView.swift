@@ -240,15 +240,9 @@ private struct DiffTable: View {
                 )
             }
 
-            // Head drop (side-on, optional)
-            if metricsA?.headDropCm != nil || metricsB?.headDropCm != nil {
-                DiffRow(
-                    key: "Head drop",
-                    valA: metricsA?.headDropCm.map { "\(String(format: "%.1f", $0)) cm" },
-                    valB: metricsB?.headDropCm.map { "\(String(format: "%.1f", $0)) cm" },
-                    diff: diff(metricsA?.headDropCm, metricsB?.headDropCm, unit: "cm", fmt: "%.1f")
-                )
-            }
+            // Head drop hidden for now (Plan G decision 4) — its cm figure
+            // borrows the frontal photo's scale, unenforced same-distance
+            // assumption. Still stored on metrics; not shown here.
         }
     }
 
