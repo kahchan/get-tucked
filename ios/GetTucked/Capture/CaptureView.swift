@@ -46,7 +46,10 @@ struct CaptureView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                if step != .pickPhoto {
+                // Both live-camera steps own their own full-screen HUD chrome
+                // (step label/bike chip, ✕) — a NavHeader on top would double
+                // up on it (confirmed visually when G2 landed).
+                if step != .pickPhoto, step != .pickSideOnPhoto {
                     NavHeader(title: stepTitle) {
                         Button {
                             dismiss()
