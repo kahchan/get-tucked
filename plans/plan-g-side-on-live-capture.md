@@ -66,9 +66,20 @@ they're real product choices, not obvious defaults.
    scale-free and unaffected; `headDropCm`'s cm claim is not defensible under
    spec §3 as-is. Options: coach "same distance as the frontal shot" in the
    side-on HUD copy, report head drop as a scale-free ratio instead, or drop
-   the cm unit. **Recommendation: pick one while implementing G2 — don't ship
-   a live side-on flow that makes the borrowed-ruler number more prominent
-   without addressing it.**
+   the cm unit. **Kah's counter-proposal (2026-07-08): record the bike's
+   wheelbase** — then side-on gets its own ruler, exactly like the frontal
+   shot's bar taps: tap the two axle centres (visually crisp targets, better
+   than bar ends), `pixelsPerCm = axlePixels / wheelbaseCm`. That makes every
+   side-on cm defensible, kills the borrowed-ruler problem outright, and as a
+   second-order payoff enables a measured perspective-bias estimate for the
+   frontal number (side-on gives the bar→torso depth offset in real cm;
+   camera intrinsics on the frontal shot give distance-to-bar — see the
+   Plan I experiment-protocol note). Cost: one more optional `Bike` field
+   (`wheelbaseMm`; every production bike's geometry chart lists it) and an
+   axle-tap calibration step in the side-on flow. Sensitivity is linear, not
+   squared — side-on computes lengths, not areas. **Recommendation: adopt
+   the wheelbase option; it upgrades this plan's side-on from "angles plus an
+   indefensible cm" to independently calibrated.**
 
 5. **Keep a "choose from library" fallback, or go live-only?**
    **Recommendation: keep both** — a small "OR CHOOSE FROM LIBRARY" ghost
