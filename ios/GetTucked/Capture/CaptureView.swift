@@ -251,6 +251,7 @@ struct CaptureView: View {
         )
         metrics.shoulderWidthCm = result.headOnPose?.shoulderWidthCm
         metrics.handlebarWidthMmUsed = usedHandlebarWidthMm
+        metrics.wheelCheckDisagreementFraction = result.wheelCheckDisagreementFraction
         if let pose = pendingSideOnPose {
             metrics.torsoAngleDeg = pose.torsoAngleDeg
             metrics.hipAngleDeg   = pose.hipAngleDeg
@@ -423,6 +424,11 @@ private struct RevealStep: View {
                                       value: String(format: "%.1f px/cm", result.pixelsPerCm))
                             if let barWidthMm {
                                 MetricRow(key: "Bar width", value: "\(Int(barWidthMm)) mm")
+                            }
+                            if let fraction = result.wheelCheckDisagreementFraction {
+                                let check = AnalysisMath.wheelCheckDisplay(fraction)
+                                MetricRow(key: "Wheel check", value: check.text,
+                                          valueColor: check.isWarning ? Theme.Palette.amb : Theme.Palette.fg)
                             }
                             if let shoulder = result.headOnPose?.shoulderWidthCm {
                                 MetricRow(key: "Shoulder width",

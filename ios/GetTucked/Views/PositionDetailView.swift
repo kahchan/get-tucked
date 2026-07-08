@@ -248,6 +248,11 @@ private struct MetricsSection: View {
                 if let barWidth = metrics.handlebarWidthMmUsed {
                     MetricRow(key: "Bar width", value: "\(Int(barWidth)) mm")
                 }
+                if let fraction = metrics.wheelCheckDisagreementFraction {
+                    let check = AnalysisMath.wheelCheckDisplay(fraction)
+                    MetricRow(key: "Wheel check", value: check.text,
+                              valueColor: check.isWarning ? Theme.Palette.amb : Theme.Palette.fg)
+                }
                 MetricRow(key: "Foreground pixels", value: "\(metrics.foregroundPixelCount)")
                 MetricRow(
                     key: "Computed",

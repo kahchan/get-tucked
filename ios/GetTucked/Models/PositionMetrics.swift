@@ -19,6 +19,12 @@ final class PositionMetrics {
     // and would otherwise silently orphan this number's ruler (Plan I3).
     var handlebarWidthMmUsed: Double?
 
+    // Wheel-ruler verification (Plan K) — nil unless the optional wheel taps
+    // were completed. Stores the raw disagreement fraction, not a formatted
+    // string, so the agree/disagree copy recomputes at display time (same
+    // pattern as shoulderWidthWarning).
+    var wheelCheckDisagreementFraction: Double?
+
     // Side-on pose (populated after Phase 2.5 side-on capture + analysis)
     // torsoAngleDeg: angle of shoulder→hip vector from vertical, 0° = upright, 90° = horizontal
     var torsoAngleDeg: Double?
