@@ -17,6 +17,10 @@ struct CaptureView: View {
     @State private var assetIdentifier: String?
     @State private var tapPoints: [CGPoint] = []
     @State private var pendingResult: AnalysisResult?
+    // The bar width actually passed to AnalysisEngine.analyse — captured at
+    // analysis time, not re-read from selectedBike at save time, so it can't
+    // drift from the value that produced pendingResult.
+    @State private var usedHandlebarWidthMm: Double?
     // Side-on state
     @State private var sideOnPickerItem: PhotosPickerItem?
     @State private var sideOnImage: UIImage?
@@ -121,6 +125,7 @@ struct CaptureView: View {
                     }, onRetake: {
                         tapPoints = []
                         pendingResult = nil
+                        usedHandlebarWidthMm = nil
                         sideOnImage = nil
                         sideOnAssetIdentifier = nil
                         pendingSideOnPose = nil
@@ -173,6 +178,7 @@ struct CaptureView: View {
                 tapPoint1: tapPoints[1]
             )
             pendingResult = result
+            usedHandlebarWidthMm = bike.handlebarWidthMm
             step = .pickSideOnPhoto   // head-on done → proceed to side-on
         } catch let error as AnalysisError {
             analysisError = error
@@ -235,6 +241,7 @@ struct CaptureView: View {
             foregroundPixelCount: result.foregroundPixelCount
         )
         metrics.shoulderWidthCm = result.headOnPose?.shoulderWidthCm
+        metrics.handlebarWidthMmUsed = usedHandlebarWidthMm
         if let pose = pendingSideOnPose {
             metrics.torsoAngleDeg = pose.torsoAngleDeg
             metrics.hipAngleDeg   = pose.hipAngleDeg

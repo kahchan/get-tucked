@@ -14,6 +14,11 @@ final class PositionMetrics {
     // Head-on pose (populated after Phase 2.4 pose estimation on head-on frame)
     var shoulderWidthCm: Double?
 
+    // The bike's handlebar width at the moment this position was analysed —
+    // not a live read of Bike.handlebarWidthMm, which the user can edit later
+    // and would otherwise silently orphan this number's ruler (Plan I3).
+    var handlebarWidthMmUsed: Double?
+
     // Side-on pose (populated after Phase 2.5 side-on capture + analysis)
     // torsoAngleDeg: angle of shoulder→hip vector from vertical, 0° = upright, 90° = horizontal
     var torsoAngleDeg: Double?

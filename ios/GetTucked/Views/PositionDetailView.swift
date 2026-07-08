@@ -236,6 +236,9 @@ private struct MetricsSection: View {
                     key: "Scale",
                     value: "\(String(format: "%.1f", metrics.pixelsPerCm)) px/cm"
                 )
+                if let barWidth = metrics.handlebarWidthMmUsed {
+                    MetricRow(key: "Bar width", value: "\(Int(barWidth)) mm")
+                }
                 MetricRow(key: "Foreground pixels", value: "\(metrics.foregroundPixelCount)")
                 MetricRow(
                     key: "Computed",
