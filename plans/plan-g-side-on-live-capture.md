@@ -59,13 +59,45 @@ they're real product choices, not obvious defaults.
    (matches your stated preference for explicit controls over hidden gestures
    — see `feedback_design_preferences.md`).
 
-4. **Keep a "choose from library" fallback, or go live-only?**
+4. **Head drop borrows the head-on photo's ruler (flagged 2026-07-08 review).**
+   `runSideOnAnalysis` passes the *frontal* photo's `pixelsPerCm` into the
+   side-on pose analysis — only valid if both photos are shot from the same
+   camera distance, which nothing enforces or coaches. Torso/hip angles are
+   scale-free and unaffected; `headDropCm`'s cm claim is not defensible under
+   spec §3 as-is. Options: coach "same distance as the frontal shot" in the
+   side-on HUD copy, report head drop as a scale-free ratio instead, or drop
+   the cm unit. **Recommendation: pick one while implementing G2 — don't ship
+   a live side-on flow that makes the borrowed-ruler number more prominent
+   without addressing it.**
+
+5. **Keep a "choose from library" fallback, or go live-only?**
    **Recommendation: keep both** — a small "OR CHOOSE FROM LIBRARY" ghost
    link below the shutter button, reusing the existing `PhotosPicker` code
    path from `PhotoPickStep`, so a device/lighting problem with live capture
    doesn't leave side-on with no path forward at all.
 
 ## Tasks
+
+### G0. Persist the side-on photo for live captures (added 2026-07-08 review)
+
+Files: `ios/GetTucked/Models/Position.swift`, `CaptureView.swift`
+(`savePosition`), `ios/GetTucked/Views/PositionDetailView.swift`.
+
+G2 as originally written silently loses the photo: it sets
+`sideOnAssetIdentifier = nil` (live capture has no PHAsset), but `Position`
+has no side-on image blob — only head-on has `photosData` — and
+`PositionDetailView.hasSideOn` keys off the identifier. A live side-on
+capture would compute posture metrics whose source photo is unviewable
+forever, and the FRONTAL/SIDE-ON toggle would never appear. Head-on hit this
+exact bug in the 2026-07-03 session; carry the fix over *before* G2:
+
+- Add `var sideOnPhotoData: Data?` to `Position` (additive optional — no
+  migration stage). Populate in `savePosition` via
+  `sideOnImage?.compressedForStorage()`, mirroring head-on.
+- `PositionDetailView`: `hasSideOn` becomes "identifier OR blob"; `loadPhotos`
+  prefers the blob over the PHAsset re-fetch, same as head-on.
+- Note: `saveToCameraRoll` should also fire for the live side-on shot, same
+  as head-on (spec §PhotoKit).
 
 ### G1. Generalise `LiveCameraView` for both capture steps
 
@@ -95,7 +127,7 @@ File: `ios/GetTucked/Capture/CaptureView.swift`
 - `onSkip`: advance straight to `.reveal` (matches `PhotoPickStep`'s existing
   `onSkip` behaviour, being removed from that view).
 - `onCancel`: same as head-on — `dismiss()` abandons the whole capture.
-- Keep the "choose from library" fallback per decision 4 — either as a small
+- Keep the "choose from library" fallback per decision 5 — either as a small
   link inside the generalised `LiveCameraView` HUD, or by keeping a
   lightweight `PhotoPickStep`-style sheet reachable from that link. Exact
   placement is a detail to settle while implementing, not upfront.
@@ -115,6 +147,6 @@ Side-on capture opens the live camera with LEVEL + PERP pills (no BG pill),
 a non-interactive "SIDE-ON · 2 OF 2" label instead of a bike chip, a working
 shutter gated on LEVEL+PERP, an explicit "SKIP SIDE-ON" control that reaches
 Reveal without a photo, a working "✕" that abandons the whole capture, and
-(if decision 4 lands as recommended) a library fallback. Verified via
+(if decision 5 lands as recommended) a library fallback. Verified via
 simulator screenshot for HUD layout/copy; actual capture behaviour needs
 Kah on a physical device.
