@@ -16,6 +16,8 @@ struct CaptureView: View {
     @State private var selectedImage: UIImage?
     @State private var assetIdentifier: String?
     @State private var tapPoints: [CGPoint] = []
+    // Optional cross-scale verification taps (Plan K3) — never gates capture.
+    @State private var wheelTapPoints: [CGPoint] = []
     @State private var pendingResult: AnalysisResult?
     // The bar width actually passed to AnalysisEngine.analyse — captured at
     // analysis time, not re-read from selectedBike at save time, so it can't
@@ -96,7 +98,9 @@ struct CaptureView: View {
                 if let image = selectedImage {
                     HandlebarCalibrationStep(
                         image: image,
-                        tapPoints: $tapPoints
+                        tapPoints: $tapPoints,
+                        wheelTapPoints: $wheelTapPoints,
+                        wheelDiameterMm: selectedBike?.wheelDiameterMm
                     ) {
                         step = .analysing
                         Task { await runAnalysis() }
@@ -124,6 +128,7 @@ struct CaptureView: View {
                         step = .namePosition
                     }, onRetake: {
                         tapPoints = []
+                        wheelTapPoints = []
                         pendingResult = nil
                         usedHandlebarWidthMm = nil
                         sideOnImage = nil
@@ -171,11 +176,15 @@ struct CaptureView: View {
         else { return }
 
         do {
+            let wheelTaps: (ground: CGPoint, top: CGPoint)? =
+                wheelTapPoints.count == 2 ? (wheelTapPoints[0], wheelTapPoints[1]) : nil
             let result = try await AnalysisEngine.analyse(
                 image: image,
                 handlebarWidthMm: bike.handlebarWidthMm,
                 tapPoint0: tapPoints[0],
-                tapPoint1: tapPoints[1]
+                tapPoint1: tapPoints[1],
+                wheelTaps: wheelTaps,
+                wheelDiameterMm: bike.wheelDiameterMm
             )
             pendingResult = result
             usedHandlebarWidthMm = bike.handlebarWidthMm
@@ -491,6 +500,11 @@ private struct NamePositionStep: View {
 private struct HandlebarCalibrationStep: View {
     let image: UIImage
     @Binding var tapPoints: [CGPoint]
+    // Optional cross-scale verification taps (Plan K3) — ground contact +
+    // tire top. `nil` wheelDiameterMm means the selected bike has no wheel
+    // size on record, so the verify affordance never appears.
+    @Binding var wheelTapPoints: [CGPoint]
+    let wheelDiameterMm: Double?
     let onConfirm: () -> Void
 
     // Persisted zoom/pan (committed at gesture end) plus the in-flight gesture
@@ -500,16 +514,19 @@ private struct HandlebarCalibrationStep: View {
     @GestureState private var pinchDelta: CGFloat = 1
     @GestureState private var panDelta: CGSize = .zero
 
-    // Which point (if any) is being dragged, and its live screen position —
-    // drives the floating loupe. `nil` when not dragging.
-    @State private var draggingIndex: Int?
+    // Live screen position of whichever point is being dragged (bar or
+    // wheel) — drives the floating loupe. `nil` when not dragging.
     @State private var dragScreenPoint: CGPoint?
     // Captured once per drag gesture: the point's screen position *before*
     // this drag started. `DragGesture.translation` is cumulative from
     // gesture-start, not incremental, so this has to stay fixed for the
-    // duration of one drag rather than being re-derived from `tapPoints`
-    // (which mutates on every callback).
+    // duration of one drag rather than being re-derived from the points
+    // array (which mutates on every callback).
     @State private var dragStartUnit: CGPoint?
+
+    // Whether the optional wheel-verification taps are being collected —
+    // never gates CONFIRM SCALE (Plan K, explicit directive).
+    @State private var verifyingWheel = false
 
     private let minZoom: CGFloat = 1
     private let maxZoom: CGFloat = 8
@@ -569,21 +586,39 @@ private struct HandlebarCalibrationStep: View {
                 resetViewButton
             }
 
+            if tapPoints.count == 2, let wheelDiameterMm, wheelDiameterMm > 0,
+               !verifyingWheel, wheelTapPoints.isEmpty {
+                wheelVerifyLink
+            } else if verifyingWheel {
+                wheelSkipLink
+            }
+
             confirmButton
         }
     }
 
     private var instructionBanner: some View {
-        Text(tapPoints.count == 0
-             ? "Tap the left end of your handlebars"
-             : tapPoints.count == 1
-             ? "Now tap the right end"
-             : "Pinch to zoom, drag a point to fine-tune")
+        Text(bannerText)
             .font(Theme.mono(12))
             .foregroundStyle(Theme.Palette.fg)
             .padding(10)
             .frame(maxWidth: .infinity)
             .background(Theme.Palette.bg1)
+    }
+
+    private var bannerText: String {
+        if verifyingWheel {
+            return wheelTapPoints.isEmpty
+                ? "Tap where the front tire touches the ground"
+                : wheelTapPoints.count == 1
+                ? "Now tap the top of the front tire"
+                : "Pinch to zoom, drag a point to fine-tune"
+        }
+        return tapPoints.count == 0
+            ? "Tap the left end of your handlebars"
+            : tapPoints.count == 1
+            ? "Now tap the right end"
+            : "Pinch to zoom, drag a point to fine-tune"
     }
 
     private var resetViewButton: some View {
@@ -604,46 +639,98 @@ private struct HandlebarCalibrationStep: View {
         .background(Theme.Palette.bg1)
     }
 
+    /// Ghost link offering the optional wheel check — only shown once the
+    /// two bar taps are placed and the selected bike has a wheel size on
+    /// record (Plan K3, decision 3).
+    private var wheelVerifyLink: some View {
+        Button { verifyingWheel = true } label: {
+            Text("VERIFY WITH WHEEL (OPTIONAL)")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.acc)
+                .kerning(0.5)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .background(Theme.Palette.bg1)
+    }
+
+    private var wheelSkipLink: some View {
+        Button {
+            verifyingWheel = false
+            wheelTapPoints = []
+        } label: {
+            Text("SKIP WHEEL CHECK")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg3)
+                .kerning(0.5)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .background(Theme.Palette.bg1)
+    }
+
     @ViewBuilder
     private func pointOverlay(viewport: CalibrationTransform.Viewport) -> some View {
-        if tapPoints.count == 2 {
-            Path { path in
-                path.move(to: CalibrationTransform.screenPoint(forUnit: tapPoints[0], in: viewport))
-                path.addLine(to: CalibrationTransform.screenPoint(forUnit: tapPoints[1], in: viewport))
-            }
-            .stroke(Color.white.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-        }
-        ForEach(Array(tapPoints.enumerated()), id: \.offset) { index, unit in
-            let screen = CalibrationTransform.screenPoint(forUnit: unit, in: viewport)
-            Rectangle()
-                .strokeBorder(.white, lineWidth: 2)
-                .background(Rectangle().fill(index == 0 ? Theme.Palette.acc : Theme.Palette.amb))
-                .frame(width: 26, height: 26)
-                .contentShape(Rectangle())
-                .position(screen)
-                .gesture(pointDragGesture(index: index, viewport: viewport))
+        connectingLine(points: tapPoints, viewport: viewport)
+        handles(points: $tapPoints, colors: (Theme.Palette.acc, Theme.Palette.amb), viewport: viewport)
+
+        if verifyingWheel {
+            connectingLine(points: wheelTapPoints, viewport: viewport)
+            handles(points: $wheelTapPoints, colors: (Theme.Palette.fg, Theme.Palette.fg), viewport: viewport)
         }
     }
 
-    private func pointDragGesture(index: Int, viewport: CalibrationTransform.Viewport) -> some Gesture {
+    @ViewBuilder
+    private func connectingLine(points: [CGPoint], viewport: CalibrationTransform.Viewport) -> some View {
+        if points.count == 2 {
+            Path { path in
+                path.move(to: CalibrationTransform.screenPoint(forUnit: points[0], in: viewport))
+                path.addLine(to: CalibrationTransform.screenPoint(forUnit: points[1], in: viewport))
+            }
+            .stroke(Color.white.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+        }
+    }
+
+    /// Draggable handles for one tap group (bar or wheel). `colors` picks
+    /// the fill for point 0 / point 1 — bar taps keep their original
+    /// lime/amber pair, wheel taps use a single white fill so the two
+    /// groups read as visually distinct on the same image (Plan K3).
+    private func handles(
+        points: Binding<[CGPoint]>, colors: (first: Color, second: Color), viewport: CalibrationTransform.Viewport
+    ) -> some View {
+        ForEach(Array(points.wrappedValue.enumerated()), id: \.offset) { index, unit in
+            let screen = CalibrationTransform.screenPoint(forUnit: unit, in: viewport)
+            Rectangle()
+                .strokeBorder(.white, lineWidth: 2)
+                .background(Rectangle().fill(index == 0 ? colors.first : colors.second))
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+                .position(screen)
+                .gesture(dragGesture(index: index, points: points, viewport: viewport))
+        }
+    }
+
+    private func dragGesture(
+        index: Int, points: Binding<[CGPoint]>, viewport: CalibrationTransform.Viewport
+    ) -> some Gesture {
         // `value.location` is relative to the handle's own small hit frame,
         // not the container — useless as an absolute position. `.translation`
         // is a stable delta since gesture-start regardless of that, so anchor
         // it to the point's screen position captured once at drag-start.
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                if dragStartUnit == nil { dragStartUnit = tapPoints[index] }
+                if dragStartUnit == nil { dragStartUnit = points.wrappedValue[index] }
                 guard let startUnit = dragStartUnit else { return }
                 let startScreen = CalibrationTransform.screenPoint(forUnit: startUnit, in: viewport)
                 let liveScreen = CGPoint(x: startScreen.x + value.translation.width,
                                           y: startScreen.y + value.translation.height)
-                draggingIndex = index
                 dragScreenPoint = liveScreen
-                tapPoints[index] = CalibrationTransform.unitPoint(forScreen: liveScreen, in: viewport)
+                points.wrappedValue[index] = CalibrationTransform.unitPoint(forScreen: liveScreen, in: viewport)
             }
             .onEnded { _ in
                 dragStartUnit = nil
-                draggingIndex = nil
                 dragScreenPoint = nil
             }
     }
@@ -667,12 +754,17 @@ private struct HandlebarCalibrationStep: View {
     }
 
     private func handleTap(location: CGPoint, viewport: CalibrationTransform.Viewport) {
-        guard tapPoints.count < 2 else { return }
         // Ignore taps outside the image — in the letterbox/pillarbox padding,
         // or panned/zoomed off-canvas.
         let unit = CalibrationTransform.unitPoint(forScreen: location, in: viewport)
         guard (0...1).contains(unit.x), (0...1).contains(unit.y) else { return }
-        tapPoints.append(unit)
+        if verifyingWheel {
+            guard wheelTapPoints.count < 2 else { return }
+            wheelTapPoints.append(unit)
+        } else {
+            guard tapPoints.count < 2 else { return }
+            tapPoints.append(unit)
+        }
     }
 
     /// Zoomed crop of the source image centred on the live drag point, shown

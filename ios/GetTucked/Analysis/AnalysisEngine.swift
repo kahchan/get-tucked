@@ -34,6 +34,11 @@ struct AnalysisResult {
     /// range — usually a mis-tapped scale reference, not an unusual rider.
     /// Surfaced on the reveal screen; never blocks the save (Plan A3).
     let scaleWarning: String?
+    /// Relative disagreement between the bar-tap and wheel-tap rulers — nil
+    /// when the wheel check wasn't run (skipped, or the bike has no wheel
+    /// size on record). Verification only; the bar taps stay the ruler
+    /// (Plan K).
+    let wheelCheckDisagreementFraction: Double?
 }
 
 /// Pose metrics computable from the head-on photo.
@@ -59,7 +64,9 @@ struct AnalysisEngine {
         image: UIImage,
         handlebarWidthMm: Double,
         tapPoint0: CGPoint,
-        tapPoint1: CGPoint
+        tapPoint1: CGPoint,
+        wheelTaps: (ground: CGPoint, top: CGPoint)? = nil,
+        wheelDiameterMm: Double? = nil
     ) async throws -> AnalysisResult {
         guard let cgImage = image.cgImage else { throw AnalysisError.segmentationFailed }
 
@@ -73,6 +80,19 @@ struct AnalysisEngine {
         let pixelsPerCm = AnalysisMath.pixelsPerCm(
             handlebarPixels: handlebarPixels, handlebarWidthMm: handlebarWidthMm
         )
+
+        // Plan K: optional independent scale check via the front wheel —
+        // verification only, never replaces the bar-tap ruler above.
+        var wheelCheckDisagreementFraction: Double?
+        if let wheelTaps, let wheelDiameterMm {
+            let wheelPixelsPerCm = AnalysisMath.wheelPixelsPerCm(
+                groundTap: wheelTaps.ground, topTap: wheelTaps.top,
+                imageSize: imageSize, wheelDiameterMm: wheelDiameterMm
+            )
+            wheelCheckDisagreementFraction = AnalysisMath.rulerDisagreementFraction(
+                barPixelsPerCm: pixelsPerCm, wheelPixelsPerCm: wheelPixelsPerCm
+            )
+        }
 
         try await validatePerson(cgImage: cgImage, imageSize: imageSize)
 
@@ -111,7 +131,8 @@ struct AnalysisEngine {
             foregroundPixelCount: foregroundCount,
             maskImage: maskUI,
             headOnPose: headOnPose,
-            scaleWarning: scaleWarning
+            scaleWarning: scaleWarning,
+            wheelCheckDisagreementFraction: wheelCheckDisagreementFraction
         )
     }
 
