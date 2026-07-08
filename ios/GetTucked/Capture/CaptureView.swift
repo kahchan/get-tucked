@@ -366,7 +366,7 @@ private struct RevealStep: View {
                             )
                         }
 
-                        MaskToggleBar(showingMask: $showingMask)
+                        SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: $showingMask)
                         SectionDivider()
 
                         VStack(alignment: .leading, spacing: 0) {
@@ -434,31 +434,6 @@ private struct RevealStep: View {
                     .padding(.vertical, Theme.Space.md)
             }
         }
-    }
-}
-
-private struct MaskToggleBar: View {
-    @Binding var showingMask: Bool
-
-    var body: some View {
-        HStack(spacing: 0) {
-            tab("PHOTO", selected: !showingMask) { showingMask = false }
-            tab("MASK", selected: showingMask) { showingMask = true }
-        }
-        .frame(height: 40)
-    }
-
-    private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(Theme.mono(11, weight: selected ? .bold : .regular))
-                .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .bottom) {
-                    if selected { Rectangle().fill(Theme.Palette.acc).frame(height: 2) }
-                }
-        }
-        .buttonStyle(.plain)
     }
 }
 

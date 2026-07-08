@@ -94,6 +94,36 @@ struct HowItWorksLink: View {
     }
 }
 
+/// Two-state segmented tab bar — e.g. PHOTO/MASK, FRONTAL/SIDE-ON — shared by
+/// RevealStep's mask toggle and PositionDetailView's photo/mask toggles so
+/// the two near-identical copies (Plan I2) don't drift.
+struct SegmentedToggleBar: View {
+    let leftLabel: String
+    let rightLabel: String
+    @Binding var selectedRight: Bool
+
+    var body: some View {
+        HStack(spacing: 0) {
+            tab(leftLabel, selected: !selectedRight) { selectedRight = false }
+            tab(rightLabel, selected: selectedRight) { selectedRight = true }
+        }
+        .frame(height: 40)
+    }
+
+    private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(Theme.mono(11, weight: selected ? .bold : .regular))
+                .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .bottom) {
+                    if selected { Rectangle().fill(Theme.Palette.acc).frame(height: 2) }
+                }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// Full-height empty state for list screens.
 struct EmptySlate: View {
     let message: String

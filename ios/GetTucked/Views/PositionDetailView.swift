@@ -13,8 +13,10 @@ struct PositionDetailView: View {
     #if canImport(UIKit)
     @State private var headOnImage: UIImage?
     @State private var sideOnImage: UIImage?
+    @State private var maskOverlay: UIImage?
     #endif
     @State private var showingSideOn = false
+    @State private var showingMask = false
     @State private var showDeleteConfirm = false
 
     private var hasSideOn: Bool { position.sideOnPhotoIdentifier != nil }
@@ -32,7 +34,7 @@ struct PositionDetailView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         // Photo view toggle (only shown when side-on exists)
                         if hasSideOn {
-                            PhotoToggle(showingSideOn: $showingSideOn)
+                            SegmentedToggleBar(leftLabel: "FRONTAL", rightLabel: "SIDE-ON", selectedRight: $showingSideOn)
                             SectionDivider()
                         }
 
@@ -40,13 +42,25 @@ struct PositionDetailView: View {
                         #if canImport(UIKit)
                         let displayImage = showingSideOn ? sideOnImage : headOnImage
                         if let image = displayImage {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity)
-                                .background(Theme.Palette.bg1)
+                            ZStack {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                if !showingSideOn, showingMask, let maskOverlay {
+                                    Image(uiImage: maskOverlay)
+                                        .resizable()
+                                        .scaledToFit()
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .background(Theme.Palette.bg1)
                         } else {
                             photoPlaceholder
+                        }
+                        // MASK toggle only makes sense on the frontal photo — that's
+                        // the one the stored mask was computed from.
+                        if !showingSideOn, maskOverlay != nil {
+                            SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: $showingMask)
                         }
                         #else
                         photoPlaceholder
@@ -127,6 +141,23 @@ struct PositionDetailView: View {
             headOnImage = await loadAsset(identifier: position.headOnPhotoIdentifier)
         }
         sideOnImage = await loadAsset(identifier: position.sideOnPhotoIdentifier)
+        buildMaskOverlay()
+    }
+
+    /// Builds the PHOTO/MASK overlay once (not per layout pass). Skips
+    /// silently — no toggle offered — when there's no stored mask or when
+    /// the mask and photo disagree on aspect ratio (Plan I5): a mismatched
+    /// composite would tint the wrong region rather than hug the rider.
+    private func buildMaskOverlay() {
+        guard let maskData = position.maskData,
+              let mask = UIImage(data: maskData),
+              let cgMask = mask.cgImage,
+              let photo = headOnImage,
+              let cgPhoto = photo.cgImage else { return }
+        let maskAspect = Double(cgMask.width) / Double(cgMask.height)
+        let photoAspect = Double(cgPhoto.width) / Double(cgPhoto.height)
+        guard abs(maskAspect - photoAspect) / photoAspect < 0.02 else { return }
+        maskOverlay = MatteRenderer.tintedOverlay(mask: cgMask, color: UIColor(Theme.Palette.acc), alpha: 0.5)
     }
 
     private func loadAsset(identifier: String?) async -> UIImage? {
@@ -154,43 +185,6 @@ struct PositionDetailView: View {
         }
     }
     #endif
-}
-
-// MARK: - Photo toggle
-
-private struct PhotoToggle: View {
-    @Binding var showingSideOn: Bool
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ToggleTab(label: "FRONTAL", selected: !showingSideOn) { showingSideOn = false }
-            ToggleTab(label: "SIDE-ON", selected: showingSideOn)  { showingSideOn = true }
-        }
-        .frame(height: 40)
-    }
-}
-
-private struct ToggleTab: View {
-    let label: String
-    let selected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(label)
-                .font(Theme.mono(12, weight: selected ? .bold : .regular))
-                .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .bottom) {
-                    if selected {
-                        Rectangle()
-                            .fill(Theme.Palette.acc)
-                            .frame(height: 2)
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 // MARK: - Metrics section
