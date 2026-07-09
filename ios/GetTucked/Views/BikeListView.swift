@@ -57,7 +57,8 @@ struct BikeListView: View {
                     HeaderLink("MATTE CHECK") { path.append(.matteCheck) }
                     HeaderLink("RESET ALL DATA") { showResetConfirm = true }
                 }
-                .padding(Theme.Space.lg)
+                .padding(.horizontal, Theme.Space.screenMargin)
+                .padding(.vertical, Theme.Space.lg)
                 #endif
             }
         }
@@ -100,7 +101,7 @@ private struct BikeRow: View {
                 .foregroundStyle(Theme.Palette.fg3)
                 .kerning(0.5)
         }
-        .padding(.horizontal, Theme.Space.lg)
+        .padding(.horizontal, Theme.Space.screenMargin)
         .frame(height: 60)
         .contentShape(Rectangle())
     }

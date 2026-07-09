@@ -1,6 +1,38 @@
 # Plan M — Header layout polish
 
-Status: **planned** (written 2026-07-08, not yet implemented).
+Status: **done** (M1–M5 implemented 2026-07-08, plus a same-day follow-up
+fix, not yet committed). Build green, all 63 existing tests pass (no new
+tests — pure layout). Verified on the iPhone 17 simulator: Positions now
+has a clear gap below "Tap two to compare.", the back arrow renders as a
+full, centred SF Symbol on Bikes and Leaderboard (no left-edge clipping)
+aligned with the root screen's 16pt margin, and gear/plus/back icons are
+visibly bigger and consistent. Screenshots taken via a temporarily seeded
+`path` in `AppNavigationView` (reverted after) since no on-device tap
+automation was available in this session — Kah should still eyeball it
+on a real device per the acceptance section below.
+
+**Follow-up (same day):** Kah reported the title and icons looked
+mismatched from on-device screenshots after the first pass. Root cause:
+`NavHeader`'s title sat at a position that depended on both whether a
+subtitle was present *and* whether `trailing()` was a 44pt icon or an
+empty view — so the floating `BackButton` (one fixed position, drawn
+once in `AppNavigationView` for every pushed screen) could only ever
+match one configuration. Fixed by reserving the same minimum height
+(`Theme.Control.iconTapTarget`, top-anchored) on both the title side and
+the trailing side of `NavHeader`'s row, so the title now sits at an
+identical offset regardless of subtitle or trailing content — confirmed
+via pixel-level measurement of simulator screenshots (a Python PNG
+scanline decoder, since no PIL/ImageMagick was available) that title
+position is now invariant between Bikes (icon, no subtitle) and
+Leaderboard (subtitle, no icon), then re-tuned `BackButton`'s fixed
+`.padding(.top, ...)` once against that invariant position (was
+`Theme.Space.sm + 6`, now a literal `-2`, tuned on-device rather than
+token-derived since it centres against a floating overlay `NavHeader`
+has no way to report its own position to). `PositionListView`'s own
+title row (`.center`, mixing "POSITIONS" with SELECT/gear/plus) was left
+alone — same underlying tension (44pt icon vs ~23pt text) but no
+cross-screen arrow to keep in sync there, so plain centring already
+looks reasonable.
 
 Written 2026-07-08 from Kah's on-device screenshots of the Positions,
 Bikes, and Leaderboard screens. Four complaints, in priority order:

@@ -71,9 +71,10 @@ struct PositionListView: View {
                 // Root screen — no floating back arrow to clear, so the title
                 // aligns with body content at the standard margin instead of
                 // the wider pushed-screen inset (Plan F1).
-                .padding(.leading, Theme.Space.lg)
-                .padding(.trailing, Theme.Space.lg)
+                .padding(.leading, Theme.Space.screenMargin)
+                .padding(.trailing, Theme.Space.screenMargin)
                 .padding(.top, Theme.Space.sm)
+                .padding(.bottom, Theme.Control.headerBottomPad)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 56)
 
@@ -171,7 +172,7 @@ private struct PositionRow: View {
                     .foregroundStyle(Theme.Palette.fg4)
             }
         }
-        .padding(.horizontal, Theme.Space.lg)
+        .padding(.horizontal, Theme.Space.screenMargin)
         .frame(height: 60)
     }
 }
@@ -212,7 +213,7 @@ private struct SelectablePositionRow: View {
                     .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.acc)
             }
         }
-        .padding(.horizontal, Theme.Space.lg)
+        .padding(.horizontal, Theme.Space.screenMargin)
         .frame(height: 60)
     }
 }
@@ -224,7 +225,7 @@ private struct CompareBar: View {
 
     var body: some View {
         AccentButton(label: "COMPARE (2)", action: onCompare)
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.bottom, Theme.Space.lg)
             .background(Theme.Palette.bg0.opacity(0.95))
     }

@@ -42,7 +42,7 @@ struct HowItWorksView: View {
                             .font(Theme.mono(11, weight: .bold))
                             .foregroundStyle(Theme.Palette.fg3)
                             .kerning(0.3)
-                            .padding(.horizontal, Theme.Space.lg)
+                            .padding(.horizontal, Theme.Space.screenMargin)
                             .padding(.bottom, Theme.Space.sm)
 
                         HStack(alignment: .top, spacing: 0) {
@@ -63,10 +63,10 @@ struct HowItWorksView: View {
                                 ]
                             )
                         }
-                        .padding(.horizontal, Theme.Space.lg)
+                        .padding(.horizontal, Theme.Space.screenMargin)
 
                         NoiseFloorNote()
-                            .padding(.horizontal, Theme.Space.lg)
+                            .padding(.horizontal, Theme.Space.screenMargin)
                             .padding(.top, Theme.Space.lg)
 
                         VStack(alignment: .leading, spacing: 0) {
@@ -77,7 +77,7 @@ struct HowItWorksView: View {
                                 .font(Theme.heading(30))
                                 .foregroundStyle(Theme.Palette.acc)
                         }
-                        .padding(.horizontal, Theme.Space.lg)
+                        .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.top, Theme.Space.xl)
                         .padding(.bottom, Theme.Space.xl)
                     }
@@ -129,7 +129,7 @@ private struct MethodStep: View {
             .padding(.bottom, Theme.Space.lg)
             .padding(.top, 3)
         }
-        .padding(.horizontal, Theme.Space.lg)
+        .padding(.horizontal, Theme.Space.screenMargin)
     }
 }
 

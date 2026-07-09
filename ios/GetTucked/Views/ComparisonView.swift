@@ -71,7 +71,8 @@ struct ComparisonView: View {
                         DiffTable(metricsA: metricsA, metricsB: metricsB)
 
                         HowItWorksLink(path: $path)
-                            .padding(Theme.Space.lg)
+                            .padding(.horizontal, Theme.Space.screenMargin)
+                            .padding(.vertical, Theme.Space.lg)
                     }
                 }
             }
@@ -197,7 +198,7 @@ private struct DiffTable: View {
                     .foregroundStyle(Theme.Palette.fg3)
                     .frame(width: 70, alignment: .trailing)
             }
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
             .frame(height: 36)
 
             SectionDivider()
@@ -281,7 +282,7 @@ private struct DiffRow: View {
                     .foregroundStyle(diffColor)
                     .frame(width: 70, alignment: .trailing)
             }
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
             .frame(height: 44)
             SectionDivider()
         }

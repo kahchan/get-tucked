@@ -77,7 +77,7 @@ struct BikeSetupView: View {
                                 .font(Theme.mono(11))
                                 .foregroundStyle(Theme.Palette.fg3)
                                 .padding(.top, Theme.Space.xs)
-                                .padding(.horizontal, Theme.Space.lg)
+                                .padding(.horizontal, Theme.Space.screenMargin)
                         }
 
                         MonoField(placeholder: "420", text: $handlebarWidthText, numericOnly: true)
@@ -100,7 +100,7 @@ struct BikeSetupView: View {
 
                         Spacer(minLength: Theme.Space.xl)
                     }
-                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.horizontal, Theme.Space.screenMargin)
                     .padding(.top, Theme.Space.md)
                 }
 
@@ -111,7 +111,7 @@ struct BikeSetupView: View {
                         GhostButton(label: "DELETE BIKE") { showDeleteConfirm = true }
                     }
                 }
-                .padding(.horizontal, Theme.Space.lg)
+                .padding(.horizontal, Theme.Space.screenMargin)
                 .padding(.vertical, Theme.Space.md)
             }
         }

@@ -25,6 +25,13 @@ struct NavHeader<Trailing: View>: View {
 
     var body: some View {
         HStack(alignment: .center) {
+            // Both sides of the row reserve the same minimum height
+            // (iconTapTarget), top-anchored — so the title sits at a fixed
+            // offset from the row's top whether or not a subtitle is
+            // present, and whether trailing() is an icon or empty. Without
+            // this, a taller trailing icon (or a missing subtitle) shifts
+            // the title's own position, which the floating BackButton
+            // (positioned independently, per screen) can't track.
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(Theme.heading(19))
@@ -35,14 +42,16 @@ struct NavHeader<Trailing: View>: View {
                         .foregroundStyle(Theme.Palette.fg3)
                 }
             }
+            .frame(minHeight: Theme.Control.iconTapTarget, alignment: .top)
             Spacer()
             trailing()
+                .frame(minHeight: Theme.Control.iconTapTarget)
         }
         .padding(.leading, Theme.Control.headerTitleInset)
-        .padding(.trailing, Theme.Space.lg)
+        .padding(.trailing, Theme.Space.screenMargin)
         .padding(.top, Theme.Space.sm)
+        .padding(.bottom, Theme.Control.headerBottomPad)
         .frame(maxWidth: .infinity)
-        .frame(minHeight: 56)
     }
 }
 
@@ -69,7 +78,7 @@ struct HeaderLink: View {
     var body: some View {
         Button(action: action) {
             Text("\(label.uppercased()) →")
-                .font(Theme.mono(10))
+                .font(Theme.mono(11))
                 .foregroundStyle(Theme.Palette.acc)
                 .kerning(0.8)
         }
@@ -135,7 +144,7 @@ struct EmptySlate: View {
                 .font(Theme.mono(13))
                 .foregroundStyle(Theme.Palette.fg4)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, Theme.Space.xl)
+                .padding(.horizontal, Theme.Space.screenMargin)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -155,7 +164,7 @@ struct EmptyStateView: View {
                 .font(Theme.mono(13))
                 .foregroundStyle(Theme.Palette.fg4)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, Theme.Space.xl)
+                .padding(.horizontal, Theme.Space.screenMargin)
 
             if let ctaLabel, let ctaAction {
                 Button(action: ctaAction) {

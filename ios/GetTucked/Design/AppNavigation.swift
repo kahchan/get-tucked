@@ -74,8 +74,16 @@ struct AppNavigationView: View {
             // owns its own X dismiss and hides all overlay chrome).
             if !path.isEmpty && path.last != .capture {
                 BackButton { path.removeLast() }
-                    .padding(.leading, Theme.Space.lg)
-                    .padding(.top, Theme.Space.sm + 6)
+                    // Glyph is centred in the tap frame, so inset the frame by
+                    // screenMargin minus the frame's half-margin around it —
+                    // that puts the glyph itself at screenMargin.
+                    .padding(.leading, Theme.Space.screenMargin - (Theme.Control.iconTapTarget - Theme.Control.iconSize) / 2)
+                    // Vertically matches NavHeader's title, which always sits
+                    // in a fixed-height leading slot (see NavHeader) — tuned
+                    // once on-device via pixel measurement, not derived from
+                    // a token, since it's centring against a floating overlay
+                    // NavHeader has no way to report a position to.
+                    .padding(.top, -2)
             }
         }
     }
@@ -88,10 +96,10 @@ struct BackButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text("←")
-                .font(Theme.mono(Theme.Control.iconSize, weight: .bold))
+            Image(systemName: "arrow.left")
+                .font(.system(size: Theme.Control.iconSize, weight: .medium))
                 .foregroundStyle(Theme.Palette.fg2)
-                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget, alignment: .leading)
+                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget, alignment: .center)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -68,7 +68,7 @@ struct SetTheSceneView: View {
                 Spacer(minLength: 0)
 
                 AccentButton(label: "GOT IT", action: onContinue)
-                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.horizontal, Theme.Space.screenMargin)
                     .padding(.vertical, Theme.Space.md)
             }
         }
@@ -94,7 +94,7 @@ private struct ColumnHeader: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, Theme.Space.lg)
+        .padding(.horizontal, Theme.Space.screenMargin)
         .frame(height: 40)
     }
 }

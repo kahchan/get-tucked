@@ -59,6 +59,10 @@ enum Theme {
         static let md: CGFloat = 16
         static let lg: CGFloat = 24
         static let xl: CGFloat = 40
+        /// Horizontal screen margin — the distance from the screen edge to
+        /// any content, used in place of `lg` for that one purpose so the
+        /// margin can move independently of general vertical rhythm.
+        static let screenMargin: CGFloat = 16
     }
 
     enum Control {
@@ -67,17 +71,20 @@ enum Theme {
         static let metricRowHeight: CGFloat = 50
         static let hairline: CGFloat = 1
         /// Leading title inset for pushed screens (NavHeader), wide enough to
-        /// clear the floating BackButton — which is left-aligned in its own
-        /// 44pt tap target, not centred, so this only needs to clear the glyph
-        /// plus a real gap, not the whole tap frame.
-        static let headerTitleInset: CGFloat = 58
+        /// clear the floating BackButton — a centred glyph in its own 44pt
+        /// tap target sitting at the screen margin, so this only needs to
+        /// clear the tap target plus a real gap.
+        static let headerTitleInset: CGFloat = 52
         /// Shared by every bare-icon control (back arrow, close, add, gear) so
         /// icons read as one consistent family across the app, not a mix of
         /// whatever size felt right on each screen.
-        static let iconSize: CGFloat = 22
+        static let iconSize: CGFloat = 26
         /// Apple HIG minimum tappable target — applies regardless of how
         /// small the glyph inside it is.
         static let iconTapTarget: CGFloat = 44
+        /// Gap between a bespoke or shared header and the SectionDivider
+        /// beneath it.
+        static let headerBottomPad: CGFloat = 16
     }
 }
 

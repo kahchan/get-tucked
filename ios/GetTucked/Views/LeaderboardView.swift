@@ -144,7 +144,7 @@ private struct RankRow: View {
                 }
             }
         }
-        .padding(.horizontal, Theme.Space.lg)
+        .padding(.horizontal, Theme.Space.screenMargin)
         .frame(height: 64)
     }
 }

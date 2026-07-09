@@ -71,20 +71,21 @@ struct PositionDetailView: View {
                         if let metrics = position.metrics {
                             MetricsSection(metrics: metrics)
                             HowItWorksLink(path: $path)
-                                .padding(.horizontal, Theme.Space.lg)
+                                .padding(.horizontal, Theme.Space.screenMargin)
                                 .padding(.bottom, Theme.Space.md)
                         } else {
                             Text("No metrics computed.")
                                 .font(Theme.mono(13))
                                 .foregroundStyle(Theme.Palette.fg3)
-                                .padding(Theme.Space.lg)
+                                .padding(.horizontal, Theme.Space.screenMargin)
+                                .padding(.vertical, Theme.Space.lg)
                         }
 
                         SectionDivider()
 
                         if let bike = position.bike {
                             MetricRow(key: "Bike", value: bike.nickname)
-                                .padding(.horizontal, Theme.Space.lg)
+                                .padding(.horizontal, Theme.Space.screenMargin)
                         }
 
                         if let packing = position.packingList, !packing.isEmpty {
@@ -97,11 +98,13 @@ struct PositionDetailView: View {
                                     .font(Theme.mono(13))
                                     .foregroundStyle(Theme.Palette.fg2)
                             }
-                            .padding(Theme.Space.lg)
+                            .padding(.horizontal, Theme.Space.screenMargin)
+                            .padding(.vertical, Theme.Space.lg)
                         }
 
                         GhostButton(label: "DELETE POSITION") { showDeleteConfirm = true }
-                            .padding(Theme.Space.lg)
+                            .padding(.horizontal, Theme.Space.screenMargin)
+                            .padding(.vertical, Theme.Space.lg)
                     }
                 }
             }
@@ -228,7 +231,7 @@ private struct MetricsSection: View {
                         .padding(.top, Theme.Space.xs)
                 }
             }
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.top, Theme.Space.lg)
             .padding(.bottom, Theme.Space.md)
 
@@ -264,7 +267,7 @@ private struct MetricsSection: View {
                     value: metrics.computedAt.formatted(date: .abbreviated, time: .shortened)
                 )
             }
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
         }
     }
 }
