@@ -10,22 +10,40 @@ struct AccentButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
-                Text(label.uppercased())
-                    .font(Theme.mono(14, weight: .bold))
-                    .kerning(0.5)
-                Spacer()
-                Text("→")
-                    .font(Theme.mono(14, weight: .bold))
-            }
-            .foregroundStyle(enabled ? Color.black : Theme.Palette.fg4)
-            .padding(.horizontal, Theme.Space.md)
-            .frame(maxWidth: .infinity)
-            .frame(height: Theme.Control.accentButtonHeight)
-            .background(enabled ? Theme.Palette.acc : Theme.Palette.line)
+            Color.clear
         }
         .disabled(!enabled)
-        .buttonStyle(.plain)
+        .buttonStyle(AccentButtonStyle(title: label, enabled: enabled))
+        .accessibilityLabel(label)
+    }
+}
+
+/// Custom style (not `.plain`) so the pressed state can reach the arrow
+/// glyph specifically (N8) — `configuration.label` is unused; the style
+/// builds the row itself from `title`/`enabled` so `isPressed` can nudge
+/// just the arrow. Hard-edged: darken + nudge only, no scale change.
+private struct AccentButtonStyle: ButtonStyle {
+    let title: String
+    let enabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            Text(title.uppercased())
+                .font(Theme.mono(14, weight: .bold))
+                .kerning(0.5)
+            Spacer()
+            Text("→")
+                .font(Theme.mono(14, weight: .bold))
+                .offset(x: configuration.isPressed ? 3 : 0)
+        }
+        .foregroundStyle(enabled ? Color.black : Theme.Palette.fg4)
+        .padding(.horizontal, Theme.Space.md)
+        .frame(maxWidth: .infinity)
+        .frame(height: Theme.Control.accentButtonHeight)
+        .background(enabled ? Theme.Palette.acc : Theme.Palette.line)
+        .overlay(configuration.isPressed ? Color.black.opacity(0.12) : Color.clear)
+        .animation(Theme.Motion.entrance(Theme.Motion.fast), value: configuration.isPressed)
+        .animation(Theme.Motion.entrance(), value: enabled)
     }
 }
 
@@ -38,22 +56,33 @@ struct GhostButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
-                Text(label.uppercased())
-                    .font(Theme.mono(13, weight: .regular))
-                    .kerning(0.5)
-                Spacer()
-            }
-            .foregroundStyle(Theme.Palette.fg)
-            .padding(.horizontal, Theme.Space.md)
-            .frame(maxWidth: .infinity)
-            .frame(height: Theme.Control.ghostButtonHeight)
-            .overlay(
-                Rectangle()
-                    .stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline)
-            )
+            Color.clear
         }
-        .buttonStyle(.plain)
+        .buttonStyle(GhostButtonStyle(title: label))
+        .accessibilityLabel(label)
+    }
+}
+
+private struct GhostButtonStyle: ButtonStyle {
+    let title: String
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            Text(title.uppercased())
+                .font(Theme.mono(13, weight: .regular))
+                .kerning(0.5)
+            Spacer()
+        }
+        .foregroundStyle(Theme.Palette.fg)
+        .padding(.horizontal, Theme.Space.md)
+        .frame(maxWidth: .infinity)
+        .frame(height: Theme.Control.ghostButtonHeight)
+        .overlay(
+            Rectangle()
+                .stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline)
+        )
+        .overlay(configuration.isPressed ? Color.black.opacity(0.12) : Color.clear)
+        .animation(Theme.Motion.entrance(Theme.Motion.fast), value: configuration.isPressed)
     }
 }
 
@@ -143,7 +172,7 @@ struct MonoField: View {
 // MARK: - StatusPill
 
 /// Dot + label chip whose border color tracks a state.
-enum PillState {
+enum PillState: Equatable {
     case unknown   // dim
     case warning   // amber border
     case ok        // accent border
@@ -152,6 +181,9 @@ enum PillState {
 struct StatusPill: View {
     let label: String
     let state: PillState
+
+    // Blinks once (opacity dip) on transition into .ok (N8).
+    @State private var dotOpacity: Double = 1
 
     private var borderColor: Color {
         switch state {
@@ -174,6 +206,7 @@ struct StatusPill: View {
             Circle()
                 .fill(dotColor)
                 .frame(width: 5, height: 5)
+                .opacity(dotOpacity)
             Text(label.uppercased())
                 .font(Theme.mono(11))
                 .foregroundStyle(dotColor)
@@ -185,5 +218,16 @@ struct StatusPill: View {
             Rectangle()
                 .stroke(borderColor, lineWidth: Theme.Control.hairline)
         )
+        .animation(Theme.Motion.entrance(), value: state)
+        .onChange(of: state) { oldValue, newValue in
+            guard newValue == .ok, oldValue != .ok else { return }
+            withAnimation(Theme.Motion.entrance(Theme.Motion.fast)) {
+                dotOpacity = 0.3
+            } completion: {
+                withAnimation(Theme.Motion.entrance(Theme.Motion.fast)) {
+                    dotOpacity = 1
+                }
+            }
+        }
     }
 }

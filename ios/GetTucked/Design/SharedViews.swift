@@ -82,7 +82,7 @@ struct HeaderLink: View {
                 .foregroundStyle(Theme.Palette.acc)
                 .kerning(0.8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressedOpacityButtonStyle())
     }
 }
 
@@ -99,7 +99,16 @@ struct HowItWorksLink: View {
                 .font(Theme.mono(11))
                 .foregroundStyle(Theme.Palette.acc)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressedOpacityButtonStyle())
+    }
+}
+
+/// Shared press feedback for plain text links (N8) — opacity dip, 0.1s.
+private struct PressedOpacityButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .animation(Theme.Motion.entrance(0.1), value: configuration.isPressed)
     }
 }
 
@@ -111,12 +120,19 @@ struct SegmentedToggleBar: View {
     let rightLabel: String
     @Binding var selectedRight: Bool
 
+    // The underline slides between tabs (N7) instead of popping — same
+    // namespace shared across both tabs so matchedGeometryEffect can
+    // interpolate its frame from one to the other.
+    @Namespace private var underlineNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         HStack(spacing: 0) {
             tab(leftLabel, selected: !selectedRight) { selectedRight = false }
             tab(rightLabel, selected: selectedRight) { selectedRight = true }
         }
         .frame(height: 40)
+        .animation(reduceMotion ? nil : Theme.Motion.travel(0.2), value: selectedRight)
     }
 
     private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -126,7 +142,12 @@ struct SegmentedToggleBar: View {
                 .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .bottom) {
-                    if selected { Rectangle().fill(Theme.Palette.acc).frame(height: 2) }
+                    if selected {
+                        Rectangle()
+                            .fill(Theme.Palette.acc)
+                            .frame(height: 2)
+                            .matchedGeometryEffect(id: "underline", in: underlineNamespace)
+                    }
                 }
         }
         .buttonStyle(.plain)

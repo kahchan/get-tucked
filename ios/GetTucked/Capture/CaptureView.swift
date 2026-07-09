@@ -5,6 +5,9 @@ import Photos
 
 struct CaptureView: View {
     @Binding var path: [AppScreen]
+    // Fires once a new position is inserted (Plan N7) — lets the list root
+    // give the newest row a brief highlight once the user gets back there.
+    var onSaved: (UUID) -> Void = { _ in }
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query private var bikes: [Bike]
@@ -23,6 +26,9 @@ struct CaptureView: View {
     // analysis time, not re-read from selectedBike at save time, so it can't
     // drift from the value that produced pendingResult.
     @State private var usedHandlebarWidthMm: Double?
+    // Built off-main as soon as analysis completes (N2) so RevealStep's scan
+    // wipe never waits on pixel work — handed to RevealStep once ready.
+    @State private var revealMaskOverlay: UIImage?
     // Side-on state
     @State private var sideOnImage: UIImage?
     @State private var sideOnAssetIdentifier: String?
@@ -109,6 +115,7 @@ struct CaptureView: View {
                         step = .calibrate
                         Task { await saveToCameraRoll(image) }
                     }, onCancel: { dismiss() })
+                    .transition(.identity)
                 }
             case .calibrate:
                 if let image = selectedImage {
@@ -121,9 +128,11 @@ struct CaptureView: View {
                         step = .analysing
                         Task { await runAnalysis() }
                     }
+                    .transition(.opacity)
                 }
             case .analysing:
-                AnalysingView(label: "ANALYSING…")
+                AnalysingView(label: "ANALYSING", image: selectedImage)
+                    .transition(.opacity)
             case .pickSideOnPhoto:
                 if let bike = selectedBike {
                     LiveCameraView(
@@ -148,22 +157,26 @@ struct CaptureView: View {
                         },
                         onCancel: { dismiss() }
                     )
+                    .transition(.identity)
                 }
             case .analysingSideOn:
-                AnalysingView(label: "ANALYSING POSTURE…")
+                AnalysingView(label: "ANALYSING POSTURE", image: sideOnImage)
+                    .transition(.opacity)
             case .reveal:
                 if let result = pendingResult, let photo = selectedImage {
-                    RevealStep(result: result, photo: photo, sideOnPose: pendingSideOnPose, barWidthMm: selectedBike?.handlebarWidthMm, path: $path, onContinue: {
+                    RevealStep(result: result, photo: photo, maskOverlay: revealMaskOverlay, sideOnPose: pendingSideOnPose, barWidthMm: selectedBike?.handlebarWidthMm, path: $path, onContinue: {
                         step = .namePosition
                     }, onRetake: {
                         resetForNewCapture()
                     })
+                    .transition(.opacity)
                 }
             case .namePosition:
                 if let result = pendingResult {
                     NamePositionStep(result: result) { label in
                         savePosition(label: label)
                     }
+                    .transition(.opacity)
                 }
             case .done:
                 CaptureSuccessStep(
@@ -177,8 +190,10 @@ struct CaptureView: View {
                         resetForNewCapture()
                     }
                 )
+                .transition(.opacity)
             }
         }
+        .animation(Theme.Motion.entrance(), value: step)
     }
 
     private var stepTitle: String {
@@ -201,6 +216,7 @@ struct CaptureView: View {
             tapPoints.count == 2
         else { return }
 
+        let stepEnteredAt = Date()
         do {
             let wheelTaps: (ground: CGPoint, top: CGPoint)? =
                 wheelTapPoints.count == 2 ? (wheelTapPoints[0], wheelTapPoints[1]) : nil
@@ -212,8 +228,10 @@ struct CaptureView: View {
                 wheelTaps: wheelTaps,
                 wheelDiameterMm: bike.wheelDiameterMm
             )
+            await waitForMinimumAnalysingDisplay(since: stepEnteredAt)
             pendingResult = result
             usedHandlebarWidthMm = bike.handlebarWidthMm
+            buildRevealMaskOverlay(for: result)
             step = .pickSideOnPhoto   // head-on done → proceed to side-on
         } catch let error as AnalysisError {
             analysisError = error
@@ -226,6 +244,20 @@ struct CaptureView: View {
         }
     }
 
+    /// N3: the analysing scan line needs at least one full sweep (1.2s) to
+    /// read as a deliberate scan rather than a flicker — if
+    /// `AnalysisEngine` returns before that, hold the step a beat longer
+    /// instead of cutting the pass short mid-sweep. No-op under Reduce
+    /// Motion (there's no sweep to complete) and never called on the error
+    /// path (alert fires immediately).
+    private func waitForMinimumAnalysingDisplay(since start: Date) async {
+        guard !MotionSettings.reduceMotionEnabled else { return }
+        let minimumDuration: TimeInterval = 1.2
+        let remaining = minimumDuration - Date().timeIntervalSince(start)
+        guard remaining > 0 else { return }
+        try? await Task.sleep(for: .seconds(remaining))
+    }
+
     /// Shared by RETAKE (from Reveal) and "CAPTURE ANOTHER POSITION" (from
     /// the success screen) — clears everything from this position's capture
     /// so the next one starts clean. Keeps the same bike selected.
@@ -234,11 +266,26 @@ struct CaptureView: View {
         wheelTapPoints = []
         pendingResult = nil
         usedHandlebarWidthMm = nil
+        revealMaskOverlay = nil
         sideOnImage = nil
         sideOnAssetIdentifier = nil
         pendingSideOnPose = nil
         savedPositionID = nil
         step = .pickPhoto
+    }
+
+    /// Off-main so RevealStep's scan wipe (N2) never blocks on pixel work —
+    /// the mask tint composite is pure CPU work with no main-actor requirement.
+    private func buildRevealMaskOverlay(for result: AnalysisResult) {
+        guard let cgMask = result.maskImage.cgImage else { return }
+        let overlayBinding = $revealMaskOverlay
+        let tintColor = UIColor(Theme.Palette.acc)
+        Task.detached(priority: .userInitiated) {
+            let overlay = MatteRenderer.tintedOverlay(mask: cgMask, color: tintColor, alpha: 0.5)
+            await MainActor.run {
+                overlayBinding.wrappedValue = overlay
+            }
+        }
     }
 
     private func runSideOnAnalysis() async {
@@ -248,11 +295,13 @@ struct CaptureView: View {
             step = .reveal
             return
         }
+        let stepEnteredAt = Date()
         // Pose failure is non-fatal: we still save the position, just without posture metrics.
         pendingSideOnPose = try? await AnalysisEngine.analyseSideOn(
             image: image,
             pixelsPerCm: pixelsPerCm
         )
+        await waitForMinimumAnalysingDisplay(since: stepEnteredAt)
         step = .reveal
     }
 
@@ -309,34 +358,128 @@ struct CaptureView: View {
         position.metrics = metrics
         context.insert(position)
         savedPositionID = position.persistentModelID
+        onSaved(position.id)
         step = .done
     }
 }
 
 // MARK: - Step views
 
+/// The captured photo being scanned, not a bare wall (N3): dimmed image with
+/// a looping acid scan line, step label with a blinking block cursor. No
+/// invented stage names — `AnalysisEngine.analyse` is one opaque call, so
+/// this shows the one thing that's actually true: the photo is being read.
 private struct AnalysingView: View {
     let label: String
+    let image: UIImage?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var scanProgress: Double = 0
+    @State private var cursorVisible = true
+
+    private let sweepDuration: Double = 1.2
+    private let holdDuration: Double = 0.25
 
     var body: some View {
-        Text(label)
-            .font(Theme.mono(12))
-            .foregroundStyle(Theme.Palette.fg3)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: Theme.Space.lg) {
+            Spacer()
+
+            ZStack(alignment: .top) {
+                Group {
+                    if let image {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                    } else {
+                        Rectangle().fill(Theme.Palette.bg1)
+                    }
+                }
+                .opacity(0.4)
+
+                if !reduceMotion {
+                    GeometryReader { proxy in
+                        Rectangle()
+                            .fill(Theme.Palette.acc)
+                            .frame(height: 1)
+                            .offset(y: proxy.size.height * scanProgress)
+                    }
+                }
+            }
+            .clipped()
+            .frame(maxWidth: .infinity)
+
+            HStack(spacing: 3) {
+                Text(label)
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg3)
+                Text("▮")
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg3)
+                    .opacity(reduceMotion || cursorVisible ? 1 : 0)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: reduceMotion) {
+            guard !reduceMotion else { return }
+            await runScanLoop()
+        }
+        .task(id: reduceMotion) {
+            guard !reduceMotion else { return }
+            await runCursorBlink()
+        }
+    }
+
+    /// Sweeps top→bottom on an eased curve, then jumps back to the top and
+    /// holds briefly before the next pass — a discrete pass, not a sawtooth.
+    private func runScanLoop() async {
+        while !Task.isCancelled {
+            withAnimation(Theme.Motion.travel(sweepDuration)) {
+                scanProgress = 1
+            }
+            try? await Task.sleep(for: .seconds(sweepDuration))
+            guard !Task.isCancelled else { break }
+            scanProgress = 0
+            try? await Task.sleep(for: .seconds(holdDuration))
+        }
+    }
+
+    private func runCursorBlink() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(0.5))
+            guard !Task.isCancelled else { break }
+            cursorVisible.toggle()
+        }
     }
 }
 
 private struct RevealStep: View {
     let result: AnalysisResult
     let photo: UIImage
+    // Built off-main by CaptureView as soon as analysis completes (N2) —
+    // may still be nil at t=0 if the detached task hasn't finished.
+    let maskOverlay: UIImage?
     let sideOnPose: SideOnPoseMetrics?
     let barWidthMm: Double?
     @Binding var path: [AppScreen]
     let onContinue: () -> Void
     let onRetake: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var showingMask = true
-    @State private var maskOverlay: UIImage?
+    // Reveal ceremony phases — driven entirely by delayed/completion-based
+    // withAnimation calls (never DispatchQueue.asyncAfter) so Reduce Motion
+    // collapses cleanly and a mid-sequence tap can snap everything forward.
+    @State private var sweepProgress: Double = 0
+    @State private var sweepStarted = false
+    @State private var hasStartedCeremony = false
+    @State private var ceremonyCancelled = false
+    @State private var labelVisible = false
+    @State private var uncertaintyVisible = false
+    @State private var rowsVisible = false
+    @State private var buttonsVisible = false
 
     var body: some View {
         ZStack {
@@ -346,25 +489,29 @@ private struct RevealStep: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         ZStack {
+                            // The photo is on screen the instant this view appears —
+                            // no entrance animation (it was already visible during
+                            // the N3 analysing scan).
                             Image(uiImage: photo)
                                 .resizable()
                                 .scaledToFit()
-                            if showingMask, let maskOverlay {
+                            if let maskOverlay {
                                 Image(uiImage: maskOverlay)
                                     .resizable()
                                     .scaledToFit()
+                                    .scanReveal(progress: reduceMotion ? 1 : sweepProgress)
+                                    .opacity(showingMask ? 1 : 0)
                             }
                         }
                         .frame(maxWidth: .infinity)
                         .background(Theme.Palette.bg1)
-                        .onAppear {
-                            guard let cgMask = result.maskImage.cgImage else { return }
-                            maskOverlay = MatteRenderer.tintedOverlay(
-                                mask: cgMask, color: UIColor(Theme.Palette.acc), alpha: 0.5
-                            )
-                        }
+                        .onAppear { beginCeremony() }
+                        .onChange(of: maskOverlay) { _, _ in startSweepIfReady() }
+                        // `.task` (not a bare `Task { }`) so SwiftUI cancels this
+                        // automatically if the user backs out before the hold ends.
+                        .task { await revealRowsAfterHold() }
 
-                        SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: $showingMask)
+                        SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: maskToggleBinding)
                         SectionDivider()
 
                         VStack(alignment: .leading, spacing: 0) {
@@ -373,11 +520,17 @@ private struct RevealStep: View {
                                 .foregroundStyle(Theme.Palette.fg3)
                                 .kerning(0.8)
                                 .padding(.top, Theme.Space.xl)
+                                .opacity(labelVisible ? 1 : 0)
 
                             HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
-                                Text(AnalysisMath.areaDisplay(result.frontalAreaCm2))
-                                    .font(Theme.mono(60, weight: .bold))
-                                    .foregroundStyle(Theme.Palette.acc)
+                                RollingNumberText(
+                                    value: result.frontalAreaCm2,
+                                    format: { AnalysisMath.areaDisplay($0) },
+                                    font: Theme.mono(60, weight: .bold),
+                                    color: Theme.Palette.acc,
+                                    delay: 0.7,
+                                    onComplete: { Haptics.confirm() }
+                                )
                                 Text("cm²")
                                     .font(Theme.mono(18))
                                     .foregroundStyle(Theme.Palette.fg3)
@@ -398,28 +551,35 @@ private struct RevealStep: View {
                             }
                             .padding(.top, Theme.Space.xs)
                             .padding(.bottom, Theme.Space.xl)
+                            .opacity(uncertaintyVisible ? 1 : 0)
 
                             SectionDivider()
 
                             MetricRow(key: "Scale",
                                       value: String(format: "%.1f px/cm", result.pixelsPerCm))
+                                .cascadeIn(index: 0, trigger: rowsVisible)
                             if let barWidthMm {
                                 MetricRow(key: "Bar width", value: "\(Int(barWidthMm)) mm")
+                                    .cascadeIn(index: 1, trigger: rowsVisible)
                             }
                             if let fraction = result.wheelCheckDisagreementFraction {
                                 let check = AnalysisMath.wheelCheckDisplay(fraction)
                                 MetricRow(key: "Wheel check", value: check.text,
                                           valueColor: check.isWarning ? Theme.Palette.amb : Theme.Palette.fg)
+                                    .cascadeIn(index: 2, trigger: rowsVisible)
                             }
                             if let shoulder = result.headOnPose?.shoulderWidthCm {
                                 MetricRow(key: "Shoulder width",
                                           value: String(format: "%.1f cm", shoulder))
+                                    .cascadeIn(index: 3, trigger: rowsVisible)
                             }
                             if let pose = sideOnPose {
                                 MetricRow(key: "Torso angle",
                                           value: "\(Int(pose.torsoAngleDeg.rounded()))°")
+                                    .cascadeIn(index: 4, trigger: rowsVisible)
                                 MetricRow(key: "Hip angle",
                                           value: "\(Int(pose.hipAngleDeg.rounded()))°")
+                                    .cascadeIn(index: 5, trigger: rowsVisible)
                                 // Head drop hidden for now (Plan G decision 4) — its cm
                                 // figure borrows the frontal photo's pixelsPerCm, which
                                 // is only valid if both shots share a camera distance
@@ -435,12 +595,89 @@ private struct RevealStep: View {
                 GhostButton(label: "RETAKE", action: onRetake)
                     .padding(.horizontal, Theme.Space.lg)
                     .padding(.top, Theme.Space.sm)
+                    .opacity(buttonsVisible ? 1 : 0)
 
                 AccentButton(label: "NAME POSITION", action: onContinue)
                     .padding(.horizontal, Theme.Space.lg)
                     .padding(.vertical, Theme.Space.md)
+                    .opacity(buttonsVisible ? 1 : 0)
             }
         }
+    }
+
+    /// Intercepts PHOTO/MASK taps: mid-ceremony, snap everything to its end
+    /// state first (no ceremony re-run on toggle), then crossfade normally.
+    private var maskToggleBinding: Binding<Bool> {
+        Binding(
+            get: { showingMask },
+            set: { newValue in
+                if !sweepStarted || sweepProgress < 1 {
+                    cancelCeremony()
+                }
+                withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
+                    showingMask = newValue
+                }
+            }
+        )
+    }
+
+    private func beginCeremony() {
+        guard !hasStartedCeremony else { return }
+        hasStartedCeremony = true
+
+        if reduceMotion {
+            sweepProgress = 1
+            sweepStarted = true
+            withAnimation(Theme.Motion.entrance()) {
+                labelVisible = true
+                uncertaintyVisible = true
+                rowsVisible = true
+                buttonsVisible = true
+            }
+            return
+        }
+        withAnimation(Theme.Motion.entrance().delay(0.5)) { labelVisible = true }
+        withAnimation(Theme.Motion.entrance().delay(1.5)) { uncertaintyVisible = true }
+        withAnimation(Theme.Motion.entrance().delay(1.9)) { buttonsVisible = true }
+        startSweepIfReady()
+    }
+
+    /// `cascadeIn` (below) carries its own local `.animation(value:)`, which
+    /// takes precedence over an ambient `withAnimation(...).delay()` wrapping
+    /// this flip — so the 1.6s hold has to be a real wait, not a delayed
+    /// animation, or the rows would cascade in almost immediately. Driven by
+    /// the view's `.task` (not a bare `Task { }` from `beginCeremony`) so it's
+    /// cancelled automatically if the user backs out mid-hold.
+    private func revealRowsAfterHold() async {
+        guard !reduceMotion else { return }
+        try? await Task.sleep(for: .seconds(1.6))
+        guard !ceremonyCancelled else { return }
+        rowsVisible = true
+    }
+
+    /// The scan wipe never waits on pixel work in the common case (the
+    /// overlay is usually ready well before the user reaches this screen),
+    /// but if it genuinely isn't at t=0, this fires again from `onChange`
+    /// once it lands — never sweep-reveal nothing.
+    private func startSweepIfReady() {
+        guard !sweepStarted, !ceremonyCancelled, maskOverlay != nil else { return }
+        sweepStarted = true
+        withAnimation(Theme.Motion.travel(Theme.Motion.sweep)) {
+            sweepProgress = 1
+        } completion: {
+            Haptics.tap()
+        }
+    }
+
+    private func cancelCeremony() {
+        guard !ceremonyCancelled else { return }
+        ceremonyCancelled = true
+        sweepStarted = true
+        sweepProgress = 1
+        labelVisible = true
+        uncertaintyVisible = true
+        rowsVisible = true
+        buttonsVisible = true
     }
 }
 
@@ -449,6 +686,7 @@ private struct NamePositionStep: View {
     let onSave: (String) -> Void
 
     @State private var label = ""
+    @FocusState private var nameFieldFocused: Bool
 
     private var isValid: Bool {
         !label.trimmingCharacters(in: .whitespaces).isEmpty
@@ -470,6 +708,7 @@ private struct NamePositionStep: View {
 
             FieldLabel("POSITION NAME")
             MonoField(placeholder: "Hoods, fully loaded", text: $label)
+                .focused($nameFieldFocused)
 
             Text("You'll compare against this name later.")
                 .font(Theme.mono(12))
@@ -480,10 +719,20 @@ private struct NamePositionStep: View {
             Spacer()
 
             AccentButton(label: "SAVE POSITION",
-                         action: { onSave(label.trimmingCharacters(in: .whitespaces)) },
+                         action: {
+                             Haptics.confirm()
+                             onSave(label.trimmingCharacters(in: .whitespaces))
+                         },
                          enabled: isValid)
                 .padding(.horizontal, Theme.Space.lg)
                 .padding(.vertical, Theme.Space.md)
+        }
+        // Short delay so the keyboard doesn't rise mid-way through this
+        // step's own entrance fade (N4). `.task`, not a bare `Task { }` in
+        // `.onAppear`, so it's cancelled automatically on a fast back-out.
+        .task {
+            try? await Task.sleep(for: .seconds(0.3))
+            nameFieldFocused = true
         }
     }
 }
@@ -493,6 +742,9 @@ private struct CaptureSuccessStep: View {
     let onViewAnalysis: () -> Void
     let onCaptureAnother: () -> Void
 
+    @State private var savedVisible = false
+    @State private var buttonsVisible = false
+
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
@@ -501,6 +753,7 @@ private struct CaptureSuccessStep: View {
                 .font(Theme.mono(12, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg3)
                 .kerning(0.8)
+                .opacity(savedVisible ? 1 : 0)
 
             if let areaCm2 {
                 HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
@@ -512,16 +765,29 @@ private struct CaptureSuccessStep: View {
                         .foregroundStyle(Theme.Palette.fg3)
                 }
                 .padding(.top, Theme.Space.sm)
+                .offset(y: savedVisible ? 0 : 8)
+                .opacity(savedVisible ? 1 : 0)
             }
 
             Spacer()
 
             AccentButton(label: "VIEW ANALYSIS", action: onViewAnalysis)
                 .padding(.horizontal, Theme.Space.lg)
+                .opacity(buttonsVisible ? 1 : 0)
             GhostButton(label: "CAPTURE ANOTHER POSITION", action: onCaptureAnother)
                 .padding(.horizontal, Theme.Space.lg)
                 .padding(.top, Theme.Space.sm)
                 .padding(.bottom, Theme.Space.md)
+                .opacity(buttonsVisible ? 1 : 0)
+        }
+        .onAppear {
+            Haptics.confirm()
+            withAnimation(Theme.Motion.entrance(Theme.Motion.gentle)) {
+                savedVisible = true
+            }
+            withAnimation(Theme.Motion.entrance().delay(0.15)) {
+                buttonsVisible = true
+            }
         }
     }
 }
@@ -535,6 +801,8 @@ private struct HandlebarCalibrationStep: View {
     @Binding var wheelTapPoints: [CGPoint]
     let wheelDiameterMm: Double?
     let onConfirm: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Persisted zoom/pan (committed at gesture end) plus the in-flight gesture
     // deltas, combined for the live transform each frame.
@@ -556,6 +824,12 @@ private struct HandlebarCalibrationStep: View {
     // Whether the optional wheel-verification taps are being collected —
     // never gates CONFIRM SCALE (Plan K, explicit directive).
     @State private var verifyingWheel = false
+
+    // Connecting-line draw progress (N4) — 0→1 once each pair's second point
+    // lands, independent of the points themselves so dragging afterward
+    // doesn't re-trigger the draw.
+    @State private var barLineProgress: Double = 0
+    @State private var wheelLineProgress: Double = 0
 
     private let minZoom: CGFloat = 1
     private let maxZoom: CGFloat = 8
@@ -611,28 +885,51 @@ private struct HandlebarCalibrationStep: View {
                 .clipped()
             }
 
-            if zoomScale > 1.01 || panOffset != .zero {
-                resetViewButton
+            Group {
+                if showsResetView {
+                    resetViewButton
+                        .transition(appearTransition)
+                }
             }
+            .animation(Theme.Motion.entrance(), value: showsResetView)
 
-            if tapPoints.count == 2, let wheelDiameterMm, wheelDiameterMm > 0,
-               !verifyingWheel, wheelTapPoints.isEmpty {
-                wheelVerifyLink
-            } else if verifyingWheel {
-                wheelSkipLink
+            Group {
+                if showsWheelVerifyLink {
+                    wheelVerifyLink
+                        .transition(appearTransition)
+                } else if verifyingWheel {
+                    wheelSkipLink
+                        .transition(appearTransition)
+                }
             }
+            .animation(Theme.Motion.entrance(), value: verifyingWheel)
+            .animation(Theme.Motion.entrance(), value: showsWheelVerifyLink)
 
             confirmButton
         }
     }
 
+    /// Fade+slide normally; Reduce Motion drops the slide, keeping the fade.
+    private var appearTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top))
+    }
+
+    private var showsResetView: Bool { zoomScale > 1.01 || panOffset != .zero }
+
+    private var showsWheelVerifyLink: Bool {
+        tapPoints.count == 2 && (wheelDiameterMm ?? 0) > 0 && !verifyingWheel && wheelTapPoints.isEmpty
+    }
+
     private var instructionBanner: some View {
         Text(bannerText)
+            .id(bannerText)
+            .transition(.opacity)
             .font(Theme.mono(12))
             .foregroundStyle(Theme.Palette.fg)
             .padding(10)
             .frame(maxWidth: .infinity)
             .background(Theme.Palette.bg1)
+            .animation(Theme.Motion.entrance(Theme.Motion.fast), value: bannerText)
     }
 
     private var bannerText: String {
@@ -688,6 +985,7 @@ private struct HandlebarCalibrationStep: View {
         Button {
             verifyingWheel = false
             wheelTapPoints = []
+            wheelLineProgress = 0
         } label: {
             Text("SKIP WHEEL CHECK")
                 .font(Theme.mono(11, weight: .bold))
@@ -702,22 +1000,23 @@ private struct HandlebarCalibrationStep: View {
 
     @ViewBuilder
     private func pointOverlay(viewport: CalibrationTransform.Viewport) -> some View {
-        connectingLine(points: tapPoints, viewport: viewport)
+        connectingLine(points: tapPoints, progress: barLineProgress, viewport: viewport)
         handles(points: $tapPoints, colors: (Theme.Palette.acc, Theme.Palette.amb), viewport: viewport)
 
         if verifyingWheel {
-            connectingLine(points: wheelTapPoints, viewport: viewport)
+            connectingLine(points: wheelTapPoints, progress: wheelLineProgress, viewport: viewport)
             handles(points: $wheelTapPoints, colors: (Theme.Palette.fg, Theme.Palette.fg), viewport: viewport)
         }
     }
 
     @ViewBuilder
-    private func connectingLine(points: [CGPoint], viewport: CalibrationTransform.Viewport) -> some View {
+    private func connectingLine(points: [CGPoint], progress: Double, viewport: CalibrationTransform.Viewport) -> some View {
         if points.count == 2 {
             Path { path in
                 path.move(to: CalibrationTransform.screenPoint(forUnit: points[0], in: viewport))
                 path.addLine(to: CalibrationTransform.screenPoint(forUnit: points[1], in: viewport))
             }
+            .trim(from: 0, to: progress)
             .stroke(Color.white.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
         }
     }
@@ -725,7 +1024,9 @@ private struct HandlebarCalibrationStep: View {
     /// Draggable handles for one tap group (bar or wheel). `colors` picks
     /// the fill for point 0 / point 1 — bar taps keep their original
     /// lime/amber pair, wheel taps use a single white fill so the two
-    /// groups read as visually distinct on the same image (Plan K3).
+    /// groups read as visually distinct on the same image (Plan K3). Newly
+    /// placed handles settle in from a slightly larger scale (N4) — a single
+    /// eased ease-out, not a spring, so it doesn't read as a bounce.
     private func handles(
         points: Binding<[CGPoint]>, colors: (first: Color, second: Color), viewport: CalibrationTransform.Viewport
     ) -> some View {
@@ -737,6 +1038,11 @@ private struct HandlebarCalibrationStep: View {
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
                 .position(screen)
+                .transition(
+                    reduceMotion
+                        ? .opacity.animation(Theme.Motion.entrance(Theme.Motion.fast))
+                        : .scale(scale: 1.3).combined(with: .opacity).animation(Theme.Motion.entrance(Theme.Motion.fast))
+                )
                 .gesture(dragGesture(index: index, points: points, viewport: viewport))
         }
     }
@@ -790,9 +1096,33 @@ private struct HandlebarCalibrationStep: View {
         if verifyingWheel {
             guard wheelTapPoints.count < 2 else { return }
             wheelTapPoints.append(unit)
+            Haptics.tap()
+            if wheelTapPoints.count == 2 {
+                drawLine(progress: $wheelLineProgress)
+            }
         } else {
             guard tapPoints.count < 2 else { return }
             tapPoints.append(unit)
+            Haptics.tap()
+            if tapPoints.count == 2 {
+                drawLine(progress: $barLineProgress)
+            }
+        }
+    }
+
+    /// Animates the connecting line drawing in; under Reduce Motion it just
+    /// appears at full length (no `trim` animation), still with the haptic.
+    private func drawLine(progress: Binding<Double>) {
+        if reduceMotion {
+            progress.wrappedValue = 1
+            Haptics.tap()
+            return
+        }
+        progress.wrappedValue = 0
+        withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
+            progress.wrappedValue = 1
+        } completion: {
+            Haptics.tap()
         }
     }
 

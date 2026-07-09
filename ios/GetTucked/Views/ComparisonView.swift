@@ -5,6 +5,11 @@ struct ComparisonView: View {
     let positionB: Position   // second selected
     @Binding var path: [AppScreen]
 
+    // Panels/table cascade in quickly on appear (N6) — the delta hero below
+    // is the deliberate second wow moment and manages its own timing instead.
+    @State private var appeared = false
+    private let cascadeStagger: Double = 0.025
+
     private var metricsA: PositionMetrics? { positionA.metrics }
     private var metricsB: PositionMetrics? { positionB.metrics }
 
@@ -53,14 +58,19 @@ struct ComparisonView: View {
                             PositionPanel(position: positionB, side: "B")
                         }
                         .frame(height: 130)
+                        .cascadeIn(index: 0, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
 
                         SectionDivider()
 
                         if isCrossBike {
+                            // Appears with the panels, no special motion of
+                            // its own — a warning doesn't perform (N6).
                             CrossBikeWarning()
+                                .cascadeIn(index: 0, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
                         }
 
-                        // Delta hero
+                        // Delta hero — the deliberate secondary wow moment;
+                        // manages its own roll/fade timing, not the cascade.
                         if let delta = deltaPct, let a = areaA, let b = areaB {
                             DeltaHero(delta: delta, winner: a < b ? "A" : "B", absoluteDeltaCm2: abs(b - a),
                                       isDistinguishable: isDistinguishable, noisePct: noisePct)
@@ -68,7 +78,7 @@ struct ComparisonView: View {
                         }
 
                         // Metric diff table
-                        DiffTable(metricsA: metricsA, metricsB: metricsB)
+                        DiffTable(metricsA: metricsA, metricsB: metricsB, appeared: appeared, cascadeStagger: cascadeStagger)
 
                         HowItWorksLink(path: $path)
                             .padding(.horizontal, Theme.Space.screenMargin)
@@ -78,6 +88,7 @@ struct ComparisonView: View {
             }
         }
         .hideNavBar()
+        .onAppear { appeared = true }
     }
 }
 
@@ -137,6 +148,12 @@ private struct DeltaHero: View {
     let isDistinguishable: Bool
     let noisePct: Double
 
+    // The subtitle/within-noise block fades in as its own beat (N6) — for
+    // the distinguishable case, after the number lands; for within-noise,
+    // together as one plain fade (no ceremony — the absence of motion is
+    // the message).
+    @State private var subtitleVisible = false
+
     private var isImprovement: Bool { delta < 0 }
     private var color: Color { isImprovement ? Theme.Palette.acc : Theme.Palette.amb }
     private var sign: String { delta >= 0 ? "+" : "" }
@@ -144,26 +161,42 @@ private struct DeltaHero: View {
     var body: some View {
         VStack(spacing: 4) {
             if isDistinguishable {
-                Text("\(sign)\(String(format: "%.1f", delta))%")
-                    .font(Theme.mono(52, weight: .bold))
-                    .foregroundStyle(color)
+                RollingNumberText(
+                    value: delta,
+                    format: { "\(self.sign)\(String(format: "%.1f", $0))%" },
+                    font: Theme.mono(52, weight: .bold),
+                    color: color,
+                    duration: 0.6,
+                    onComplete: {
+                        if isImprovement { Haptics.confirm() }
+                        withAnimation(Theme.Motion.entrance()) { subtitleVisible = true }
+                    }
+                )
                 Text("\(winner) IS SMALLER · \(Int(absoluteDeltaCm2.rounded())) cm²")
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.Palette.fg3)
                     .kerning(0.3)
+                    .opacity(subtitleVisible ? 1 : 0)
             } else {
                 // Spec: a delta smaller than the noise floor must never be
-                // presented as real (Plan A4).
-                Text("≈")
-                    .font(Theme.mono(52, weight: .bold))
-                    .foregroundStyle(Theme.Palette.fg3)
-                Text("WITHIN MEASUREMENT NOISE")
-                    .font(Theme.mono(13))
-                    .foregroundStyle(Theme.Palette.fg2)
-                    .kerning(0.3)
-                Text("raw: \(sign)\(String(format: "%.1f", delta))% · noise: ±\(String(format: "%.1f", noisePct))%")
-                    .font(Theme.mono(10))
-                    .foregroundStyle(Theme.Palette.fg4)
+                // presented as real (Plan A4). No ceremony at all — the ≈
+                // block and its lines plain-fade in together, no haptic.
+                Group {
+                    Text("≈")
+                        .font(Theme.mono(52, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg3)
+                    Text("WITHIN MEASUREMENT NOISE")
+                        .font(Theme.mono(13))
+                        .foregroundStyle(Theme.Palette.fg2)
+                        .kerning(0.3)
+                    Text("raw: \(sign)\(String(format: "%.1f", delta))% · noise: ±\(String(format: "%.1f", noisePct))%")
+                        .font(Theme.mono(10))
+                        .foregroundStyle(Theme.Palette.fg4)
+                }
+                .opacity(subtitleVisible ? 1 : 0)
+                .onAppear {
+                    withAnimation(Theme.Motion.entrance()) { subtitleVisible = true }
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -176,6 +209,8 @@ private struct DeltaHero: View {
 private struct DiffTable: View {
     let metricsA: PositionMetrics?
     let metricsB: PositionMetrics?
+    let appeared: Bool
+    let cascadeStagger: Double
 
     var body: some View {
         VStack(spacing: 0) {
@@ -203,13 +238,15 @@ private struct DiffTable: View {
 
             SectionDivider()
 
-            // Frontal area (always present)
+            // Frontal area (always present) — diff-column values never roll
+            // (derived, small, numerous); rows just cascade with the table.
             DiffRow(
                 key: "Frontal area",
                 valA: metricsA.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
                 valB: metricsB.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
                 diff: diff(metricsA?.frontalAreaCm2, metricsB?.frontalAreaCm2, unit: "cm²", fmt: "%.0f")
             )
+            .cascadeIn(index: 1, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
 
             // Shoulder width (head-on pose, optional)
             if metricsA?.shoulderWidthCm != nil || metricsB?.shoulderWidthCm != nil {
@@ -219,6 +256,7 @@ private struct DiffTable: View {
                     valB: metricsB?.shoulderWidthCm.map { "\(String(format: "%.1f", $0)) cm" },
                     diff: diff(metricsA?.shoulderWidthCm, metricsB?.shoulderWidthCm, unit: "cm", fmt: "%.1f")
                 )
+                .cascadeIn(index: 2, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
             }
 
             // Torso angle (side-on, optional)
@@ -229,6 +267,7 @@ private struct DiffTable: View {
                     valB: metricsB?.torsoAngleDeg.map { "\(String(format: "%.0f", $0))°" },
                     diff: diff(metricsA?.torsoAngleDeg, metricsB?.torsoAngleDeg, unit: "°", fmt: "%.0f")
                 )
+                .cascadeIn(index: 3, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
             }
 
             // Hip angle (side-on, optional)
@@ -239,6 +278,7 @@ private struct DiffTable: View {
                     valB: metricsB?.hipAngleDeg.map { "\(String(format: "%.0f", $0))°" },
                     diff: diff(metricsA?.hipAngleDeg, metricsB?.hipAngleDeg, unit: "°", fmt: "%.0f")
                 )
+                .cascadeIn(index: 4, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
             }
 
             // Head drop hidden for now (Plan G decision 4) — its cm figure

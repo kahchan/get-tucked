@@ -86,6 +86,26 @@ enum Theme {
         /// beneath it.
         static let headerBottomPad: CGFloat = 16
     }
+
+    // MARK: Motion tokens
+    //
+    // Hard-edged in form, eased in timing (Plan N): shapes stay hard-edged —
+    // wipes, scan lines, clipped reveals, no springs/bounce/blur/overshoot —
+    // but every duration below runs on an easing curve. Nothing is linear.
+
+    enum Motion {
+        static let fast: Double = 0.15      // press states, handle pops, banner text
+        static let base: Double = 0.25      // step fades, toggles, list changes
+        static let gentle: Double = 0.45    // photo fade-in, section entrances
+        static let sweep: Double = 0.90     // scan wipe across the matte
+        static let roll: Double = 0.80      // hero number count-up
+        static let stagger: Double = 0.05   // per-row cascade offset
+
+        /// Entrances: content arriving — decelerate in.
+        static func entrance(_ d: Double = base) -> Animation { .easeOut(duration: d) }
+        /// Travel: sweeps, slides, reorders — accelerate in, settle out.
+        static func travel(_ d: Double = base) -> Animation { .easeInOut(duration: d) }
+    }
 }
 
 extension Color {

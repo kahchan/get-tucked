@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import ImageIO
 #if canImport(UIKit)
 import PhotosUI
 import Photos
@@ -18,8 +19,34 @@ struct PositionDetailView: View {
     @State private var showingSideOn = false
     @State private var showingMask = false
     @State private var showDeleteConfirm = false
+    // Peeked from the stored photos' headers (no full decode) so the
+    // placeholder box is sized correctly from the very first frame (N5) —
+    // the decoded photo then fades in over it with zero layout shift.
+    // Side-on is captured in landscape (see OrientationLock.allowsLandscape),
+    // so it needs its own aspect ratio — locking the container to headOn's
+    // portrait ratio would badly letterbox the side-on photo when toggled.
+    private let headOnAspectRatio: CGFloat
+    private let sideOnAspectRatio: CGFloat
+
+    init(position: Position, path: Binding<[AppScreen]>) {
+        self.position = position
+        self._path = path
+        self.headOnAspectRatio = Self.peekAspectRatio(from: position.photosData) ?? 4.0 / 3.0
+        self.sideOnAspectRatio = Self.peekAspectRatio(from: position.sideOnPhotoData) ?? 4.0 / 3.0
+    }
 
     private var hasSideOn: Bool { position.sideOnPhotoIdentifier != nil || position.sideOnPhotoData != nil }
+
+    private static func peekAspectRatio(from data: Data?) -> CGFloat? {
+        guard let data,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let height = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              height > 0
+        else { return nil }
+        return CGFloat(width / height)
+    }
 
     var body: some View {
         ZStack {
@@ -34,33 +61,49 @@ struct PositionDetailView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         // Photo view toggle (only shown when side-on exists)
                         if hasSideOn {
-                            SegmentedToggleBar(leftLabel: "FRONTAL", rightLabel: "SIDE-ON", selectedRight: $showingSideOn)
+                            SegmentedToggleBar(leftLabel: "FRONTAL", rightLabel: "SIDE-ON", selectedRight: sideOnToggleBinding)
                             SectionDivider()
                         }
 
                         // Photo
                         #if canImport(UIKit)
-                        let displayImage = showingSideOn ? sideOnImage : headOnImage
-                        if let image = displayImage {
-                            ZStack {
+                        ZStack {
+                            // Aspect-matched placeholder, present from the first
+                            // frame — the decoded photo(s) fade in over it below,
+                            // so there's never a size jump (N5).
+                            Theme.Palette.bg1
+
+                            if let image = headOnImage {
                                 Image(uiImage: image)
                                     .resizable()
                                     .scaledToFit()
-                                if !showingSideOn, showingMask, let maskOverlay {
-                                    Image(uiImage: maskOverlay)
-                                        .resizable()
-                                        .scaledToFit()
-                                }
+                                    .transition(.opacity)
+                                    .opacity(showingSideOn ? 0 : 1)
                             }
-                            .frame(maxWidth: .infinity)
-                            .background(Theme.Palette.bg1)
-                        } else {
-                            photoPlaceholder
+                            if let image = sideOnImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .transition(.opacity)
+                                    .opacity(showingSideOn ? 1 : 0)
+                            }
+                            if !showingSideOn, let maskOverlay {
+                                Image(uiImage: maskOverlay)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .transition(.opacity)
+                                    .opacity(showingMask ? 1 : 0)
+                            }
                         }
+                        .aspectRatio(showingSideOn ? sideOnAspectRatio : headOnAspectRatio, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
                         // MASK toggle only makes sense on the frontal photo — that's
-                        // the one the stored mask was computed from.
+                        // the one the stored mask was computed from. Fades in
+                        // (rather than popping the layout) once the overlay is
+                        // ready — see loadPhotos().
                         if !showingSideOn, maskOverlay != nil {
-                            SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: $showingMask)
+                            SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: maskToggleBinding)
+                                .transition(.opacity)
                         }
                         #else
                         photoPlaceholder
@@ -134,40 +177,87 @@ struct PositionDetailView: View {
             }
     }
 
+    private var sideOnToggleBinding: Binding<Bool> {
+        Binding(
+            get: { showingSideOn },
+            set: { newValue in
+                withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
+                    showingSideOn = newValue
+                }
+            }
+        )
+    }
+
+    private var maskToggleBinding: Binding<Bool> {
+        Binding(
+            get: { showingMask },
+            set: { newValue in
+                withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
+                    showingMask = newValue
+                }
+            }
+        )
+    }
+
     #if canImport(UIKit)
     private func loadPhotos() async {
         // Head-on is captured live and persisted as bytes; prefer that over any
         // PHAsset re-fetch. Side-on comes from the picker (asset identifier).
-        if let data = position.photosData, let image = UIImage(data: data) {
-            headOnImage = image
-        } else {
-            headOnImage = await loadAsset(identifier: position.headOnPhotoIdentifier)
+        // Decode off-main (N5) — a revisit shouldn't block the main actor on
+        // JPEG decode any more than it has to.
+        let headOnData = position.photosData
+        let headOnIdentifier = position.headOnPhotoIdentifier
+        let sideOnData = position.sideOnPhotoData
+        let sideOnIdentifier = position.sideOnPhotoIdentifier
+        let maskData = position.maskData
+
+        // Independent work — run concurrently so a revisit never waits
+        // longer than the slower of the two (Plan N5's own goal: a revisit
+        // must never feel slower than today).
+        async let headOnTask = decodeOrFetch(data: headOnData, identifier: headOnIdentifier)
+        async let sideOnTask = decodeOrFetch(data: sideOnData, identifier: sideOnIdentifier)
+        let (decodedHeadOn, decodedSideOn) = await (headOnTask, sideOnTask)
+
+        withAnimation(Theme.Motion.entrance(Theme.Motion.gentle)) {
+            headOnImage = decodedHeadOn
         }
-        // Side-on: live capture has no PHAsset identifier — prefer the stored
-        // bytes over a re-fetch, same as head-on (Plan G0).
-        if let data = position.sideOnPhotoData, let image = UIImage(data: data) {
-            sideOnImage = image
-        } else {
-            sideOnImage = await loadAsset(identifier: position.sideOnPhotoIdentifier)
+        withAnimation(Theme.Motion.entrance(Theme.Motion.gentle)) {
+            sideOnImage = decodedSideOn
         }
-        buildMaskOverlay()
+
+        let overlay = await buildMaskOverlay(maskData: maskData, headOnPhoto: decodedHeadOn)
+        withAnimation(Theme.Motion.entrance()) {
+            maskOverlay = overlay
+        }
     }
 
-    /// Builds the PHOTO/MASK overlay once (not per layout pass). Skips
-    /// silently — no toggle offered — when there's no stored mask or when
-    /// the mask and photo disagree on aspect ratio (Plan I5): a mismatched
-    /// composite would tint the wrong region rather than hug the rider.
-    private func buildMaskOverlay() {
-        guard let maskData = position.maskData,
-              let mask = UIImage(data: maskData),
-              let cgMask = mask.cgImage,
-              let photo = headOnImage,
-              let cgPhoto = photo.cgImage else { return }
-        guard AnalysisMath.maskMatchesSourceAspect(
-            maskWidth: cgMask.width, maskHeight: cgMask.height,
-            sourceWidth: cgPhoto.width, sourceHeight: cgPhoto.height
-        ) else { return }
-        maskOverlay = MatteRenderer.tintedOverlay(mask: cgMask, color: UIColor(Theme.Palette.acc), alpha: 0.5)
+    /// Off-main JPEG decode when bytes are already on hand; falls back to
+    /// the existing PHAsset fetch (already off-main via `PHImageManager`)
+    /// when they aren't.
+    private func decodeOrFetch(data: Data?, identifier: String?) async -> UIImage? {
+        if let data {
+            return await Task.detached(priority: .userInitiated) {
+                UIImage(data: data)
+            }.value
+        }
+        return await loadAsset(identifier: identifier)
+    }
+
+    /// Builds the PHOTO/MASK overlay off-main (N5) — pure pixel work with no
+    /// main-actor requirement. Skips silently — no toggle offered — when
+    /// there's no stored mask or when the mask and photo disagree on aspect
+    /// ratio (Plan I5): a mismatched composite would tint the wrong region
+    /// rather than hug the rider.
+    private func buildMaskOverlay(maskData: Data?, headOnPhoto: UIImage?) async -> UIImage? {
+        guard let maskData, let cgPhoto = headOnPhoto?.cgImage else { return nil }
+        return await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            guard let mask = UIImage(data: maskData), let cgMask = mask.cgImage else { return nil }
+            guard AnalysisMath.maskMatchesSourceAspect(
+                maskWidth: cgMask.width, maskHeight: cgMask.height,
+                sourceWidth: cgPhoto.width, sourceHeight: cgPhoto.height
+            ) else { return nil }
+            return MatteRenderer.tintedOverlay(mask: cgMask, color: UIColor(Theme.Palette.acc), alpha: 0.5)
+        }.value
     }
 
     private func loadAsset(identifier: String?) async -> UIImage? {
@@ -202,6 +292,9 @@ struct PositionDetailView: View {
 private struct MetricsSection: View {
     let metrics: PositionMetrics
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var heroVisible = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
@@ -210,6 +303,9 @@ private struct MetricsSection: View {
                     .foregroundStyle(Theme.Palette.fg3)
                     .kerning(0.3)
 
+                // The one flourish on this screen (N5) — a saved number
+                // settles, it doesn't perform. Everything else below renders
+                // immediately, no animation at all.
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
                     Text(AnalysisMath.areaDisplay(metrics.frontalAreaCm2))
                         .font(Theme.mono(60, weight: .bold))
@@ -217,6 +313,13 @@ private struct MetricsSection: View {
                     Text("cm²")
                         .font(Theme.mono(18))
                         .foregroundStyle(Theme.Palette.fg3)
+                }
+                .offset(y: heroVisible || reduceMotion ? 0 : 4)
+                .opacity(heroVisible ? 1 : 0)
+                .onAppear {
+                    withAnimation(Theme.Motion.entrance(Theme.Motion.base)) {
+                        heroVisible = true
+                    }
                 }
 
                 Text(AnalysisMath.uncertaintyDisplay(metrics.frontalAreaUncertainty))

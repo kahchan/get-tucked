@@ -30,22 +30,26 @@ enum AppScreen: Hashable {
 /// Single NavigationStack driving the whole app. No tab bar.
 struct AppNavigationView: View {
     @State private var path: [AppScreen] = []
+    // Set when a fresh save lands (CaptureView), consumed by PositionListView
+    // once the user is back at root — the newest row gets a brief "here's
+    // what you just made" tick (Plan N7).
+    @State private var justSavedPositionID: UUID?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             NavigationStack(path: $path) {
-                PositionListView(path: $path)
+                PositionListView(path: $path, highlightID: $justSavedPositionID)
                     .navigationDestination(for: AppScreen.self) { screen in
                         switch screen {
                         case .positionList:
-                            PositionListView(path: $path)
+                            PositionListView(path: $path, highlightID: $justSavedPositionID)
                         case .positionDetail(let id):
                             PositionDetailWrapper(id: id, path: $path)
                         case .setTheScene:
                             SetTheSceneView { path.append(.capture) }
                         case .capture:
                             #if canImport(UIKit)
-                            CaptureView(path: $path)
+                            CaptureView(path: $path, onSaved: { id in justSavedPositionID = id })
                             #else
                             Text("Camera not available on this platform")
                             #endif
@@ -102,7 +106,16 @@ struct BackButton: View {
                 .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget, alignment: .center)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BackButtonStyle())
+    }
+}
+
+/// Pressed state nudges the glyph 2pt leading (N8).
+private struct BackButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .offset(x: configuration.isPressed ? -2 : 0)
+            .animation(Theme.Motion.entrance(Theme.Motion.fast), value: configuration.isPressed)
     }
 }
 

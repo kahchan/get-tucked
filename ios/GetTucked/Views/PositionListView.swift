@@ -3,10 +3,16 @@ import SwiftData
 
 struct PositionListView: View {
     @Binding var path: [AppScreen]
+    // Set by CaptureView when a fresh save lands; consumed here once the
+    // user is back at root (N7) — then cleared so it doesn't re-fire.
+    @Binding var highlightID: UUID?
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
     @Query private var bikes: [Bike]
     @State private var selectMode = false
     @State private var selected: [UUID] = []
+    // Captured once from `highlightID` so the tick's own fade isn't cut
+    // short when the shared binding gets cleared right after.
+    @State private var tickPositionID: UUID?
 
     // Selection order is preserved: first tapped = A (reference), second = B.
     private var selectedPositions: [Position] {
@@ -98,32 +104,43 @@ struct PositionListView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(positions) { position in
-                                if selectMode {
-                                    Button {
+                                Button {
+                                    if selectMode {
+                                        // Only haptic on an actual selection change — a tap
+                                        // on an already-at-capacity row is a no-op and
+                                        // shouldn't feel like it did something.
                                         if selected.contains(position.id) {
                                             selected.removeAll { $0 == position.id }
+                                            Haptics.select()
                                         } else if selected.count < 2 {
                                             selected.append(position.id)
+                                            Haptics.select()
                                         }
-                                    } label: {
-                                        SelectablePositionRow(
-                                            position: position,
-                                            isSelected: selected.contains(position.id),
-                                            isDisabled: selected.count >= 2 && !selected.contains(position.id)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                } else {
-                                    Button {
+                                    } else {
                                         path.append(.positionDetail(position.persistentModelID))
-                                    } label: {
-                                        PositionRow(position: position)
                                     }
-                                    .buttonStyle(.plain)
+                                } label: {
+                                    // Same row across selectMode toggling (not two
+                                    // structurally-different views) so the checkbox
+                                    // can slide in/out while content shifts, instead
+                                    // of the whole row popping (N7).
+                                    PositionRow(
+                                        position: position,
+                                        isSelected: selected.contains(position.id),
+                                        isDisabled: selectMode && selected.count >= 2 && !selected.contains(position.id),
+                                        showsCheckbox: selectMode
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .overlay(alignment: .leading) {
+                                    if position.id == tickPositionID {
+                                        NewSaveTick()
+                                    }
                                 }
                                 SectionDivider()
                             }
                         }
+                        .animation(Theme.Motion.entrance(), value: selectMode)
                         // Bottom padding so compare bar doesn't overlap last row
                         if selectMode { Color.clear.frame(height: 72) }
                     }
@@ -141,59 +158,53 @@ struct PositionListView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: selected.count)
+        .animation(Theme.Motion.travel(), value: selected.count)
         .hideNavBar()
+        .onChange(of: path) { _, newPath in
+            // Root reached (path empty) after a fresh save — capture the
+            // highlight locally and clear the shared signal so it can't
+            // re-trigger on a later routine visit. No stagger otherwise:
+            // the root list always renders instantly.
+            guard newPath.isEmpty, let highlightID, positions.first?.id == highlightID else { return }
+            tickPositionID = highlightID
+            self.highlightID = nil
+        }
     }
 }
 
-// MARK: - Row variants
+// MARK: - Row
 
+/// One row shape for both browsing and select mode (N7) — `showsCheckbox`
+/// toggles the leading indicator in place rather than swapping to a
+/// structurally different view, so it can slide in/out while the rest of
+/// the row's content shifts right, instead of the whole row popping.
 private struct PositionRow: View {
     let position: Position
+    var isSelected: Bool = false
+    var isDisabled: Bool = false
+    var showsCheckbox: Bool = false
 
-    var body: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(position.label)
-                    .font(Theme.mono(14, weight: .bold))
-                    .foregroundStyle(Theme.Palette.fg)
-                Text(position.capturedAt.formatted(date: .abbreviated, time: .omitted))
-                    .font(Theme.mono(11))
-                    .foregroundStyle(Theme.Palette.fg3)
-            }
-            Spacer()
-            if let area = position.metrics?.frontalAreaCm2 {
-                Text("\(AnalysisMath.areaDisplay(area)) cm²")
-                    .font(Theme.mono(13, weight: .bold))
-                    .foregroundStyle(Theme.Palette.acc)
-            } else {
-                Text("···")
-                    .font(Theme.mono(13))
-                    .foregroundStyle(Theme.Palette.fg4)
-            }
-        }
-        .padding(.horizontal, Theme.Space.screenMargin)
-        .frame(height: 60)
-    }
-}
-
-private struct SelectablePositionRow: View {
-    let position: Position
-    let isSelected: Bool
-    let isDisabled: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .center, spacing: Theme.Space.md) {
-            // Selection indicator
-            ZStack {
-                Rectangle()
-                    .stroke(isSelected ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1)
-                    .frame(width: 18, height: 18)
-                if isSelected {
+            if showsCheckbox {
+                ZStack {
                     Rectangle()
-                        .fill(Theme.Palette.acc)
-                        .frame(width: 10, height: 10)
+                        .stroke(isSelected ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1)
+                        .frame(width: 18, height: 18)
+                    if isSelected {
+                        Rectangle()
+                            .fill(Theme.Palette.acc)
+                            .frame(width: 10, height: 10)
+                            .transition(
+                                reduceMotion
+                                    ? .opacity.animation(Theme.Motion.entrance(Theme.Motion.fast))
+                                    : .scale.animation(Theme.Motion.entrance(Theme.Motion.fast))
+                            )
+                    }
                 }
+                .transition(reduceMotion ? .opacity : .move(edge: .leading).combined(with: .opacity))
             }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -211,10 +222,34 @@ private struct SelectablePositionRow: View {
                 Text("\(AnalysisMath.areaDisplay(area)) cm²")
                     .font(Theme.mono(13, weight: .bold))
                     .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.acc)
+            } else {
+                Text("···")
+                    .font(Theme.mono(13))
+                    .foregroundStyle(Theme.Palette.fg4)
             }
         }
         .padding(.horizontal, Theme.Space.screenMargin)
         .frame(height: 60)
+    }
+}
+
+/// "Here's what you just made" — a 2px acid left-edge tick on the newest
+/// row after a fresh save, present immediately and fading out over 0.6s
+/// (N7). Self-contained: once mounted it fades on its own schedule,
+/// independent of the parent re-rendering afterward.
+private struct NewSaveTick: View {
+    @State private var visible = true
+
+    var body: some View {
+        Rectangle()
+            .fill(Theme.Palette.acc)
+            .frame(width: 2)
+            .opacity(visible ? 1 : 0)
+            .onAppear {
+                withAnimation(Theme.Motion.entrance(0.6)) {
+                    visible = false
+                }
+            }
     }
 }
 

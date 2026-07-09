@@ -1,6 +1,8 @@
 # Plan N — Motion & Experience Polish
 
-Status: ready to execute
+Status: N1–N9 code complete. N9's on-device checklist (camera/haptics/feel,
+Reduce Motion, Dynamic Type) is human-gated — still needs Kah on physical
+hardware; the code-level Reduce Motion audit is done.
 Scope: animation, transitions, pre-population, haptics. **No measurement logic
 changes** — nothing in `Analysis/` changes behaviour, no model/schema changes.
 

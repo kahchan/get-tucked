@@ -5,6 +5,7 @@ struct LeaderboardView: View {
     @Binding var path: [AppScreen]
     @Query(sort: \Position.capturedAt, order: .reverse) private var allPositions: [Position]
     @State private var bikeFilter: BikeType? = nil  // nil = ALL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var filtered: [Position] {
         let withMetrics = allPositions.filter { $0.metrics != nil }
@@ -43,6 +44,10 @@ struct LeaderboardView: View {
                                 SectionDivider()
                             }
                         }
+                        // Identity is already \.element.id, so a filter change
+                        // reorders existing rows into their new rank position
+                        // instead of teleporting (N7).
+                        .animation(reduceMotion ? nil : Theme.Motion.travel(), value: bikeFilter)
                     }
                 }
             }
@@ -55,6 +60,10 @@ struct LeaderboardView: View {
 
 private struct FilterBar: View {
     @Binding var selection: BikeType?
+
+    // Underline slides between tabs (N7) instead of popping.
+    @Namespace private var underlineNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let options: [(label: String, value: BikeType?)] = [
         ("ALL", nil),
@@ -77,13 +86,17 @@ private struct FilterBar: View {
                         .frame(height: 36)
                         .overlay(alignment: .bottom) {
                             if selected {
-                                Rectangle().fill(Theme.Palette.acc).frame(height: 2)
+                                Rectangle()
+                                    .fill(Theme.Palette.acc)
+                                    .frame(height: 2)
+                                    .matchedGeometryEffect(id: "filterUnderline", in: underlineNamespace)
                             }
                         }
                 }
                 .buttonStyle(.plain)
             }
         }
+        .animation(reduceMotion ? nil : Theme.Motion.travel(0.2), value: selection)
     }
 }
 
@@ -93,6 +106,11 @@ private struct RankRow: View {
     let rank: Int
     let position: Position
     let best: Position?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Rank-1 underline sweep progress (N7) — the small podium moment, once
+    // per push into first place.
+    @State private var underlineProgress: Double = 0
 
     private var area: Double? { position.metrics?.frontalAreaCm2 }
     private var bestArea: Double? { best?.metrics?.frontalAreaCm2 }
@@ -146,5 +164,28 @@ private struct RankRow: View {
         }
         .padding(.horizontal, Theme.Space.screenMargin)
         .frame(height: 64)
+        .overlay(alignment: .bottom) {
+            if rank == 1 {
+                // Sweeps in left→right once each time a position pushes into
+                // first place — fires on insertion, so a later re-sort that
+                // promotes a different row to rank 1 gets its own sweep too.
+                GeometryReader { proxy in
+                    Rectangle()
+                        .fill(Theme.Palette.acc)
+                        .frame(width: proxy.size.width * underlineProgress, height: 2)
+                }
+                .frame(height: 2)
+                .onAppear {
+                    if reduceMotion {
+                        underlineProgress = 1
+                    } else {
+                        underlineProgress = 0
+                        withAnimation(Theme.Motion.travel(Theme.Motion.gentle)) {
+                            underlineProgress = 1
+                        }
+                    }
+                }
+            }
+        }
     }
 }
