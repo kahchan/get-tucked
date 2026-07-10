@@ -531,131 +531,143 @@ private struct RevealStep: View {
     }
 
     var body: some View {
-        ZStack {
-            Theme.Palette.bg0.ignoresSafeArea()
+        GeometryReader { screenProxy in
+            ZStack {
+                Theme.Palette.bg0.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 0) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ZStack {
-                            // The photo is on screen the instant this view appears —
-                            // no entrance animation (it was already visible during
-                            // the N3 analysing scan).
-                            Image(uiImage: photo)
-                                .resizable()
-                                .scaledToFit()
-                            if let maskOverlay {
-                                Image(uiImage: maskOverlay)
+                VStack(alignment: .leading, spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ZStack {
+                                // The photo is on screen the instant this view appears —
+                                // no entrance animation (it was already visible during
+                                // the N3 analysing scan).
+                                Image(uiImage: photo)
                                     .resizable()
                                     .scaledToFit()
-                                    .scanReveal(progress: reduceMotion ? 1 : sweepProgress)
-                                    .opacity(revealSegment == .photo ? 0 : 1)
-                            }
-                            if revealSegment == .bones, let frontalSkeletonOverlay {
-                                frontalSkeletonOverlay
-                                    .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
-                                    .skeletonReveal(visible: skeletonVisible)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .background(Theme.Palette.bg1)
-                        .onAppear { beginCeremony() }
-                        .onChange(of: maskOverlay) { _, _ in startSweepIfReady() }
-                        // `.task` (not a bare `Task { }`) so SwiftUI cancels this
-                        // automatically if the user backs out before the hold ends.
-                        .task { await revealRowsAfterHold() }
-
-                        SegmentedToggleBar(labels: revealSegmentLabels, selectedIndex: revealSegmentIndexBinding)
-                        SectionDivider()
-
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text("FRONTAL AREA")
-                                .font(Theme.mono(11, weight: .bold))
-                                .foregroundStyle(Theme.Palette.fg3)
-                                .kerning(0.8)
-                                .padding(.top, Theme.Space.xl)
-                                .opacity(labelVisible ? 1 : 0)
-
-                            HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
-                                RollingNumberText(
-                                    value: result.frontalAreaCm2,
-                                    format: { AnalysisMath.areaDisplay($0) },
-                                    font: Theme.mono(60, weight: .bold),
-                                    color: Theme.Palette.acc,
-                                    tracking: Theme.Typography.tracking(forSize: 60),
-                                    delay: 0.7,
-                                    onComplete: { Haptics.confirm() }
-                                )
-                                Text("cm²")
-                                    .font(Theme.mono(18))
-                                    .foregroundStyle(Theme.Palette.fg3)
-                            }
-                            .padding(.top, Theme.Space.xs)
-
-                            VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                                Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
-                                    .font(Theme.mono(12))
-                                    .foregroundStyle(Theme.Palette.fg3)
-                                if let scaleWarning = result.scaleWarning {
-                                    Text(scaleWarning)
-                                        .font(Theme.mono(11))
-                                        .foregroundStyle(Theme.Palette.amb)
+                                if let maskOverlay {
+                                    Image(uiImage: maskOverlay)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .scanReveal(progress: reduceMotion ? 1 : sweepProgress)
+                                        .opacity(revealSegment == .photo ? 0 : 1)
                                 }
-                                HowItWorksLink(path: $path)
-                                    .padding(.top, Theme.Space.xs)
+                                if revealSegment == .bones, let frontalSkeletonOverlay {
+                                    frontalSkeletonOverlay
+                                        .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
+                                        .skeletonReveal(visible: skeletonVisible)
+                                }
                             }
-                            .padding(.top, Theme.Space.xs)
-                            .padding(.bottom, Theme.Space.xl)
-                            .opacity(uncertaintyVisible ? 1 : 0)
+                            .frame(maxWidth: .infinity)
+                            // Capped (Kah, on-device: a tall portrait photo scaled
+                            // to full width pushed the hero number below the
+                            // fold entirely) — the ceremony's whole point is the
+                            // number rolling while the photo/skeleton are still
+                            // visible, so the photo can never own so much height
+                            // that the number needs a scroll to see. scaledToFit
+                            // still shows the whole photo, just letterboxed
+                            // within this cap instead of running to its full
+                            // (often much taller) natural height.
+                            .frame(maxHeight: screenProxy.size.height * 0.4)
+                            .background(Theme.Palette.bg1)
+                            .onAppear { beginCeremony() }
+                            .onChange(of: maskOverlay) { _, _ in startSweepIfReady() }
+                            // `.task` (not a bare `Task { }`) so SwiftUI cancels this
+                            // automatically if the user backs out before the hold ends.
+                            .task { await revealRowsAfterHold() }
 
+                            SegmentedToggleBar(labels: revealSegmentLabels, selectedIndex: revealSegmentIndexBinding)
                             SectionDivider()
 
-                            MetricRow(key: "Scale",
-                                      value: String(format: "%.1f px/cm", result.pixelsPerCm))
-                                .cascadeIn(index: 0, trigger: rowsVisible)
-                            if let barWidthMm {
-                                MetricRow(key: "Bar width", value: "\(Int(barWidthMm)) mm")
-                                    .cascadeIn(index: 1, trigger: rowsVisible)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text("FRONTAL AREA")
+                                    .font(Theme.mono(11, weight: .bold))
+                                    .foregroundStyle(Theme.Palette.fg3)
+                                    .kerning(0.8)
+                                    .padding(.top, Theme.Space.xl)
+                                    .opacity(labelVisible ? 1 : 0)
+
+                                HStack(alignment: .firstTextBaseline, spacing: Theme.Space.sm) {
+                                    RollingNumberText(
+                                        value: result.frontalAreaCm2,
+                                        format: { AnalysisMath.areaDisplay($0) },
+                                        font: Theme.mono(60, weight: .bold),
+                                        color: Theme.Palette.acc,
+                                        tracking: Theme.Typography.tracking(forSize: 60),
+                                        delay: 0.7,
+                                        onComplete: { Haptics.confirm() }
+                                    )
+                                    Text("cm²")
+                                        .font(Theme.mono(18))
+                                        .foregroundStyle(Theme.Palette.fg3)
+                                }
+                                .padding(.top, Theme.Space.xs)
+
+                                VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                                    Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))
+                                        .font(Theme.mono(12))
+                                        .foregroundStyle(Theme.Palette.fg3)
+                                    if let scaleWarning = result.scaleWarning {
+                                        Text(scaleWarning)
+                                            .font(Theme.mono(11))
+                                            .foregroundStyle(Theme.Palette.amb)
+                                    }
+                                    HowItWorksLink(path: $path)
+                                        .padding(.top, Theme.Space.xs)
+                                }
+                                .padding(.top, Theme.Space.xs)
+                                .padding(.bottom, Theme.Space.xl)
+                                .opacity(uncertaintyVisible ? 1 : 0)
+
+                                SectionDivider()
+
+                                MetricRow(key: "Scale",
+                                          value: String(format: "%.1f px/cm", result.pixelsPerCm))
+                                    .cascadeIn(index: 0, trigger: rowsVisible)
+                                if let barWidthMm {
+                                    MetricRow(key: "Bar width", value: "\(Int(barWidthMm)) mm")
+                                        .cascadeIn(index: 1, trigger: rowsVisible)
+                                }
+                                if let fraction = result.wheelCheckDisagreementFraction {
+                                    let check = AnalysisMath.wheelCheckDisplay(fraction)
+                                    MetricRow(key: "Wheel check", value: check.text,
+                                              valueColor: check.isWarning ? Theme.Palette.amb : Theme.Palette.fg)
+                                        .cascadeIn(index: 2, trigger: rowsVisible)
+                                }
+                                if let shoulder = result.headOnPose?.shoulderWidthCm {
+                                    MetricRow(key: "Shoulder width",
+                                              value: String(format: "%.1f cm", shoulder))
+                                        .cascadeIn(index: 3, trigger: rowsVisible)
+                                }
+                                if let pose = sideOnPose {
+                                    MetricRow(key: "Torso angle",
+                                              value: "\(Int(pose.torsoAngleDeg.rounded()))°")
+                                        .cascadeIn(index: 4, trigger: rowsVisible)
+                                    MetricRow(key: "Hip angle",
+                                              value: "\(Int(pose.hipAngleDeg.rounded()))°")
+                                        .cascadeIn(index: 5, trigger: rowsVisible)
+                                    // Head drop hidden for now (Plan G decision 4) — its cm
+                                    // figure borrows the frontal photo's pixelsPerCm, which
+                                    // is only valid if both shots share a camera distance
+                                    // (unenforced) and inherits the frontal scale-plane bias.
+                                    // Still computed and stored; just not shown until it has
+                                    // its own ruler.
+                                }
                             }
-                            if let fraction = result.wheelCheckDisagreementFraction {
-                                let check = AnalysisMath.wheelCheckDisplay(fraction)
-                                MetricRow(key: "Wheel check", value: check.text,
-                                          valueColor: check.isWarning ? Theme.Palette.amb : Theme.Palette.fg)
-                                    .cascadeIn(index: 2, trigger: rowsVisible)
-                            }
-                            if let shoulder = result.headOnPose?.shoulderWidthCm {
-                                MetricRow(key: "Shoulder width",
-                                          value: String(format: "%.1f cm", shoulder))
-                                    .cascadeIn(index: 3, trigger: rowsVisible)
-                            }
-                            if let pose = sideOnPose {
-                                MetricRow(key: "Torso angle",
-                                          value: "\(Int(pose.torsoAngleDeg.rounded()))°")
-                                    .cascadeIn(index: 4, trigger: rowsVisible)
-                                MetricRow(key: "Hip angle",
-                                          value: "\(Int(pose.hipAngleDeg.rounded()))°")
-                                    .cascadeIn(index: 5, trigger: rowsVisible)
-                                // Head drop hidden for now (Plan G decision 4) — its cm
-                                // figure borrows the frontal photo's pixelsPerCm, which
-                                // is only valid if both shots share a camera distance
-                                // (unenforced) and inherits the frontal scale-plane bias.
-                                // Still computed and stored; just not shown until it has
-                                // its own ruler.
-                            }
+                            .padding(.horizontal, Theme.Space.lg)
                         }
-                        .padding(.horizontal, Theme.Space.lg)
                     }
+
+                    GhostButton(label: "RETAKE", action: onRetake)
+                        .padding(.horizontal, Theme.Space.lg)
+                        .padding(.top, Theme.Space.sm)
+                        .opacity(buttonsVisible ? 1 : 0)
+
+                    AccentButton(label: "NAME POSITION", action: onContinue)
+                        .padding(.horizontal, Theme.Space.lg)
+                        .padding(.vertical, Theme.Space.md)
+                        .opacity(buttonsVisible ? 1 : 0)
                 }
-
-                GhostButton(label: "RETAKE", action: onRetake)
-                    .padding(.horizontal, Theme.Space.lg)
-                    .padding(.top, Theme.Space.sm)
-                    .opacity(buttonsVisible ? 1 : 0)
-
-                AccentButton(label: "NAME POSITION", action: onContinue)
-                    .padding(.horizontal, Theme.Space.lg)
-                    .padding(.vertical, Theme.Space.md)
-                    .opacity(buttonsVisible ? 1 : 0)
             }
         }
     }
