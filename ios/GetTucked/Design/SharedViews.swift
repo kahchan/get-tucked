@@ -112,6 +112,21 @@ private struct PressedOpacityButtonStyle: ButtonStyle {
     }
 }
 
+/// PHOTO / MASK / BONES segment selection, shared by RevealStep and
+/// PositionDetailView (frontal and side-on) so the identical three-way
+/// toggle logic (Plan O) doesn't drift between them.
+enum PhotoSegment: Equatable {
+    case photo, mask, bones
+
+    var label: String {
+        switch self {
+        case .photo: "PHOTO"
+        case .mask: "MASK"
+        case .bones: "BONES"
+        }
+    }
+}
+
 /// N-segment tab bar — PHOTO/MASK, FRONTAL/SIDE-ON, PHOTO/MASK/BONES (Plan O)
 /// — shared by RevealStep and PositionDetailView's toggles so the
 /// near-identical copies (Plan I2) don't drift. Generalised from a two-state

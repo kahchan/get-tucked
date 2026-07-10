@@ -15,9 +15,13 @@ struct PositionDetailView: View {
     @State private var headOnImage: UIImage?
     @State private var sideOnImage: UIImage?
     @State private var maskOverlay: UIImage?
+    @State private var sideOnMaskOverlay: UIImage?
     #endif
     @State private var showingSideOn = false
-    @State private var showingMask = false
+    // Remembered per photo side for the session (Plan O5) — not persisted,
+    // so a revisit always starts back on PHOTO like it does today.
+    @State private var frontalPhotoSegment: PhotoSegment = .photo
+    @State private var sideOnPhotoSegment: PhotoSegment = .photo
     @State private var showDeleteConfirm = false
     // Peeked from the stored photos' headers (no full decode) so the
     // placeholder box is sized correctly from the very first frame (N5) —
@@ -92,17 +96,37 @@ struct PositionDetailView: View {
                                     .resizable()
                                     .scaledToFit()
                                     .transition(.opacity)
-                                    .opacity(showingMask ? 1 : 0)
+                                    .opacity(frontalPhotoSegment == .photo ? 0 : 1)
+                            }
+                            if !showingSideOn, let frontalSkeletonOverlay {
+                                frontalSkeletonOverlay
+                                    .aspectRatio(headOnAspectRatio, contentMode: .fit)
+                                    .skeletonReveal(visible: frontalPhotoSegment == .bones)
+                            }
+                            if showingSideOn, let sideOnMaskOverlay {
+                                Image(uiImage: sideOnMaskOverlay)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .transition(.opacity)
+                                    .opacity(sideOnPhotoSegment == .photo ? 0 : 1)
+                            }
+                            if showingSideOn, let sideOnSkeletonOverlay {
+                                sideOnSkeletonOverlay
+                                    .aspectRatio(sideOnAspectRatio, contentMode: .fit)
+                                    .skeletonReveal(visible: sideOnPhotoSegment == .bones)
                             }
                         }
                         .aspectRatio(showingSideOn ? sideOnAspectRatio : headOnAspectRatio, contentMode: .fit)
                         .frame(maxWidth: .infinity)
-                        // MASK toggle only makes sense on the frontal photo — that's
-                        // the one the stored mask was computed from. Fades in
-                        // (rather than popping the layout) once the overlay is
-                        // ready — see loadPhotos().
-                        if !showingSideOn, maskOverlay != nil {
-                            SegmentedToggleBar(labels: ["PHOTO", "MASK"], selectedIndex: maskSegmentBinding)
+                        // MASK/BONES only make sense once the overlay they need is
+                        // ready — fades in (rather than popping the layout) once it
+                        // is, same as the underlying mask fade in loadPhotos().
+                        if !showingSideOn, frontalSegments.count > 1 {
+                            SegmentedToggleBar(labels: frontalSegments.map(\.label), selectedIndex: frontalPhotoSegmentBinding)
+                                .transition(.opacity)
+                        }
+                        if showingSideOn, sideOnSegments.count > 1 {
+                            SegmentedToggleBar(labels: sideOnSegments.map(\.label), selectedIndex: sideOnPhotoSegmentBinding)
                                 .transition(.opacity)
                         }
                         #else
@@ -188,15 +212,62 @@ struct PositionDetailView: View {
         )
     }
 
-    private var maskSegmentBinding: Binding<Int> {
+    /// Only the segments that make sense given what's actually available —
+    /// BONES is absent for positions captured before Plan O (no stored
+    /// landmarks), and MASK is absent if the matte failed to build.
+    private var frontalSegments: [PhotoSegment] {
+        var segments: [PhotoSegment] = [.photo]
+        if maskOverlay != nil { segments.append(.mask) }
+        if frontalSkeletonOverlay != nil { segments.append(.bones) }
+        return segments
+    }
+
+    /// Degrades independently of `frontalSegments`: a side-on capture can
+    /// have a skeleton with no matte (segmentation failed at capture) or —
+    /// in principle — a matte with no skeleton, so each overlay's presence
+    /// is checked on its own rather than assuming both-or-neither.
+    private var sideOnSegments: [PhotoSegment] {
+        var segments: [PhotoSegment] = [.photo]
+        if sideOnMaskOverlay != nil { segments.append(.mask) }
+        if sideOnSkeletonOverlay != nil { segments.append(.bones) }
+        return segments
+    }
+
+    private var frontalPhotoSegmentBinding: Binding<Int> {
         Binding(
-            get: { showingMask ? 1 : 0 },
+            get: { frontalSegments.firstIndex(of: frontalPhotoSegment) ?? 0 },
             set: { newIndex in
+                guard frontalSegments.indices.contains(newIndex) else { return }
                 withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
-                    showingMask = newIndex == 1
+                    frontalPhotoSegment = frontalSegments[newIndex]
                 }
             }
         )
+    }
+
+    private var sideOnPhotoSegmentBinding: Binding<Int> {
+        Binding(
+            get: { sideOnSegments.firstIndex(of: sideOnPhotoSegment) ?? 0 },
+            set: { newIndex in
+                guard sideOnSegments.indices.contains(newIndex) else { return }
+                withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
+                    sideOnPhotoSegment = sideOnSegments[newIndex]
+                }
+            }
+        )
+    }
+
+    /// No draw-on here (Plan O5) — `SkeletonOverlay.progress` defaults to 1
+    /// (fully drawn); `.skeletonReveal` gives the BONES toggle its
+    /// Motion.fast opacity fade instead.
+    private var frontalSkeletonOverlay: SkeletonOverlay? {
+        guard let shoulders = position.metrics?.headOnSkeletonPoints else { return nil }
+        return SkeletonOverlay.frontal(shoulders: shoulders, arms: position.metrics?.headOnArmPoints)
+    }
+
+    private var sideOnSkeletonOverlay: SkeletonOverlay? {
+        guard let points = position.metrics?.sideOnSkeletonPoints else { return nil }
+        return SkeletonOverlay.sideOn(points: points)
     }
 
     #if canImport(UIKit)
@@ -210,6 +281,7 @@ struct PositionDetailView: View {
         let sideOnData = position.sideOnPhotoData
         let sideOnIdentifier = position.sideOnPhotoIdentifier
         let maskData = position.maskData
+        let sideOnMaskData = position.sideOnMaskData
 
         // Independent work — run concurrently so a revisit never waits
         // longer than the slower of the two (Plan N5's own goal: a revisit
@@ -225,9 +297,12 @@ struct PositionDetailView: View {
             sideOnImage = decodedSideOn
         }
 
-        let overlay = await buildMaskOverlay(maskData: maskData, headOnPhoto: decodedHeadOn)
+        async let maskTask = buildMaskOverlay(maskData: maskData, photo: decodedHeadOn)
+        async let sideOnMaskTask = buildMaskOverlay(maskData: sideOnMaskData, photo: decodedSideOn)
+        let (overlay, sideOnOverlay) = await (maskTask, sideOnMaskTask)
         withAnimation(Theme.Motion.entrance()) {
             maskOverlay = overlay
+            sideOnMaskOverlay = sideOnOverlay
         }
     }
 
@@ -243,13 +318,14 @@ struct PositionDetailView: View {
         return await loadAsset(identifier: identifier)
     }
 
-    /// Builds the PHOTO/MASK overlay off-main (N5) — pure pixel work with no
-    /// main-actor requirement. Skips silently — no toggle offered — when
-    /// there's no stored mask or when the mask and photo disagree on aspect
-    /// ratio (Plan I5): a mismatched composite would tint the wrong region
-    /// rather than hug the rider.
-    private func buildMaskOverlay(maskData: Data?, headOnPhoto: UIImage?) async -> UIImage? {
-        guard let maskData, let cgPhoto = headOnPhoto?.cgImage else { return nil }
+    /// Builds a PHOTO/MASK overlay off-main (N5) — pure pixel work with no
+    /// main-actor requirement. Shared by frontal and side-on (Plan O5).
+    /// Skips silently — no toggle offered — when there's no stored mask or
+    /// when the mask and photo disagree on aspect ratio (Plan I5): a
+    /// mismatched composite would tint the wrong region rather than hug the
+    /// rider.
+    private func buildMaskOverlay(maskData: Data?, photo: UIImage?) async -> UIImage? {
+        guard let maskData, let cgPhoto = photo?.cgImage else { return nil }
         return await Task.detached(priority: .userInitiated) { () -> UIImage? in
             guard let mask = UIImage(data: maskData), let cgMask = mask.cgImage else { return nil }
             guard AnalysisMath.maskMatchesSourceAspect(

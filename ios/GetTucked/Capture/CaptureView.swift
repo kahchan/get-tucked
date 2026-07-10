@@ -490,11 +490,7 @@ private struct RevealStep: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private enum Segment: Equatable {
-        case photo, mask, bones
-    }
-
-    @State private var revealSegment: Segment
+    @State private var revealSegment: PhotoSegment
     // Reveal ceremony phases — driven entirely by delayed/completion-based
     // withAnimation calls (never DispatchQueue.asyncAfter) so Reduce Motion
     // collapses cleanly and a mid-sequence tap can snap everything forward.
@@ -666,18 +662,12 @@ private struct RevealStep: View {
 
     /// Only the segments that make sense for this capture — BONES is absent
     /// entirely when there's no head-on pose, rather than shown disabled.
-    private var revealSegments: [Segment] {
+    private var revealSegments: [PhotoSegment] {
         result.headOnPose != nil ? [.photo, .mask, .bones] : [.photo, .mask]
     }
 
     private var revealSegmentLabels: [String] {
-        revealSegments.map { segment in
-            switch segment {
-            case .photo: "PHOTO"
-            case .mask: "MASK"
-            case .bones: "BONES"
-            }
-        }
+        revealSegments.map(\.label)
     }
 
     /// Intercepts PHOTO/MASK/BONES taps: mid-ceremony, snap everything to its
