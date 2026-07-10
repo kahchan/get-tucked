@@ -31,9 +31,10 @@ enum SkeletonTimeline {
     /// whole bone.
     static func jointOpacity(boneTrim: Double, popFraction: Double) -> Double {
         guard popFraction > 0 else { return boneTrim >= 1 ? 1 : 0 }
+        // popFraction > 0 guarantees start < 1, so the division below is safe.
         let start = max(0, 1 - popFraction)
-        guard boneTrim > start, start < 1 else { return boneTrim > start ? 1 : 0 }
-        let t = min(1, max(0, (boneTrim - start) / (1 - start)))
+        guard boneTrim > start else { return 0 }
+        let t = min(1, (boneTrim - start) / (1 - start))
         return t * t * (3 - 2 * t) // smoothstep
     }
 }
@@ -58,7 +59,7 @@ struct SkeletonOverlay: View {
     /// `.measured` bones/joints feed a displayed number (spec §3); `.context`
     /// ones (the frontal arm chains) are explanatory only, so they draw in a
     /// dimmer stroke — the two tiers must never read as equally "measured."
-    enum Tier {
+    enum Tier: Equatable {
         case measured
         case context
 
