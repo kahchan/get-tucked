@@ -362,24 +362,31 @@ struct AnalysisEngine {
             throw AnalysisError.poseNotDetected
         }
 
-        let shoulder = try observation.recognizedPoint(.leftShoulder)
-        let hip = try observation.recognizedPoint(.leftHip)
-        let knee = try observation.recognizedPoint(.leftKnee)
-        let ear = try observation.recognizedPoint(.leftEar)
-
-        guard shoulder.confidence > 0.5, hip.confidence > 0.5,
-              knee.confidence > 0.5, ear.confidence > 0.5 else {
+        // A profile shot only exposes ONE anatomical side to the camera — the
+        // far side is self-occluded, so its joints read low-confidence or
+        // undetectable. Which side that is depends purely on which way the
+        // rider happens to face; try left first (arbitrary), fall back to
+        // right, rather than hardcoding left and silently failing whenever
+        // the rider faces the other way. Torso/hip angle and head drop are
+        // symmetric quantities — either side yields an equivalent measurement.
+        guard let side = sideOnJoints(from: observation, side: .left)
+            ?? sideOnJoints(from: observation, side: .right)
+        else {
             throw AnalysisError.poseNotDetected
         }
+        let shoulder = side.shoulder
+        let hip = side.hip
+        let knee = side.knee
+        let ear = side.ear
 
         let torsoAngleDeg = AnalysisMath.torsoAngleDeg(
-            shoulder: shoulder.location, hip: hip.location
+            shoulder: shoulder, hip: hip
         )
         let hipAngleDeg = AnalysisMath.hipAngleDeg(
-            shoulder: shoulder.location, hip: hip.location, knee: knee.location
+            shoulder: shoulder, hip: hip, knee: knee
         )
         let headDropCm = AnalysisMath.headDropCm(
-            shoulderY: shoulder.location.y, earY: ear.location.y,
+            shoulderY: shoulder.y, earY: ear.y,
             imageHeightPx: cgImage.height, pixelsPerCm: pixelsPerCm
         )
 
@@ -387,10 +394,34 @@ struct AnalysisEngine {
             torsoAngleDeg: torsoAngleDeg,
             hipAngleDeg: hipAngleDeg,
             headDropCm: headDropCm,
-            shoulder: shoulder.location,
-            hip: hip.location,
-            knee: knee.location,
-            ear: ear.location
+            shoulder: shoulder,
+            hip: hip,
+            knee: knee,
+            ear: ear
         )
+    }
+
+    private enum BodySide {
+        case left, right
+
+        var joints: (shoulder: VNHumanBodyPoseObservation.JointName, hip: VNHumanBodyPoseObservation.JointName,
+                     knee: VNHumanBodyPoseObservation.JointName, ear: VNHumanBodyPoseObservation.JointName) {
+            switch self {
+            case .left: (.leftShoulder, .leftHip, .leftKnee, .leftEar)
+            case .right: (.rightShoulder, .rightHip, .rightKnee, .rightEar)
+            }
+        }
+    }
+
+    private static func sideOnJoints(
+        from observation: VNHumanBodyPoseObservation, side: BodySide
+    ) -> (shoulder: CGPoint, hip: CGPoint, knee: CGPoint, ear: CGPoint)? {
+        let joints = side.joints
+        guard let shoulder = try? observation.recognizedPoint(joints.shoulder), shoulder.confidence > 0.5,
+              let hip = try? observation.recognizedPoint(joints.hip), hip.confidence > 0.5,
+              let knee = try? observation.recognizedPoint(joints.knee), knee.confidence > 0.5,
+              let ear = try? observation.recognizedPoint(joints.ear), ear.confidence > 0.5
+        else { return nil }
+        return (shoulder.location, hip.location, knee.location, ear.location)
     }
 }
