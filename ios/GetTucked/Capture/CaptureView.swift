@@ -33,6 +33,9 @@ struct CaptureView: View {
     @State private var sideOnImage: UIImage?
     @State private var sideOnAssetIdentifier: String?
     @State private var pendingSideOnPose: SideOnPoseMetrics?
+    // Untinted side-on segmentation matte (Plan O) — nil when segmentation
+    // failed at capture, which never blocks save (presentational only).
+    @State private var pendingSideOnMask: UIImage?
     @State private var analysisError: AnalysisError?
     @State private var showingError = false
     // Set at the end of savePosition — lets the success screen offer a
@@ -270,6 +273,7 @@ struct CaptureView: View {
         sideOnImage = nil
         sideOnAssetIdentifier = nil
         pendingSideOnPose = nil
+        pendingSideOnMask = nil
         savedPositionID = nil
         step = .pickPhoto
     }
@@ -297,10 +301,10 @@ struct CaptureView: View {
         }
         let stepEnteredAt = Date()
         // Pose failure is non-fatal: we still save the position, just without posture metrics.
-        pendingSideOnPose = try? await AnalysisEngine.analyseSideOn(
-            image: image,
-            pixelsPerCm: pixelsPerCm
-        )
+        if let analysis = try? await AnalysisEngine.analyseSideOn(image: image, pixelsPerCm: pixelsPerCm) {
+            pendingSideOnPose = analysis.pose
+            pendingSideOnMask = analysis.maskImage
+        }
         await waitForMinimumAnalysingDisplay(since: stepEnteredAt)
         step = .reveal
     }
@@ -342,10 +346,28 @@ struct CaptureView: View {
         metrics.shoulderWidthCm = result.headOnPose?.shoulderWidthCm
         metrics.handlebarWidthMmUsed = usedHandlebarWidthMm
         metrics.wheelCheckDisagreementFraction = result.wheelCheckDisagreementFraction
+        if let headOnPose = result.headOnPose {
+            metrics.headOnSkeletonPoints = [
+                headOnPose.leftShoulder.x, headOnPose.leftShoulder.y,
+                headOnPose.rightShoulder.x, headOnPose.rightShoulder.y,
+            ]
+            if let arms = headOnPose.armPoints {
+                metrics.headOnArmPoints = arms.flatMap { [$0.x, $0.y] }
+            }
+        }
         if let pose = pendingSideOnPose {
             metrics.torsoAngleDeg = pose.torsoAngleDeg
             metrics.hipAngleDeg   = pose.hipAngleDeg
             metrics.headDropCm    = pose.headDropCm
+            metrics.sideOnSkeletonPoints = [
+                pose.shoulder.x, pose.shoulder.y,
+                pose.hip.x, pose.hip.y,
+                pose.knee.x, pose.knee.y,
+                pose.ear.x, pose.ear.y,
+            ]
+        }
+        if let sideOnMask = pendingSideOnMask?.cgImage {
+            position.sideOnMaskData = MatteRenderer.downscaledMaskPNGData(mask: sideOnMask)
         }
         position.sideOnPhotoIdentifier = sideOnAssetIdentifier
         // Always persist the bytes too, not just when there's no PHAsset

@@ -45,6 +45,17 @@ struct AnalysisResult {
 struct HeadOnPoseMetrics {
     /// Shoulder-to-shoulder distance in cm, derived from VNHumanBodyPoseObservation.
     let shoulderWidthCm: Double
+    /// Normalised (0–1, origin bottom-left) shoulder landmarks — the exact
+    /// points shoulderWidthCm was computed from, persisted for the skeleton
+    /// overlay (Plan O) so it replays what produced the number rather than
+    /// re-estimating it.
+    let leftShoulder: CGPoint
+    let rightShoulder: CGPoint
+    /// Elbow/wrist landmarks, both sides — [leftElbow, leftWrist, rightElbow,
+    /// rightWrist]. Presentational context only, not a measurement input:
+    /// nil unless all four clear the confidence floor, since a one-armed
+    /// skeleton reads as broken (arms are symmetric-or-nothing).
+    let armPoints: [CGPoint]?
 }
 
 /// Pose metrics computable from the side-on photo (Phase 2.5).
@@ -55,6 +66,20 @@ struct SideOnPoseMetrics {
     let hipAngleDeg: Double
     /// Vertical distance the ear sits below the shoulder (positive = lower than shoulder).
     let headDropCm: Double
+    /// Normalised (0–1, origin bottom-left) landmarks — the same points the
+    /// angles above were computed from (Plan O).
+    let shoulder: CGPoint
+    let hip: CGPoint
+    let knee: CGPoint
+    let ear: CGPoint
+}
+
+/// Side-on pose bundled with its segmentation matte (Plan O). Segmentation
+/// is presentational only — a nil mask degrades the UI to skeleton-over-photo,
+/// it never fails the pose estimate.
+struct SideOnAnalysis {
+    let pose: SideOnPoseMetrics
+    let maskImage: UIImage?
 }
 
 struct AnalysisEngine {
@@ -141,9 +166,14 @@ struct AnalysisEngine {
     static func analyseSideOn(
         image: UIImage,
         pixelsPerCm: Double
-    ) async throws -> SideOnPoseMetrics {
+    ) async throws -> SideOnAnalysis {
         guard let cgImage = image.cgImage else { throw AnalysisError.segmentationFailed }
-        return try await estimateSideOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
+        let pose = try await estimateSideOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
+        // Side-on matte is presentational (Plan O) — a failure here must not
+        // fail the posture metrics, which is why this is the only place in
+        // the engine that swallows a segmentPerson error instead of propagating it.
+        let maskImage = (try? await segmentPerson(cgImage: cgImage)).map(UIImage.init(cgImage:))
+        return SideOnAnalysis(pose: pose, maskImage: maskImage)
     }
 
     // MARK: - Person validation
@@ -295,7 +325,27 @@ struct AnalysisEngine {
             pixelsPerCm: pixelsPerCm
         )
 
-        return HeadOnPoseMetrics(shoulderWidthCm: shoulderWidthCm)
+        return HeadOnPoseMetrics(
+            shoulderWidthCm: shoulderWidthCm,
+            leftShoulder: leftShoulder.location,
+            rightShoulder: rightShoulder.location,
+            armPoints: armPoints(from: observation)
+        )
+    }
+
+    /// Never throws — arms are presentational context (Plan O), not a
+    /// measurement input, so any joint missing or below the confidence floor
+    /// just omits the whole set rather than failing head-on analysis.
+    private static func armPoints(from observation: VNHumanBodyPoseObservation) -> [CGPoint]? {
+        let joints: [VNHumanBodyPoseObservation.JointName] = [.leftElbow, .leftWrist, .rightElbow, .rightWrist]
+        var points: [CGPoint] = []
+        for joint in joints {
+            guard let point = try? observation.recognizedPoint(joint), point.confidence > 0.5 else {
+                return nil
+            }
+            points.append(point.location)
+        }
+        return points
     }
 
     // MARK: - Side-on pose estimation
@@ -336,7 +386,11 @@ struct AnalysisEngine {
         return SideOnPoseMetrics(
             torsoAngleDeg: torsoAngleDeg,
             hipAngleDeg: hipAngleDeg,
-            headDropCm: headDropCm
+            headDropCm: headDropCm,
+            shoulder: shoulder.location,
+            hip: hip.location,
+            knee: knee.location,
+            ear: ear.location
         )
     }
 }
