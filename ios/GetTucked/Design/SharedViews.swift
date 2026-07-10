@@ -108,7 +108,7 @@ private struct PressedOpacityButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(configuration.isPressed ? 0.6 : 1)
-            .animation(Theme.Motion.entrance(0.1), value: configuration.isPressed)
+            .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
     }
 }
 

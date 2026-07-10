@@ -115,7 +115,7 @@ private struct BackButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .offset(x: configuration.isPressed ? -2 : 0)
-            .animation(Theme.Motion.entrance(Theme.Motion.fast), value: configuration.isPressed)
+            .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
     }
 }
 

@@ -528,6 +528,7 @@ private struct RevealStep: View {
                                     format: { AnalysisMath.areaDisplay($0) },
                                     font: Theme.mono(60, weight: .bold),
                                     color: Theme.Palette.acc,
+                                    tracking: Theme.Typography.tracking(forSize: 60),
                                     delay: 0.7,
                                     onComplete: { Haptics.confirm() }
                                 )
@@ -760,6 +761,7 @@ private struct CaptureSuccessStep: View {
                     Text(AnalysisMath.areaDisplay(areaCm2))
                         .font(Theme.mono(52, weight: .bold))
                         .foregroundStyle(Theme.Palette.acc)
+                        .kerning(Theme.Typography.tracking(forSize: 52))
                     Text("cm²")
                         .font(Theme.mono(16))
                         .foregroundStyle(Theme.Palette.fg3)
@@ -821,6 +823,12 @@ private struct HandlebarCalibrationStep: View {
     // array (which mutates on every callback).
     @State private var dragStartUnit: CGPoint?
 
+    // Live finger position while a tap is being *placed* (before it commits on
+    // release) — drives the preview loupe so the user sees exactly where the
+    // point will land (skill §1/§2/§10). `nil` when not placing, or once the
+    // gesture crosses the pan threshold and becomes a pan instead.
+    @State private var pendingPlacement: CGPoint?
+
     // Whether the optional wheel-verification taps are being collected —
     // never gates CONFIRM SCALE (Plan K, explicit directive).
     @State private var verifyingWheel = false
@@ -833,6 +841,10 @@ private struct HandlebarCalibrationStep: View {
 
     private let minZoom: CGFloat = 1
     private let maxZoom: CGFloat = 8
+    // Movement past this (points) reclassifies a placement as a pan — matches
+    // the pan gesture's `minimumDistance` so tap-to-place and drag-to-pan share
+    // one boundary (skill §10 cancel-by-dragging-away).
+    private let panThreshold: CGFloat = 10
 
     var body: some View {
         VStack(spacing: 0) {
@@ -865,10 +877,8 @@ private struct HandlebarCalibrationStep: View {
 
                     Color.clear
                         .contentShape(Rectangle())
-                        .gesture(backgroundGesture(viewport: viewport))
-                        .onTapGesture { location in
-                            handleTap(location: location, viewport: viewport)
-                        }
+                        .gesture(backgroundGesture(viewport: viewport)
+                            .simultaneously(with: placementGesture(viewport: viewport)))
 
                     // Handles + connecting line, positioned via the pure
                     // transform on this same untransformed layer — their own
@@ -879,6 +889,10 @@ private struct HandlebarCalibrationStep: View {
                     if let dragScreenPoint {
                         loupe(forScreenPoint: dragScreenPoint, in: viewport)
                             .position(x: dragScreenPoint.x, y: max(60, dragScreenPoint.y - 110))
+                            .allowsHitTesting(false)
+                    } else if let pendingPlacement {
+                        loupe(forScreenPoint: pendingPlacement, in: viewport)
+                            .position(x: pendingPlacement.x, y: max(60, pendingPlacement.y - 110))
                             .allowsHitTesting(false)
                     }
                 }
@@ -910,8 +924,12 @@ private struct HandlebarCalibrationStep: View {
     }
 
     /// Fade+slide normally; Reduce Motion drops the slide, keeping the fade.
+    /// Slides from the BOTTOM edge (skill §7/§8): these affordances live in the
+    /// bottom control stack directly above CONFIRM SCALE, so they rise into
+    /// place from the action zone rather than dropping in from the top and
+    /// pulling the eye away from the CTA.
     private var appearTransition: AnyTransition {
-        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top))
+        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom))
     }
 
     private var showsResetView: Bool { zoomScale > 1.01 || panOffset != .zero }
@@ -1070,9 +1088,36 @@ private struct HandlebarCalibrationStep: View {
             }
     }
 
+    private var canPlaceMore: Bool {
+        verifyingWheel ? wheelTapPoints.count < 2 : tapPoints.count < 2
+    }
+
+    /// Placement with forgiveness (skill §10): preview the landing point in the
+    /// loupe on touch-down, commit on release, and cancel if the finger crossed
+    /// the pan threshold (that gesture was a pan, handled simultaneously by
+    /// `backgroundGesture`). Runs simultaneously with pan; for a plain tap
+    /// (<`panThreshold`) only this fires, so the point commits on lift.
+    private func placementGesture(viewport: CalibrationTransform.Viewport) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard canPlaceMore,
+                      hypot(value.translation.width, value.translation.height) <= panThreshold
+                else { pendingPlacement = nil; return }
+                let unit = CalibrationTransform.unitPoint(forScreen: value.location, in: viewport)
+                pendingPlacement = (0...1).contains(unit.x) && (0...1).contains(unit.y) ? value.location : nil
+            }
+            .onEnded { value in
+                defer { pendingPlacement = nil }
+                guard canPlaceMore,
+                      hypot(value.translation.width, value.translation.height) <= panThreshold
+                else { return }
+                handleTap(location: value.location, viewport: viewport)
+            }
+    }
+
     /// Pinch-to-zoom + pan on the image itself. A small `minimumDistance` on
-    /// the pan drag lets a plain tap (placing the first two points) still
-    /// fall through to `.onTapGesture`.
+    /// the pan drag lets a plain tap (placing a point via `placementGesture`)
+    /// stay below the pan threshold and commit as a placement.
     private func backgroundGesture(viewport: CalibrationTransform.Viewport) -> some Gesture {
         let magnify = MagnificationGesture()
             .updating($pinchDelta) { value, state, _ in state = value }

@@ -42,7 +42,7 @@ private struct AccentButtonStyle: ButtonStyle {
         .frame(height: Theme.Control.accentButtonHeight)
         .background(enabled ? Theme.Palette.acc : Theme.Palette.line)
         .overlay(configuration.isPressed ? Color.black.opacity(0.12) : Color.clear)
-        .animation(Theme.Motion.entrance(Theme.Motion.fast), value: configuration.isPressed)
+        .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
         .animation(Theme.Motion.entrance(), value: enabled)
     }
 }
@@ -82,7 +82,7 @@ private struct GhostButtonStyle: ButtonStyle {
                 .stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline)
         )
         .overlay(configuration.isPressed ? Color.black.opacity(0.12) : Color.clear)
-        .animation(Theme.Motion.entrance(Theme.Motion.fast), value: configuration.isPressed)
+        .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
     }
 }
 

@@ -19,6 +19,10 @@ struct RollingNumberText: View {
     let format: (Double) -> String
     let font: Font
     let color: Color
+    /// Optical letter-spacing for the display size (skill §15) — hero numbers
+    /// read too loose at zero. Defaults to none so non-display callers are
+    /// unaffected.
+    var tracking: CGFloat = 0
     var duration: Double = Theme.Motion.roll
     var delay: Double = 0
     /// Fires when the number reaches its final value — the hook RevealStep
@@ -30,7 +34,7 @@ struct RollingNumberText: View {
 
     var body: some View {
         let displayed = animatedValue ?? (reduceMotion ? value : value * 0.88)
-        AnimatableRollingNumber(value: displayed, format: format, font: font, color: color)
+        AnimatableRollingNumber(value: displayed, format: format, font: font, color: color, tracking: tracking)
             .onAppear {
                 guard animatedValue == nil else { return }
                 if reduceMotion {
@@ -56,6 +60,7 @@ private struct AnimatableRollingNumber: View, Animatable {
     let format: (Double) -> String
     let font: Font
     let color: Color
+    var tracking: CGFloat = 0
 
     var animatableData: Double {
         get { value }
@@ -66,6 +71,7 @@ private struct AnimatableRollingNumber: View, Animatable {
         Text(format(value))
             .font(font)
             .foregroundStyle(color)
+            .kerning(tracking)
             .monospacedDigit()
     }
 }

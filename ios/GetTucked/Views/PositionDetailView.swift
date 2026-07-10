@@ -310,6 +310,7 @@ private struct MetricsSection: View {
                     Text(AnalysisMath.areaDisplay(metrics.frontalAreaCm2))
                         .font(Theme.mono(60, weight: .bold))
                         .foregroundStyle(Theme.Palette.acc)
+                        .kerning(Theme.Typography.tracking(forSize: 60))
                     Text("cm²")
                         .font(Theme.mono(18))
                         .foregroundStyle(Theme.Palette.fg3)

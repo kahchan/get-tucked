@@ -105,6 +105,33 @@ enum Theme {
         static func entrance(_ d: Double = base) -> Animation { .easeOut(duration: d) }
         /// Travel: sweeps, slides, reorders — accelerate in, settle out.
         static func travel(_ d: Double = base) -> Animation { .easeInOut(duration: d) }
+        /// Press feedback: instant on press-down, eased on release. Directness
+        /// falls off a cliff the moment a press is delayed (Apple, *Designing
+        /// Fluid Interfaces* — respond on touch-down, not on a fade-in), and a
+        /// hard-edged system wants an immediate hard response anyway. Pass
+        /// `configuration.isPressed`: `nil` while pressed snaps the down state
+        /// in, `entrance(fast)` on release settles it out.
+        static func press(_ isPressed: Bool) -> Animation? {
+            isPressed ? nil : entrance(fast)
+        }
+    }
+
+    // MARK: Typography — optical tracking
+    //
+    // Tracking (letter-spacing) is size-specific: large display type reads too
+    // loose and wants NEGATIVE tracking; small text wants a slight positive
+    // bump (Apple, *The Details of UI Typography*). Small labels already set
+    // their own positive `.kerning`; this covers the display sizes that
+    // otherwise carry none.
+
+    enum Typography {
+        static func tracking(forSize size: CGFloat) -> CGFloat {
+            switch size {
+            case 56...:   return -1.5   // hero numbers, wordmark
+            case 28..<56: return -0.8   // large headings
+            default:      return 0      // mid/small keep their explicit kerning
+            }
+        }
     }
 }
 

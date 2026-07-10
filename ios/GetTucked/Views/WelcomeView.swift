@@ -16,6 +16,7 @@ struct WelcomeView: View {
                 Text("GET\nTUCKED")
                     .font(Theme.heading(88))
                     .foregroundStyle(Theme.Palette.fg)
+                    .kerning(Theme.Typography.tracking(forSize: 88))
                     .lineSpacing(-4)
                     .padding(.horizontal, Theme.Space.lg)
                     .padding(.bottom, Theme.Space.xl)

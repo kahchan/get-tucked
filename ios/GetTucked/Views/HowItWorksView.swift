@@ -73,9 +73,11 @@ struct HowItWorksView: View {
                             Text("Be informed,")
                                 .font(Theme.heading(30))
                                 .foregroundStyle(Theme.Palette.fg)
+                                .kerning(Theme.Typography.tracking(forSize: 30))
                             Text("don't guess.")
                                 .font(Theme.heading(30))
                                 .foregroundStyle(Theme.Palette.acc)
+                                .kerning(Theme.Typography.tracking(forSize: 30))
                         }
                         .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.top, Theme.Space.xl)

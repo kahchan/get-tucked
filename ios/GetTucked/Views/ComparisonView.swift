@@ -166,6 +166,7 @@ private struct DeltaHero: View {
                     format: { "\(self.sign)\(String(format: "%.1f", $0))%" },
                     font: Theme.mono(52, weight: .bold),
                     color: color,
+                    tracking: Theme.Typography.tracking(forSize: 52),
                     duration: 0.6,
                     onComplete: {
                         if isImprovement { Haptics.confirm() }
