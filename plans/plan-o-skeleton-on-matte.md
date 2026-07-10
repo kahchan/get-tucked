@@ -1,6 +1,10 @@
 # Plan O — Skeleton on the Matte (frontal + side-on)
 
-Status: planned, not started.
+Status: O1–O6 code complete (2026-07-10). Build green, all 80 tests pass
+(17 new — SkeletonGeometry/SkeletonTimeline math, frontal/sideOn convenience
+constructors). O6's on-device checklist (migration from a pre-O1 store,
+skeleton lands on the body in both orientations, draw-on feel, Reduce
+Motion) is human-gated — still needs Kah on physical hardware.
 Scope: render the pose skeleton over the matte on both the frontal and side-on
 photos, in RevealStep and PositionDetailView. Adds a side-on segmentation pass
 and persists pose landmarks — **this is a SwiftData schema change (V1 → V2)**,
