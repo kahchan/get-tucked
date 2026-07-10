@@ -34,18 +34,24 @@ struct HowItWorksView: View {
                             showRail: false
                         )
 
+                        // Every section below owns its own top gap (Theme.Space.lg)
+                        // rather than the preceding divider carrying trailing
+                        // padding — one consistent rule for the whole screen's
+                        // vertical rhythm instead of spacing living on whichever
+                        // side of a divider happened to need it.
                         SectionDivider()
-                            .padding(.top, Theme.Space.sm)
-                            .padding(.bottom, Theme.Space.lg)
 
                         Text("WHAT THE NUMBER IS — AND ISN'T")
                             .font(Theme.mono(11, weight: .bold))
                             .foregroundStyle(Theme.Palette.fg3)
                             .kerning(0.3)
                             .padding(.horizontal, Theme.Space.screenMargin)
+                            .padding(.top, Theme.Space.lg)
                             .padding(.bottom, Theme.Space.sm)
 
-                        HStack(alignment: .top, spacing: 0) {
+                        // Stacked, not side-by-side (Kah, 2026-07-10) — two
+                        // columns at 11pt type left each list cramped.
+                        VStack(alignment: .leading, spacing: Theme.Space.lg) {
                             FactColumn(
                                 tag: "IT IS", color: Theme.Palette.acc, mark: "+",
                                 items: [
@@ -129,7 +135,10 @@ private struct MethodStep: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.bottom, Theme.Space.lg)
-            .padding(.top, 3)
+            // Optical nudge, not rhythm spacing — aligns the title's cap-height
+            // with the circle's vertical centre; closest token is xs (4pt vs
+            // the hand-tuned 3pt, imperceptible).
+            .padding(.top, Theme.Space.xs)
         }
         .padding(.horizontal, Theme.Space.screenMargin)
     }
