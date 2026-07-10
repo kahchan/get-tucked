@@ -90,10 +90,20 @@ struct SkeletonOverlay: View {
 
     private let boneWidth: CGFloat = 2
     private let jointSize: CGFloat = 8
-    private let perBoneDuration: Double = 0.2
+    // Motion.base per bone (Plan O4): with the frontal arm chains' 3 windows
+    // that's 2×stagger + base ≈ 0.35s — the "≲0.4s, quiet secondary beat"
+    // the reveal ceremony calls for.
+    private let perBoneDuration: Double = Theme.Motion.base
 
     private var windowCount: Int {
         (bones.map(\.window).max() ?? 0) + 1
+    }
+
+    /// Total wall-clock duration of the full staggered cascade — what
+    /// callers pass to `withAnimation(Theme.Motion.travel(_:))` when driving
+    /// `progress` from 0→1.
+    var totalDrawDuration: Double {
+        Double(max(0, windowCount - 1)) * Theme.Motion.stagger + perBoneDuration
     }
 
     var body: some View {

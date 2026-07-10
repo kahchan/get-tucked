@@ -490,7 +490,11 @@ private struct RevealStep: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var showingMask = true
+    private enum Segment: Equatable {
+        case photo, mask, bones
+    }
+
+    @State private var revealSegment: Segment
     // Reveal ceremony phases — driven entirely by delayed/completion-based
     // withAnimation calls (never DispatchQueue.asyncAfter) so Reduce Motion
     // collapses cleanly and a mid-sequence tap can snap everything forward.
@@ -502,6 +506,33 @@ private struct RevealStep: View {
     @State private var uncertaintyVisible = false
     @State private var rowsVisible = false
     @State private var buttonsVisible = false
+    // Frontal skeleton draw-on (Plan O4) — a quiet secondary beat that starts
+    // once the sweep completes and finishes well before the number roll.
+    @State private var skeletonProgress: Double = 0
+    @State private var skeletonVisible = false
+
+    init(
+        result: AnalysisResult,
+        photo: UIImage,
+        maskOverlay: UIImage?,
+        sideOnPose: SideOnPoseMetrics?,
+        barWidthMm: Double?,
+        path: Binding<[AppScreen]>,
+        onContinue: @escaping () -> Void,
+        onRetake: @escaping () -> Void
+    ) {
+        self.result = result
+        self.photo = photo
+        self.maskOverlay = maskOverlay
+        self.sideOnPose = sideOnPose
+        self.barWidthMm = barWidthMm
+        self._path = path
+        self.onContinue = onContinue
+        self.onRetake = onRetake
+        // The reveal should land on the richest defensible view (Plan O4):
+        // BONES when there's a skeleton to show, else MASK as before.
+        self._revealSegment = State(initialValue: result.headOnPose != nil ? .bones : .mask)
+    }
 
     var body: some View {
         ZStack {
@@ -522,7 +553,12 @@ private struct RevealStep: View {
                                     .resizable()
                                     .scaledToFit()
                                     .scanReveal(progress: reduceMotion ? 1 : sweepProgress)
-                                    .opacity(showingMask ? 1 : 0)
+                                    .opacity(revealSegment == .photo ? 0 : 1)
+                            }
+                            if revealSegment == .bones, let frontalSkeletonOverlay {
+                                frontalSkeletonOverlay
+                                    .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
+                                    .skeletonReveal(visible: skeletonVisible)
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -533,7 +569,7 @@ private struct RevealStep: View {
                         // automatically if the user backs out before the hold ends.
                         .task { await revealRowsAfterHold() }
 
-                        SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: maskToggleBinding)
+                        SegmentedToggleBar(labels: revealSegmentLabels, selectedIndex: revealSegmentIndexBinding)
                         SectionDivider()
 
                         VStack(alignment: .leading, spacing: 0) {
@@ -628,29 +664,65 @@ private struct RevealStep: View {
         }
     }
 
-    /// Intercepts PHOTO/MASK taps: mid-ceremony, snap everything to its end
-    /// state first (no ceremony re-run on toggle), then crossfade normally.
-    private var maskToggleBinding: Binding<Bool> {
+    /// Only the segments that make sense for this capture — BONES is absent
+    /// entirely when there's no head-on pose, rather than shown disabled.
+    private var revealSegments: [Segment] {
+        result.headOnPose != nil ? [.photo, .mask, .bones] : [.photo, .mask]
+    }
+
+    private var revealSegmentLabels: [String] {
+        revealSegments.map { segment in
+            switch segment {
+            case .photo: "PHOTO"
+            case .mask: "MASK"
+            case .bones: "BONES"
+            }
+        }
+    }
+
+    /// Intercepts PHOTO/MASK/BONES taps: mid-ceremony, snap everything to its
+    /// end state first (no ceremony re-run on toggle), then crossfade normally.
+    private var revealSegmentIndexBinding: Binding<Int> {
         Binding(
-            get: { showingMask },
-            set: { newValue in
+            get: { revealSegments.firstIndex(of: revealSegment) ?? 0 },
+            set: { newIndex in
+                guard revealSegments.indices.contains(newIndex) else { return }
                 if !sweepStarted || sweepProgress < 1 {
                     cancelCeremony()
                 }
                 withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
-                    showingMask = newValue
+                    revealSegment = revealSegments[newIndex]
                 }
             }
         )
     }
 
+    /// Frontal skeleton (Plan O4), progress baked in from `skeletonProgress`
+    /// so the call site can just place the view — nil when there's no pose
+    /// (mirrors `revealSegments` excluding BONES in that case).
+    private var frontalSkeletonOverlay: SkeletonOverlay? {
+        guard let headOnPose = result.headOnPose else { return nil }
+        let arms = headOnPose.armPoints.map { $0.flatMap { [Double($0.x), Double($0.y)] } }
+        guard var overlay = SkeletonOverlay.frontal(
+            shoulders: [
+                headOnPose.leftShoulder.x, headOnPose.leftShoulder.y,
+                headOnPose.rightShoulder.x, headOnPose.rightShoulder.y,
+            ],
+            arms: arms
+        ) else { return nil }
+        overlay.progress = skeletonProgress
+        return overlay
+    }
+
     private func beginCeremony() {
         guard !hasStartedCeremony else { return }
         hasStartedCeremony = true
+        skeletonVisible = true
 
         if reduceMotion {
             sweepProgress = 1
             sweepStarted = true
+            skeletonProgress = 1
             withAnimation(Theme.Motion.entrance()) {
                 labelVisible = true
                 uncertaintyVisible = true
@@ -689,6 +761,17 @@ private struct RevealStep: View {
             sweepProgress = 1
         } completion: {
             Haptics.tap()
+            startSkeletonDrawOn()
+        }
+    }
+
+    /// Quiet secondary beat (Plan O4): starts once the sweep completes,
+    /// finishes well before the 0.8s number roll it runs alongside — it must
+    /// never delay or upstage the roll, which stays the one wow moment.
+    private func startSkeletonDrawOn() {
+        guard !reduceMotion, let frontalSkeletonOverlay else { return }
+        withAnimation(Theme.Motion.travel(frontalSkeletonOverlay.totalDrawDuration)) {
+            skeletonProgress = 1
         }
     }
 
@@ -697,6 +780,8 @@ private struct RevealStep: View {
         ceremonyCancelled = true
         sweepStarted = true
         sweepProgress = 1
+        skeletonProgress = 1
+        skeletonVisible = true
         labelVisible = true
         uncertaintyVisible = true
         rowsVisible = true

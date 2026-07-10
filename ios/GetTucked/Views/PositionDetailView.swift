@@ -61,7 +61,7 @@ struct PositionDetailView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         // Photo view toggle (only shown when side-on exists)
                         if hasSideOn {
-                            SegmentedToggleBar(leftLabel: "FRONTAL", rightLabel: "SIDE-ON", selectedRight: sideOnToggleBinding)
+                            SegmentedToggleBar(labels: ["FRONTAL", "SIDE-ON"], selectedIndex: sideOnSegmentBinding)
                             SectionDivider()
                         }
 
@@ -102,7 +102,7 @@ struct PositionDetailView: View {
                         // (rather than popping the layout) once the overlay is
                         // ready — see loadPhotos().
                         if !showingSideOn, maskOverlay != nil {
-                            SegmentedToggleBar(leftLabel: "PHOTO", rightLabel: "MASK", selectedRight: maskToggleBinding)
+                            SegmentedToggleBar(labels: ["PHOTO", "MASK"], selectedIndex: maskSegmentBinding)
                                 .transition(.opacity)
                         }
                         #else
@@ -177,23 +177,23 @@ struct PositionDetailView: View {
             }
     }
 
-    private var sideOnToggleBinding: Binding<Bool> {
+    private var sideOnSegmentBinding: Binding<Int> {
         Binding(
-            get: { showingSideOn },
-            set: { newValue in
+            get: { showingSideOn ? 1 : 0 },
+            set: { newIndex in
                 withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
-                    showingSideOn = newValue
+                    showingSideOn = newIndex == 1
                 }
             }
         )
     }
 
-    private var maskToggleBinding: Binding<Bool> {
+    private var maskSegmentBinding: Binding<Int> {
         Binding(
-            get: { showingMask },
-            set: { newValue in
+            get: { showingMask ? 1 : 0 },
+            set: { newIndex in
                 withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
-                    showingMask = newValue
+                    showingMask = newIndex == 1
                 }
             }
         )

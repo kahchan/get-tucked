@@ -112,27 +112,28 @@ private struct PressedOpacityButtonStyle: ButtonStyle {
     }
 }
 
-/// Two-state segmented tab bar — e.g. PHOTO/MASK, FRONTAL/SIDE-ON — shared by
-/// RevealStep's mask toggle and PositionDetailView's photo/mask toggles so
-/// the two near-identical copies (Plan I2) don't drift.
+/// N-segment tab bar — PHOTO/MASK, FRONTAL/SIDE-ON, PHOTO/MASK/BONES (Plan O)
+/// — shared by RevealStep and PositionDetailView's toggles so the
+/// near-identical copies (Plan I2) don't drift. Generalised from a two-state
+/// bar to N labels/index (Plan O4) when the BONES segment needed a third slot.
 struct SegmentedToggleBar: View {
-    let leftLabel: String
-    let rightLabel: String
-    @Binding var selectedRight: Bool
+    let labels: [String]
+    @Binding var selectedIndex: Int
 
     // The underline slides between tabs (N7) instead of popping — same
-    // namespace shared across both tabs so matchedGeometryEffect can
-    // interpolate its frame from one to the other.
+    // namespace shared across every tab so matchedGeometryEffect can
+    // interpolate its frame from one to the other, across any number of slots.
     @Namespace private var underlineNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
-            tab(leftLabel, selected: !selectedRight) { selectedRight = false }
-            tab(rightLabel, selected: selectedRight) { selectedRight = true }
+            ForEach(labels.indices, id: \.self) { index in
+                tab(labels[index], selected: selectedIndex == index) { selectedIndex = index }
+            }
         }
         .frame(height: 40)
-        .animation(reduceMotion ? nil : Theme.Motion.travel(0.2), value: selectedRight)
+        .animation(reduceMotion ? nil : Theme.Motion.travel(0.2), value: selectedIndex)
     }
 
     private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
