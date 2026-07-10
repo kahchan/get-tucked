@@ -19,6 +19,13 @@ final class Position {
     // positions with a stale baked-in tint.
     var maskData: Data?
 
+    // Side-on segmentation mask (Plan O), untinted grayscale PNG — mirrors
+    // maskData's storage and tint-at-display-time rationale. Presentational
+    // only: side-on posture metrics never depended on segmentation, so a
+    // nil value here just means the skeleton (if any) draws over the bare
+    // photo instead of a matte.
+    var sideOnMaskData: Data?
+
     // Head-on photo asset identifier (PHAsset local ID)
     var headOnPhotoIdentifier: String?
 

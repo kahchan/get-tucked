@@ -33,6 +33,24 @@ final class PositionMetrics {
     // headDropCm: vertical distance ear is below shoulder (positive = lower than shoulder)
     var headDropCm: Double?
 
+    // Pose landmarks (Plan O) — the exact points the angle/width math above
+    // consumed, persisted so the skeleton overlay replays what produced the
+    // numbers rather than re-estimating (and possibly disagreeing with them).
+    // Flattened [x0, y0, x1, y1, ...], Vision-normalised coords (0–1, origin
+    // bottom-left) — same convention as handlebarTapPoints.
+    //
+    // headOnSkeletonPoints: [leftShoulderX, leftShoulderY, rightShoulderX, rightShoulderY]
+    var headOnSkeletonPoints: [Double]?
+    // headOnArmPoints: [leftElbowX, leftElbowY, leftWristX, leftWristY,
+    // rightElbowX, rightElbowY, rightWristX, rightWristY]. Separate from
+    // headOnSkeletonPoints (not appended) because arms are optional context,
+    // not a measurement: all four joints must clear the confidence floor or
+    // this stays nil — a one-armed skeleton reads as broken, so arms are
+    // symmetric-or-nothing while shoulders stay independently required.
+    var headOnArmPoints: [Double]?
+    // sideOnSkeletonPoints: [shoulderX, shoulderY, hipX, hipY, kneeX, kneeY, earX, earY]
+    var sideOnSkeletonPoints: [Double]?
+
     init(
         frontalAreaCm2: Double,
         frontalAreaUncertainty: Double,
