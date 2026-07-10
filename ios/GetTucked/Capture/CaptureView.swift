@@ -570,6 +570,7 @@ private struct RevealStep: View {
                             // (often much taller) natural height.
                             .frame(maxHeight: screenProxy.size.height * 0.4)
                             .background(Theme.Palette.bg1)
+                            .pinchZoomable()
                             .onAppear { beginCeremony() }
                             .onChange(of: maskOverlay) { _, _ in startSweepIfReady() }
                             // `.task` (not a bare `Task { }`) so SwiftUI cancels this

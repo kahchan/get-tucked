@@ -118,6 +118,11 @@ struct PositionDetailView: View {
                         }
                         .aspectRatio(showingSideOn ? sideOnAspectRatio : headOnAspectRatio, contentMode: .fit)
                         .frame(maxWidth: .infinity)
+                        // Keyed on showingSideOn so switching photos resets zoom
+                        // rather than carrying a now-meaningless offset onto a
+                        // different image with a different aspect ratio.
+                        .id(showingSideOn)
+                        .pinchZoomable()
                         // MASK/BONES only make sense once the overlay they need is
                         // ready — fades in (rather than popping the layout) once it
                         // is, same as the underlying mask fade in loadPhotos().
