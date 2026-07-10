@@ -429,3 +429,85 @@ changes; press feel is N9's device pass.
 - No skeleton shimmers, no progress bars pretending to know progress, no
   animated uncertainty, no confetti. Ever.
 - No `linear` timing curves anywhere — see philosophy.
+
+---
+
+## Addendum — apple-design skill reconciliation (Plan N follow-on)
+
+Installed the `apple-design` skill (Emil Kowalski's distillation of Apple's
+*Designing Fluid Interfaces* WWDC talks) and reconciled it against the Plan N
+philosophy above. The skill is **web-oriented and spring-first** — its core
+thesis (momentum handoff, velocity-carrying springs, rubber-banding, physical
+overshoot) is deliberately *rejected* here: our brutalism lives in hard-edged
+geometry with eased-but-non-physical timing. So we adopt only the principles
+that are **orthogonal to motion form** — response, feedback causality, spatial
+consistency, typography — where Apple and our system already agree.
+
+**Explicitly NOT adopted** (they fight the hard-edged form): §4 springs,
+§5 velocity handoff, §6 momentum projection, §9 rubber-banding, §11 motion
+blur, §12 translucent/glass materials. The eased-curve, no-spring, no-blur,
+no-glass rules stand.
+
+Already satisfied by N1–N9 (noted, no work): §3 interruptibility (= "never
+trap the user"), §13 causality/harmony/utility (= sparse haptics on the number
+landing), §14 reduced motion, §16 "warnings don't perform".
+
+### N10 — Instant press feedback (skill §1)
+
+Press feedback must land on touch-*down* instantly, not ease *in* over 150ms —
+directness "falls off a cliff" the moment the press is delayed. Hard-edged
+systems especially want an immediate, hard response on press and an eased
+settle on release. New token `Theme.Motion.press(_ isPressed:)` returns `nil`
+on the down transition (instant) and `entrance(fast)` on release (eased).
+Applied to every button style: `AccentButtonStyle`, `GhostButtonStyle`
+(`Components.swift`), `BackButtonStyle` (`AppNavigation.swift`),
+`PressedOpacityButtonStyle` (`SharedViews.swift`). No visual/geometry change —
+only the *timing asymmetry* of the existing darken/nudge/opacity states.
+
+### N11 — Optical tracking on display type (skill §15)
+
+Tracking is size-specific: large display type reads too loose and wants
+*negative* tracking; small text wants a slight positive bump (already done
+ad hoc via `.kerning(0.3–1.2)` on labels — those stay). The gap was the large
+display type carrying zero tracking. New `Theme.Type.tracking(forSize:)`:
+`-1.5` for hero sizes (≥56), `-0.8` for large headings (28–55), `0` below
+(mid/small keep their explicit kerning). Applied to the hero numbers (60/52pt
+— `RollingNumberText` gains a `tracking` param threaded to its inner `Text`)
+and the largest headings (88pt wordmark, 30pt HowItWorks). The single-glyph
+`≈` within-noise state and section headings <28pt are left untouched.
+
+### N12 — Spatial consistency audit + one fix (skill §7)
+
+Audit: nav push/pop is symmetric (SwiftUI default), sheets are bottom-anchored
+per platform convention (§16 Familiarity — honor platform physics), the
+hamburger index was removed in Plan E1, and all three custom transitions
+(compare bar, select-mode checkbox, calibration affordances) each use a single
+symmetric `.transition`. The app is spatially consistent. **One fix:** the
+calibration affordances (`RESET VIEW`, `VERIFY WITH WHEEL`) sit in the bottom
+control stack directly above `CONFIRM SCALE`, but slid in from the *top* edge —
+pulling the eye up, away from the action zone. Flipped `appearTransition` to
+`.move(edge: .bottom)` so they rise into place from the CTA direction (§7
+"emerge from where it belongs", §8 "hint in the direction things are going").
+
+### N13 — Calibration tap forgiveness (skill §10, §1, §2)
+
+Calibration taps set the measurement *scale* — a mis-tap is a measurement
+error (spec §3), so forgiveness here has real integrity value. Previously a tap
+placed a point instantly on touch-*up* with no preview. Now placement shows a
+live loupe on touch-*down* that tracks the finger 1:1 (§1 feedback *during*,
+§2 direct manipulation), commits on release, and **cancels if the gesture
+crossed the pan threshold** (10px, matching the pan gesture's `minimumDistance`)
+— dragging away past the threshold is a pan, not a placement (§10 tap commits
+on up, cancel-by-dragging-away). The committed-unit math and
+`CalibrationTransform` path are untouched — no measurement behaviour changes,
+only *when/whether* a tap commits and that the landing point is previewed
+first. **On-device gated** (simulator can't drive taps — the project's
+no-tap-simulation constraint): verify placement preview, commit-on-lift, and
+pan-cancel feel right on hardware.
+
+### Addendum non-goals
+
+- No springs sneaking in via the skill's "springs everywhere" default.
+- No glass/`backdrop-filter` materials — the near-black hard-edged surfaces stand.
+- No retrofitting tracking onto small labels — they already satisfy §15.
+- No momentum/rubber-banding on the calibration pan — a hard clamp stays hard.
