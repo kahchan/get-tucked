@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Get Tucked — Be informed, don't guess.</title>
+<meta name="description" content="Measure your cyclist frontal area from one photo. The whole loaded bike, not just your body. No CdA, no CFD — only what a photo can honestly measure." />
+<meta property="og:title" content="Get Tucked — Be informed, don't guess." />
+<meta property="og:description" content="Frontal area, in cm², from one photo. It tells you when a difference is too small to trust." />
+<meta property="og:type" content="website" />
+
+<meta property="og:image" content="og-hero.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preload" as="font" type="font/woff2" href="fonts/barlow-condensed-700.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-mono-700.woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Get <b>Tucked</b></div>
+  <a class="top-cta" href="#download">App Store ↗</a>
+</div>
+
+<main class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="eyebrow">Frontal area <span class="dot">·</span> measured, not guessed</div>
+    <h1 class="wordmark">Get&nbsp;Tucked</h1>
+    <div class="tagline">Be informed, <em>don't guess.</em></div>
+
+    <div class="stage" id="stage" aria-label="A rider on a loaded bike, silhouette isolated, with a frontal-area readout in square centimetres.">
+      <!-- BASE LAYER: dim 'photo' silhouette (front-on aero tuck) -->
+      <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <g fill="#23272c" stroke="#33383e" stroke-width="2" stroke-linejoin="round">
+          <ellipse cx="400" cy="440" rx="20" ry="150"/>
+          <path d="M300 232 C300 176 500 176 500 232 C500 320 470 356 452 380 L348 380 C330 356 300 320 300 232 Z"/>
+          <ellipse cx="400" cy="168" rx="56" ry="46"/>
+          <path d="M330 250 C300 316 300 384 314 430 L296 430 C280 380 282 312 312 244 Z"/>
+          <path d="M470 250 C500 316 500 384 486 430 L504 430 C520 380 518 312 488 244 Z"/>
+          <path d="M372 372 C362 442 358 486 362 520 L338 520 C332 480 338 430 350 372 Z"/>
+          <path d="M428 372 C438 442 442 486 438 520 L462 520 C468 480 462 430 450 372 Z"/>
+          <rect x="280" y="420" width="240" height="20"/>
+        </g>
+      </svg>
+
+      <!-- MATTE LAYER: revealed by the top->bottom wipe -->
+      <svg id="matteLayer" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <defs>
+          <linearGradient id="mat" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#D9F020" stop-opacity=".26"/>
+            <stop offset="1" stop-color="#D9F020" stop-opacity=".08"/>
+          </linearGradient>
+        </defs>
+
+        <!-- front wheel, edge-on -->
+        <g fill="none" stroke="#D9F020" stroke-width="3" opacity=".85">
+          <ellipse cx="400" cy="440" rx="20" ry="150"/>
+        </g>
+
+        <!-- fork bags, either side of the wheel (loaded rig) -->
+        <g fill="url(#mat)" stroke="#D9F020" stroke-width="2.5" stroke-linejoin="round">
+          <ellipse cx="356" cy="500" rx="30" ry="44"/>
+          <ellipse cx="444" cy="500" rx="30" ry="44"/>
+        </g>
+
+        <!-- FILLED SYSTEM SILHOUETTE (rider + bike + bags), front-on -->
+        <g fill="url(#mat)" stroke="#D9F020" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+          <!-- shoulders / back hump tapering to hips -->
+          <path d="M300 232 C300 176 500 176 500 232 C500 320 470 356 452 380 L348 380 C330 356 300 320 300 232 Z"/>
+          <!-- helmet -->
+          <ellipse cx="400" cy="168" rx="56" ry="46"/>
+          <!-- arms down to the bars -->
+          <path d="M330 250 C300 316 300 384 314 430 L296 430 C280 380 282 312 312 244 Z"/>
+          <path d="M470 250 C500 316 500 384 486 430 L504 430 C520 380 518 312 488 244 Z"/>
+          <!-- legs -->
+          <path d="M372 372 C362 442 358 486 362 520 L338 520 C332 480 338 430 350 372 Z"/>
+          <path d="M428 372 C438 442 442 486 438 520 L462 520 C468 480 462 430 450 372 Z"/>
+          <!-- handlebar (the width ruler) -->
+          <rect x="280" y="420" width="240" height="20"/>
+          <!-- bar bag centred on the bars -->
+          <rect x="362" y="392" width="76" height="42"/>
+        </g>
+
+        <!-- handlebar-width ruler endpoints (the scale reference) -->
+        <g stroke="#D9F020" stroke-width="2" opacity=".9">
+          <line x1="284" y1="404" x2="284" y2="456"/>
+          <line x1="516" y1="404" x2="516" y2="456"/>
+        </g>
+
+        <!-- POSE JOINTS + skeleton -->
+        <g fill="#D9F020" stroke="#0b0d0f" stroke-width="1.5">
+          <line class="joint" style="animation-delay:.30s" x1="400" y1="168" x2="335" y2="238" stroke="#D9F020" stroke-width="3"/>
+          <line class="joint" style="animation-delay:.30s" x1="400" y1="168" x2="465" y2="238" stroke="#D9F020" stroke-width="3"/>
+          <line class="joint" style="animation-delay:.40s" x1="335" y1="238" x2="308" y2="426" stroke="#D9F020" stroke-width="3"/>
+          <line class="joint" style="animation-delay:.40s" x1="465" y1="238" x2="492" y2="426" stroke="#D9F020" stroke-width="3"/>
+          <line class="joint" style="animation-delay:.50s" x1="375" y1="372" x2="360" y2="512" stroke="#D9F020" stroke-width="3"/>
+          <line class="joint" style="animation-delay:.50s" x1="425" y1="372" x2="440" y2="512" stroke="#D9F020" stroke-width="3"/>
+          <circle class="joint" style="animation-delay:.28s" cx="400" cy="150" r="8"/><!-- head -->
+          <circle class="joint" style="animation-delay:.36s" cx="335" cy="238" r="7"/><!-- L shoulder -->
+          <circle class="joint" style="animation-delay:.36s" cx="465" cy="238" r="7"/><!-- R shoulder -->
+          <circle class="joint" style="animation-delay:.46s" cx="308" cy="426" r="7"/><!-- L hand -->
+          <circle class="joint" style="animation-delay:.46s" cx="492" cy="426" r="7"/><!-- R hand -->
+          <circle class="joint" style="animation-delay:.54s" cx="375" cy="372" r="7"/><!-- L hip -->
+          <circle class="joint" style="animation-delay:.54s" cx="425" cy="372" r="7"/><!-- R hip -->
+          <circle class="joint" style="animation-delay:.64s" cx="360" cy="512" r="7"/><!-- L knee -->
+          <circle class="joint" style="animation-delay:.64s" cx="440" cy="512" r="7"/><!-- R knee -->
+        </g>
+      </svg>
+
+      <div id="scan"></div>
+
+      <div class="readout">
+        <span class="num" id="areaNum">0</span>
+        <span class="unit">cm²</span>
+      </div>
+      <span class="tag">Frontal area</span>
+    </div>
+
+    <div class="cap-row">
+      <div class="caption">One photo. Silhouette isolated. Frontal area, in cm².</div>
+      <button class="replay" id="replay" type="button">↺ Replay</button>
+    </div>
+  </section>
+
+  <!-- ============ DESCRIPTION ============ -->
+  <section class="block">
+    <p class="lead">
+      Get Tucked measures your frontal area — the surface the wind sees — from one photo
+      against a plain wall. It measures the <em>whole loaded bike</em>, not just your body,
+      so you can see what your bags, bars, and position each cost.
+      <span class="no">It doesn't predict CdA, run CFD, or model airflow</span> — only what a
+      photo can honestly measure, and it tells you when a difference is too small to trust.
+    </p>
+  </section>
+
+  <!-- ============ NOISE FLOOR ============ -->
+  <section class="block enter">
+    <div class="sec-label">The measurement floor</div>
+    <h2>A difference<br>smaller than the<br>noise isn't a result.</h2>
+    <p class="body">
+      Every reading carries a <strong>±3% margin</strong>, and every comparison is judged
+      against it. If two setups differ by less than that floor, the app says
+      <strong>indistinguishable</strong> — not “1.8% better.”
+    </p>
+
+    <div class="floor" role="table" aria-label="Comparison verdict">
+      <div class="row"><span>fork bags OFF → ON</span><span class="v">difference&nbsp;&nbsp;1.8&nbsp;%</span></div>
+      <div class="row"><span>measurement floor</span><span class="v">±&nbsp;&nbsp;4.2&nbsp;%</span></div>
+      <div class="verdict">
+        <span class="label">verdict</span>
+        <span class="val">INDISTINGUISHABLE</span>
+      </div>
+    </div>
+    <div class="floor-cap">A difference smaller than the noise isn't a result. It's noise.</div>
+  </section>
+
+  <!-- ============ PRICE ============ -->
+  <section class="block enter" id="download">
+    <div class="sec-label">One-time</div>
+    <div class="price-wrap">
+      <div class="price-num">$20<small>one-time · no subscription</small></div>
+      <ul class="price-list">
+        <li>no account</li>
+        <li>no cloud</li>
+        <li>no analytics — including on this site</li>
+        <li>everything runs on your phone</li>
+      </ul>
+    </div>
+    <p class="price-foot">In this market, that list is the feature list.</p>
+
+    <div style="margin-top:36px">
+      <a class="appstore" href="#">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 1.5c.1 1-.3 2-1 2.8-.7.8-1.8 1.4-2.8 1.3-.1-1 .4-2 1-2.7.7-.8 1.9-1.4 2.8-1.4zM19.6 17c-.5 1.2-.8 1.7-1.4 2.7-.9 1.4-2.1 3.1-3.7 3.1-1.4 0-1.7-.9-3.6-.9s-2.3.9-3.6.9c-1.6 0-2.8-1.6-3.7-3C1.1 19.4.9 15 2.4 12.7c1-1.6 2.5-2.5 4-2.5 1.5 0 2.4.9 3.7.9 1.2 0 2-.9 3.7-.9 1.3 0 2.6.7 3.6 1.9-3.1 1.7-2.6 6.1.2 6.9z"/></svg>
+        Download on the App Store
+      </a>
+    </div>
+
+    <a class="methlink" href="methodology.html">
+      Read exactly how we measure — and what we don't claim <span class="arw">→</span>
+    </a>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p class="dads">Built by two dads with day jobs, in Wellington, New Zealand.</p>
+  <p>hello@gettucked.app · Press kit →</p>
+  <p>© 2026 Get Tucked. Everything on-device. No accounts, no analytics.</p>
+</footer>
+
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var num   = document.getElementById('areaNum');
+  var replay= document.getElementById('replay');
+  var TARGET = 3860;                          // cm² — plausible loaded-rig frontal area
+  var reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  function fmt(n){ return n.toLocaleString('en-US'); }
+
+  function countUp(){
+    var dur = 800, start = null;
+    function step(ts){
+      if(!start) start = ts;
+      var t = Math.min((ts-start)/dur, 1);
+      var e = 1 - Math.pow(1-t, 3);           // ease-out cubic
+      num.textContent = fmt(Math.round(e*TARGET));
+      if(t<1) requestAnimationFrame(step);
+      else num.textContent = fmt(TARGET);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function play(){
+    stage.classList.remove('reveal');
+    num.textContent = '0';
+    void stage.offsetWidth;                   // reflow to restart CSS anims
+    if(reduce){ num.textContent = fmt(TARGET); stage.classList.add('reveal'); return; }
+    stage.classList.add('reveal');
+    setTimeout(countUp, 450);                 // count overlaps the tail of the sweep
+  }
+
+  // play once when scrolled into view
+  var fired = false;
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(en){
+      if(en.isIntersecting && !fired){ fired = true; play(); }
+    });
+  }, {threshold:.4});
+  io.observe(stage);
+
+  replay.addEventListener('click', play);
+
+  // quiet scroll entrances
+  var eio = new IntersectionObserver(function(es){
+    es.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); eio.unobserve(en.target);} });
+  }, {threshold:.15});
+  document.querySelectorAll('.enter').forEach(function(el){ eio.observe(el); });
+})();
+</script>
+</body>
+</html>
