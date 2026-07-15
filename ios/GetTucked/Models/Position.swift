@@ -42,6 +42,12 @@ final class Position {
     // stored as [x0, y0, x1, y1]
     var handlebarTapPoints: [Double]?
 
+    // Side-on scale calibration (Plan P1.5) — the two wheelbase tap points
+    // (front axle, rear axle) in unit coords, mirroring handlebarTapPoints'
+    // storage convention. nil when the rider skipped the ruler (or the bike
+    // has no wheelbase on record); kept for audit/re-display, not reprocessed.
+    var sideOnTapPoints: [Double]?
+
     @Relationship(deleteRule: .cascade)
     var metrics: PositionMetrics?
 

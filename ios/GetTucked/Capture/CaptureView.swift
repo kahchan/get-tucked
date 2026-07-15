@@ -2,9 +2,13 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import Photos
+import ImageIO
 
 struct CaptureView: View {
     @Binding var path: [AppScreen]
+    // Set only via "Match this position" (Plan P2) — the position to align
+    // this capture's ghost against. nil for every ordinary capture.
+    var referenceID: PersistentIdentifier? = nil
     // Fires once a new position is inserted (Plan N7) — lets the list root
     // give the newest row a brief highlight once the user gets back there.
     var onSaved: (UUID) -> Void = { _ in }
@@ -12,6 +16,11 @@ struct CaptureView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var bikes: [Bike]
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
+
+    private var referencePosition: Position? {
+        guard let referenceID else { return nil }
+        return positions.first { $0.persistentModelID == referenceID }
+    }
 
     @State private var step: CaptureStep = .pickPhoto
     @State private var selectedBike: Bike?
@@ -33,6 +42,12 @@ struct CaptureView: View {
     @State private var sideOnImage: UIImage?
     @State private var sideOnAssetIdentifier: String?
     @State private var pendingSideOnPose: SideOnPoseMetrics?
+    // Wheelbase ruler taps (Plan P1.5) — front axle, rear axle, unit coords.
+    // Empty when the rider skipped the ruler or the bike has none on file.
+    @State private var sideOnTapPoints: [CGPoint] = []
+    // The resulting side-on scale, once confirmed — nil means headDropCm (if
+    // computed) still borrows the frontal pixelsPerCm and stays hidden.
+    @State private var sideOnPixelsPerCmValue: Double?
     // Untinted side-on segmentation matte (Plan O) — nil when segmentation
     // failed at capture, which never blocks save (presentational only).
     @State private var pendingSideOnMask: UIImage?
@@ -41,12 +56,19 @@ struct CaptureView: View {
     // Set at the end of savePosition — lets the success screen offer a
     // direct link to the position it just created.
     @State private var savedPositionID: PersistentIdentifier?
+    // Ghost material (Plan P2) — built once, off-main, when referenceID is
+    // set; nil for an ordinary capture, in which case LiveCameraView shows
+    // no ghost affordance at all.
+    @State private var headOnGhost: GhostReference?
+    @State private var sideOnGhost: GhostReference?
+    @State private var ghostsBuilt = false
 
     enum CaptureStep: Equatable {
         case pickPhoto          // head-on · 1 OF 2
         case calibrate          // head-on calibration
         case analysing          // head-on analysis
         case pickSideOnPhoto    // side-on · 2 OF 2
+        case calibrateSideOn    // side-on wheelbase ruler (Plan P1.5)
         case analysingSideOn    // side-on analysis
         case reveal             // frontal-area result reveal
         case namePosition
@@ -89,7 +111,14 @@ struct CaptureView: View {
         .hideNavBar()
         .onAppear {
             if selectedBike == nil {
-                selectedBike = positions.first?.bike ?? bikes.first
+                // Matching a position (Plan P2) means staying on the same
+                // setup — the reference's own bike takes priority over the
+                // usual "whatever was used last" default.
+                selectedBike = referencePosition?.bike ?? positions.first?.bike ?? bikes.first
+            }
+            if !ghostsBuilt, referencePosition != nil {
+                ghostsBuilt = true
+                buildGhosts()
             }
         }
         // Derived from `step` rather than hand-audited per exit closure, so
@@ -117,12 +146,12 @@ struct CaptureView: View {
                         tapPoints = []
                         step = .calibrate
                         Task { await saveToCameraRoll(image) }
-                    }, onCancel: { dismiss() })
+                    }, onCancel: { dismiss() }, ghost: headOnGhost)
                     .transition(.identity)
                 }
             case .calibrate:
                 if let image = selectedImage {
-                    HandlebarCalibrationStep(
+                    TapCalibrationStep(
                         image: image,
                         tapPoints: $tapPoints,
                         wheelTapPoints: $wheelTapPoints,
@@ -148,26 +177,45 @@ struct CaptureView: View {
                         onPickFromLibrary: { image, identifier in
                             sideOnImage = image
                             sideOnAssetIdentifier = identifier
-                            step = .analysingSideOn
-                            Task { await runSideOnAnalysis() }
+                            step = .calibrateSideOn
                         },
                         onCapture: { image in
                             sideOnImage = image
                             sideOnAssetIdentifier = nil  // live capture has no PHAsset identifier
-                            step = .analysingSideOn
-                            Task { await runSideOnAnalysis() }
+                            step = .calibrateSideOn
                             Task { await saveToCameraRoll(image) }
                         },
-                        onCancel: { dismiss() }
+                        onCancel: { dismiss() },
+                        ghost: sideOnGhost
                     )
                     .transition(.identity)
+                }
+            case .calibrateSideOn:
+                if let bike = selectedBike, let image = sideOnImage {
+                    SideOnCalibrationStep(
+                        image: image,
+                        bike: bike,
+                        tapPoints: $sideOnTapPoints,
+                        onConfirm: { pixelsPerCm in
+                            sideOnPixelsPerCmValue = pixelsPerCm
+                            step = .analysingSideOn
+                            Task { await runSideOnAnalysis() }
+                        },
+                        onSkip: {
+                            sideOnTapPoints = []
+                            sideOnPixelsPerCmValue = nil
+                            step = .analysingSideOn
+                            Task { await runSideOnAnalysis() }
+                        }
+                    )
+                    .transition(.opacity)
                 }
             case .analysingSideOn:
                 AnalysingView(label: "ANALYSING POSTURE", image: sideOnImage)
                     .transition(.opacity)
             case .reveal:
                 if let result = pendingResult, let photo = selectedImage {
-                    RevealStep(result: result, photo: photo, maskOverlay: revealMaskOverlay, sideOnPose: pendingSideOnPose, barWidthMm: selectedBike?.handlebarWidthMm, path: $path, onContinue: {
+                    RevealStep(result: result, photo: photo, maskOverlay: revealMaskOverlay, sideOnPose: pendingSideOnPose, hasSideOnRuler: sideOnPixelsPerCmValue != nil, barWidthMm: selectedBike?.handlebarWidthMm, path: $path, onContinue: {
                         step = .namePosition
                     }, onRetake: {
                         resetForNewCapture()
@@ -205,6 +253,7 @@ struct CaptureView: View {
         case .calibrate:        "CALIBRATE SCALE"
         case .analysing:        "ANALYSING"
         case .pickSideOnPhoto:  "SIDE-ON · 2 OF 2"
+        case .calibrateSideOn:  "CONFIRM WHEELBASE"
         case .analysingSideOn:  "ANALYSING"
         case .reveal:           "RESULT"
         case .namePosition:     "NAME POSITION"
@@ -274,6 +323,8 @@ struct CaptureView: View {
         sideOnAssetIdentifier = nil
         pendingSideOnPose = nil
         pendingSideOnMask = nil
+        sideOnTapPoints = []
+        sideOnPixelsPerCmValue = nil
         savedPositionID = nil
         step = .pickPhoto
     }
@@ -292,9 +343,64 @@ struct CaptureView: View {
         }
     }
 
+    /// Off-main, once (Plan P2) — builds both orientations' ghost material
+    /// from the reference's already-persisted mask + landmarks. Either
+    /// orientation independently degrades to nil (no maskData, no stored
+    /// landmarks, or no photo to read an aspect ratio from), same
+    /// presentational "never blocking" pattern as the side-on matte.
+    private func buildGhosts() {
+        guard let reference = referencePosition else { return }
+        let headOnMaskData = reference.maskData
+        let headOnPhotoData = reference.photosData
+        let headOnSkeleton = reference.metrics?.headOnSkeletonPoints
+            .flatMap { SkeletonOverlay.frontal(shoulders: $0, arms: reference.metrics?.headOnArmPoints) }
+        let sideOnMaskData = reference.sideOnMaskData
+        let sideOnPhotoData = reference.sideOnPhotoData
+        let sideOnSkeleton = reference.metrics?.sideOnSkeletonPoints.flatMap { SkeletonOverlay.sideOn(points: $0) }
+
+        Task.detached(priority: .userInitiated) {
+            let headOn = Self.buildGhost(maskData: headOnMaskData, photoData: headOnPhotoData, skeleton: headOnSkeleton)
+            let sideOn = Self.buildGhost(maskData: sideOnMaskData, photoData: sideOnPhotoData, skeleton: sideOnSkeleton)
+            await MainActor.run {
+                headOnGhost = headOn
+                sideOnGhost = sideOn
+            }
+        }
+    }
+
+    private static func buildGhost(maskData: Data?, photoData: Data?, skeleton: SkeletonOverlay?) -> GhostReference? {
+        guard let aspect = peekAspectRatio(from: photoData) else { return nil }
+        var outline: UIImage?
+        if let maskData, let mask = UIImage(data: maskData)?.cgImage,
+           let ring = MatteRenderer.outlineMask(mask: mask, strokeWidthPx: 6) {
+            outline = MatteRenderer.tintedOverlay(mask: ring, color: UIColor(Theme.Palette.acc), alpha: 0.6)
+        }
+        guard outline != nil || skeleton != nil else { return nil }
+        return GhostReference(outlineImage: outline, skeleton: skeleton, referenceAspect: aspect)
+    }
+
+    /// Header-only peek (no full decode) — same approach
+    /// `PositionDetailView` uses to size its placeholder, reused here since
+    /// only the aspect ratio is needed, not the pixels.
+    private static func peekAspectRatio(from data: Data?) -> CGFloat? {
+        guard let data,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let height = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              height > 0
+        else { return nil }
+        return CGFloat(width / height)
+    }
+
     private func runSideOnAnalysis() async {
+        // The wheelbase ruler (Plan P1.5) is the defensible scale when
+        // present; falls back to the frontal scale otherwise — same
+        // unenforced-same-distance assumption as before, just no longer the
+        // only option. Either way headDropCm gets computed once, correctly,
+        // here — display screens just gate whether to *show* it.
         guard let image = sideOnImage,
-              let pixelsPerCm = pendingResult?.pixelsPerCm else {
+              let pixelsPerCm = sideOnPixelsPerCmValue ?? pendingResult?.pixelsPerCm else {
             // Side-on failed or skipped — reveal the frontal-area result anyway
             step = .reveal
             return
@@ -364,6 +470,15 @@ struct CaptureView: View {
                 pose.hip.x, pose.hip.y,
                 pose.knee.x, pose.knee.y,
                 pose.ear.x, pose.ear.y,
+            ]
+        }
+        // Wheelbase ruler (Plan P1.5) — nil unless the rider confirmed one,
+        // in which case headDropCm above was computed from it (runSideOnAnalysis).
+        metrics.sideOnPixelsPerCm = sideOnPixelsPerCmValue
+        if sideOnTapPoints.count == 2 {
+            position.sideOnTapPoints = [
+                sideOnTapPoints[0].x, sideOnTapPoints[0].y,
+                sideOnTapPoints[1].x, sideOnTapPoints[1].y,
             ]
         }
         if let sideOnMask = pendingSideOnMask?.cgImage {
@@ -476,6 +591,31 @@ private struct AnalysingView: View {
     }
 }
 
+/// Key/value row for the side-on facing correction (Plan P3) — same visual
+/// rhythm as `MetricRow` (Components.swift), with `FacingChip` standing in
+/// for the plain-text value since this one is tappable.
+private struct FacingRow: View {
+    let facing: (facing: AnalysisMath.Facing, confidence: Double)
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("FACING")
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg2)
+                    .kerning(0.3)
+                Spacer()
+                FacingChip(derivedFacing: facing.facing, confidence: facing.confidence)
+            }
+            .frame(height: Theme.Control.metricRowHeight)
+
+            Rectangle()
+                .fill(Theme.Palette.line2)
+                .frame(height: Theme.Control.hairline)
+        }
+    }
+}
+
 private struct RevealStep: View {
     let result: AnalysisResult
     let photo: UIImage
@@ -483,6 +623,10 @@ private struct RevealStep: View {
     // may still be nil at t=0 if the detached task hasn't finished.
     let maskOverlay: UIImage?
     let sideOnPose: SideOnPoseMetrics?
+    // Whether headDropCm (if present) came from a real wheelbase ruler
+    // (Plan P1.5), not the borrowed frontal scale — gates whether it's
+    // defensible enough to show (spec §3).
+    let hasSideOnRuler: Bool
     let barWidthMm: Double?
     @Binding var path: [AppScreen]
     let onContinue: () -> Void
@@ -512,6 +656,7 @@ private struct RevealStep: View {
         photo: UIImage,
         maskOverlay: UIImage?,
         sideOnPose: SideOnPoseMetrics?,
+        hasSideOnRuler: Bool,
         barWidthMm: Double?,
         path: Binding<[AppScreen]>,
         onContinue: @escaping () -> Void,
@@ -521,6 +666,7 @@ private struct RevealStep: View {
         self.photo = photo
         self.maskOverlay = maskOverlay
         self.sideOnPose = sideOnPose
+        self.hasSideOnRuler = hasSideOnRuler
         self.barWidthMm = barWidthMm
         self._path = path
         self.onContinue = onContinue
@@ -647,12 +793,24 @@ private struct RevealStep: View {
                                     MetricRow(key: "Hip angle",
                                               value: "\(Int(pose.hipAngleDeg.rounded()))°")
                                         .cascadeIn(index: 5, trigger: rowsVisible)
-                                    // Head drop hidden for now (Plan G decision 4) — its cm
-                                    // figure borrows the frontal photo's pixelsPerCm, which
-                                    // is only valid if both shots share a camera distance
-                                    // (unenforced) and inherits the frontal scale-plane bias.
-                                    // Still computed and stored; just not shown until it has
-                                    // its own ruler.
+                                    // Shown only when a real wheelbase ruler produced it
+                                    // (Plan P1.5) — otherwise it's still borrowing the
+                                    // frontal photo's scale (unenforced same-distance
+                                    // assumption) and stays undefendable (spec §3).
+                                    if hasSideOnRuler {
+                                        MetricRow(key: "Head drop",
+                                                  value: String(format: "%.1f cm", pose.headDropCm))
+                                            .cascadeIn(index: 6, trigger: rowsVisible)
+                                    }
+                                    // Correctable at the first moment the rider can see it
+                                    // (Plan P3) — no separate ask-once modal, just this same
+                                    // always-present chip PositionDetailView shows later.
+                                    FacingRow(
+                                        facing: AnalysisMath.sideOnFacing(
+                                            shoulder: pose.shoulder, hip: pose.hip, knee: pose.knee, ear: pose.ear
+                                        )
+                                    )
+                                    .cascadeIn(index: 7, trigger: rowsVisible)
                                 }
                             }
                             .padding(.horizontal, Theme.Space.lg)
@@ -904,7 +1062,130 @@ private struct CaptureSuccessStep: View {
     }
 }
 
-private struct HandlebarCalibrationStep: View {
+/// Side-on wheelbase ruler entry point (Plan P1.5) — routes to whichever of
+/// two sub-steps applies: tap-calibration when the bike already has a
+/// wheelbase on file, or a one-time inline entry prompt when it doesn't.
+/// Never gates capture (mirrors the wheel-check's rule): either sub-step can
+/// skip straight through to analysis, falling back to the borrowed frontal
+/// scale exactly as before this plan.
+private struct SideOnCalibrationStep: View {
+    let image: UIImage
+    let bike: Bike
+    @Binding var tapPoints: [CGPoint]
+    let onConfirm: (Double) -> Void
+    let onSkip: () -> Void
+
+    // Seeded from the bike's stored value; once the entry prompt sets one
+    // (and persists it to `bike.wheelbaseMm` for future captures), this
+    // flips the view to the tap-calibration sub-step for *this* capture too
+    // — no need to wait for a re-render from SwiftData.
+    @State private var wheelbaseMm: Double?
+
+    init(image: UIImage, bike: Bike, tapPoints: Binding<[CGPoint]>, onConfirm: @escaping (Double) -> Void, onSkip: @escaping () -> Void) {
+        self.image = image
+        self.bike = bike
+        self._tapPoints = tapPoints
+        self.onConfirm = onConfirm
+        self.onSkip = onSkip
+        self._wheelbaseMm = State(initialValue: bike.wheelbaseMm)
+    }
+
+    var body: some View {
+        if let wheelbaseMm {
+            TapCalibrationStep(
+                image: image,
+                tapPoints: $tapPoints,
+                wheelTapPoints: .constant([]),
+                wheelDiameterMm: nil,
+                primaryTapPrompts: ("Tap the front wheel axle", "Now tap the rear wheel axle"),
+                confirmLabel: "CONFIRM WHEELBASE",
+                onSkip: onSkip,
+                skipLabel: "SKIP RULER",
+                onConfirm: {
+                    guard tapPoints.count == 2 else { return }
+                    let scale = AnalysisMath.sideOnPixelsPerCm(
+                        tap0: tapPoints[0], tap1: tapPoints[1],
+                        imageSize: image.size, wheelbaseMm: wheelbaseMm
+                    )
+                    onConfirm(scale)
+                }
+            )
+        } else {
+            WheelbaseEntryPrompt(
+                image: image,
+                onUse: { enteredMm in
+                    bike.wheelbaseMm = enteredMm  // on file for every future capture, no re-asking
+                    wheelbaseMm = enteredMm
+                },
+                onSkip: onSkip
+            )
+        }
+    }
+}
+
+/// One-time inline prompt (Plan P1.5) shown only when the selected bike has
+/// no wheelbase on record — same spirit as `BikePickerSheet`'s inline
+/// add-bike form. Optional, like every scale-verification affordance here.
+private struct WheelbaseEntryPrompt: View {
+    let image: UIImage
+    let onUse: (Double) -> Void
+    let onSkip: () -> Void
+
+    @State private var wheelbaseText = ""
+    @FocusState private var fieldFocused: Bool
+
+    private var enteredValue: Double? { Double(wheelbaseText) }
+    private var isValid: Bool { (enteredValue ?? 0) > 0 }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                Text("Add your bike's wheelbase for a more accurate side-on measurement (optional).")
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg3)
+                    .padding(.top, Theme.Space.lg)
+
+                FieldLabel("WHEELBASE (MM)")
+                MonoField(placeholder: "1050", text: $wheelbaseText, numericOnly: true)
+                    .focused($fieldFocused)
+            }
+            .padding(.horizontal, Theme.Space.screenMargin)
+
+            Spacer(minLength: Theme.Space.lg)
+
+            GhostButton(label: "SKIP RULER", action: onSkip)
+                .padding(.horizontal, Theme.Space.lg)
+                .padding(.top, Theme.Space.sm)
+            AccentButton(
+                label: "USE THIS",
+                action: {
+                    guard let value = enteredValue else { return }
+                    onUse(value)
+                },
+                enabled: isValid
+            )
+            .padding(.horizontal, Theme.Space.lg)
+            .padding(.vertical, Theme.Space.md)
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(0.3))
+            fieldFocused = true
+        }
+    }
+}
+
+/// Two-tap distance calibration against a photo — pinch/zoom/pan, drag-to-
+/// fine-tune, floating loupe, connecting line. Originally built for the
+/// head-on handlebar ruler; generalised (Plan P1.5) to also drive the
+/// side-on wheelbase ruler — the gesture/rendering mechanics are identical,
+/// only the primary taps' copy and confirm label vary per caller.
+private struct TapCalibrationStep: View {
     let image: UIImage
     @Binding var tapPoints: [CGPoint]
     // Optional cross-scale verification taps (Plan K3) — ground contact +
@@ -912,6 +1193,20 @@ private struct HandlebarCalibrationStep: View {
     // size on record, so the verify affordance never appears.
     @Binding var wheelTapPoints: [CGPoint]
     let wheelDiameterMm: Double?
+    // Plan P1.5: the primary tap pair's banner copy and confirm label,
+    // defaulted to the original handlebar-ruler copy so the existing
+    // head-on call site (trailing-closure `onConfirm`) is unaffected by
+    // this generalisation — hence these sit *before* onConfirm below,
+    // keeping it the last parameter.
+    var primaryTapPrompts: (first: String, second: String) = (
+        "Tap the left end of your handlebars", "Now tap the right end"
+    )
+    var confirmLabel: String = "CONFIRM SCALE"
+    // Never gates confirm (same "advisory only" rule as the wheel check) —
+    // nil (the default) omits the affordance entirely, matching the
+    // head-on ruler's no-skip behaviour today.
+    var onSkip: (() -> Void)? = nil
+    var skipLabel: String = "SKIP"
     let onConfirm: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -1024,6 +1319,9 @@ private struct HandlebarCalibrationStep: View {
                 } else if verifyingWheel {
                     wheelSkipLink
                         .transition(appearTransition)
+                } else if let onSkip {
+                    skipRulerLink(action: onSkip)
+                        .transition(appearTransition)
                 }
             }
             .animation(Theme.Motion.entrance(), value: verifyingWheel)
@@ -1069,9 +1367,9 @@ private struct HandlebarCalibrationStep: View {
                 : "Pinch to zoom, drag a point to fine-tune"
         }
         return tapPoints.count == 0
-            ? "Tap the left end of your handlebars"
+            ? primaryTapPrompts.first
             : tapPoints.count == 1
-            ? "Now tap the right end"
+            ? primaryTapPrompts.second
             : "Pinch to zoom, drag a point to fine-tune"
     }
 
@@ -1116,6 +1414,22 @@ private struct HandlebarCalibrationStep: View {
             wheelLineProgress = 0
         } label: {
             Text("SKIP WHEEL CHECK")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg3)
+                .kerning(0.5)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .background(Theme.Palette.bg1)
+    }
+
+    /// The ruler-skip affordance (Plan P1.5) — same never-gates-confirm
+    /// posture as `wheelSkipLink`, generalised to whatever `skipLabel` the
+    /// caller wants (side-on's wheelbase ruler uses "SKIP RULER").
+    private func skipRulerLink(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(skipLabel.uppercased())
                 .font(Theme.mono(11, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg3)
                 .kerning(0.5)
@@ -1315,7 +1629,7 @@ private struct HandlebarCalibrationStep: View {
     }
 
     private var confirmButton: some View {
-        AccentButton(label: "CONFIRM SCALE", action: onConfirm, enabled: tapPoints.count == 2)
+        AccentButton(label: confirmLabel, action: onConfirm, enabled: tapPoints.count == 2)
             .padding(.horizontal, Theme.Space.lg)
             .padding(.vertical, Theme.Space.md)
             .background(Theme.Palette.bg0)

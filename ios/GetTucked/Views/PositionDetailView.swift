@@ -116,6 +116,12 @@ struct PositionDetailView: View {
                                     .skeletonReveal(visible: sideOnPhotoSegment == .bones)
                             }
                         }
+                        .overlay(alignment: .topTrailing) {
+                            if showingSideOn, let sideOnFacing {
+                                FacingChip(derivedFacing: sideOnFacing.facing, confidence: sideOnFacing.confidence)
+                                    .padding(Theme.Space.sm)
+                            }
+                        }
                         .aspectRatio(showingSideOn ? sideOnAspectRatio : headOnAspectRatio, contentMode: .fit)
                         .frame(maxWidth: .infinity)
                         // Keyed on showingSideOn so switching photos resets zoom
@@ -173,6 +179,16 @@ struct PositionDetailView: View {
                             .padding(.horizontal, Theme.Space.screenMargin)
                             .padding(.vertical, Theme.Space.lg)
                         }
+
+                        // Reuses the ordinary capture flow (SetTheSceneView →
+                        // CaptureView), just carrying this position's id as
+                        // the ghost reference (Plan P2.1) — no separate entry
+                        // point or copy path.
+                        GhostButton(label: "MATCH THIS POSITION") {
+                            path.append(.setTheScene(referenceID: position.persistentModelID))
+                        }
+                        .padding(.horizontal, Theme.Space.screenMargin)
+                        .padding(.top, Theme.Space.lg)
 
                         GhostButton(label: "DELETE POSITION") { showDeleteConfirm = true }
                             .padding(.horizontal, Theme.Space.screenMargin)
@@ -273,6 +289,19 @@ struct PositionDetailView: View {
     private var sideOnSkeletonOverlay: SkeletonOverlay? {
         guard let points = position.metrics?.sideOnSkeletonPoints else { return nil }
         return SkeletonOverlay.sideOn(points: points)
+    }
+
+    /// Derived fresh from the same stored landmarks every time (Plan P3) —
+    /// no persisted guess, so this recomputes on every visit rather than
+    /// remembering a past correction (Plan P3.3's schema-free decision).
+    private var sideOnFacing: (facing: AnalysisMath.Facing, confidence: Double)? {
+        guard let points = position.metrics?.sideOnSkeletonPoints, points.count == 8 else { return nil }
+        return AnalysisMath.sideOnFacing(
+            shoulder: CGPoint(x: points[0], y: points[1]),
+            hip: CGPoint(x: points[2], y: points[3]),
+            knee: CGPoint(x: points[4], y: points[5]),
+            ear: CGPoint(x: points[6], y: points[7])
+        )
     }
 
     #if canImport(UIKit)
@@ -432,8 +461,12 @@ private struct MetricsSection: View {
                 if let h = metrics.hipAngleDeg {
                     MetricRow(key: "Hip angle", value: "\(String(format: "%.0f", h))°")
                 }
-                // Head drop hidden for now (Plan G decision 4) — see RevealStep
-                // for why. Still stored on metrics.headDropCm; not shown here.
+                // Shown only when a real wheelbase ruler produced it (Plan
+                // P1.5) — see RevealStep for why. Still stored on
+                // metrics.headDropCm regardless; the gate is purely display.
+                if let d = metrics.headDropCm, metrics.sideOnPixelsPerCm != nil {
+                    MetricRow(key: "Head drop", value: "\(String(format: "%.1f", d)) cm")
+                }
                 MetricRow(
                     key: "Scale",
                     value: "\(String(format: "%.1f", metrics.pixelsPerCm)) px/cm"

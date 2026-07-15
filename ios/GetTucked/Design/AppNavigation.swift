@@ -9,8 +9,13 @@ import SwiftData
 enum AppScreen: Hashable {
     case positionList
     case positionDetail(PersistentIdentifier)
-    case setTheScene
-    case capture
+    // referenceID (Plan P2) — set only via "Match this position", carries the
+    // position to align a capture against through to CaptureView. nil for
+    // every other entry point. No default: Swift enum cases can't default an
+    // associated value cleanly against existing bare-`.capture` call sites,
+    // so every call site below passes nil explicitly.
+    case setTheScene(referenceID: PersistentIdentifier?)
+    case capture(referenceID: PersistentIdentifier?)
     case bikeList
     case bikeSetup
     case leaderboard
@@ -45,11 +50,11 @@ struct AppNavigationView: View {
                             PositionListView(path: $path, highlightID: $justSavedPositionID)
                         case .positionDetail(let id):
                             PositionDetailWrapper(id: id, path: $path)
-                        case .setTheScene:
-                            SetTheSceneView { path.append(.capture) }
-                        case .capture:
+                        case .setTheScene(let referenceID):
+                            SetTheSceneView { path.append(.capture(referenceID: referenceID)) }
+                        case .capture(let referenceID):
                             #if canImport(UIKit)
-                            CaptureView(path: $path, onSaved: { id in justSavedPositionID = id })
+                            CaptureView(path: $path, referenceID: referenceID, onSaved: { id in justSavedPositionID = id })
                             #else
                             Text("Camera not available on this platform")
                             #endif
@@ -75,8 +80,11 @@ struct AppNavigationView: View {
             .tint(Theme.Palette.acc)
 
             // Back caret — top-left on any pushed screen (except capture, which
-            // owns its own X dismiss and hides all overlay chrome).
-            if !path.isEmpty && path.last != .capture {
+            // owns its own X dismiss and hides all overlay chrome). Pattern-
+            // matched rather than `!=` since `.capture` now carries an
+            // associated referenceID (Plan P2) and any value of it still
+            // means "hide the back caret."
+            if !path.isEmpty, !isCaptureScreen(path.last) {
                 BackButton { path.removeLast() }
                     // Glyph is centred in the tap frame, so inset the frame by
                     // screenMargin minus the frame's half-margin around it —
@@ -90,6 +98,11 @@ struct AppNavigationView: View {
                     .padding(.top, -2)
             }
         }
+    }
+
+    private func isCaptureScreen(_ screen: AppScreen?) -> Bool {
+        if case .capture = screen { return true }
+        return false
     }
 }
 

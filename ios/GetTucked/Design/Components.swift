@@ -231,3 +231,47 @@ struct StatusPill: View {
         }
     }
 }
+
+// MARK: - FacingChip (Plan P3)
+
+/// Tappable side-on facing indicator — always present and correctable
+/// (never a one-shot modal, never silently locked), styled by confidence: a
+/// pronounced lean renders confidently in `acc`; a near-upright/ambiguous
+/// read renders muted with a "?", inviting the tap instead of asserting an
+/// answer it can't defend (spec §3). A tap here is local state only — it
+/// doesn't persist (Plan P3.3's schema-free storage decision), so it resets
+/// to the derived guess the next time this view appears.
+struct FacingChip: View {
+    let derivedFacing: AnalysisMath.Facing
+    let confidence: Double
+
+    @State private var override: AnalysisMath.Facing?
+
+    private var facing: AnalysisMath.Facing { override ?? derivedFacing }
+    private var isConfident: Bool { confidence >= AnalysisMath.sideOnFacingConfidenceThreshold }
+
+    var body: some View {
+        Button {
+            override = facing == .left ? .right : .left
+            Haptics.select()
+        } label: {
+            HStack(spacing: 4) {
+                if facing == .left {
+                    Text("◂").font(Theme.mono(10))
+                }
+                Text(isConfident ? "FRONT" : "FRONT?")
+                    .font(Theme.mono(10, weight: .bold))
+                    .kerning(0.5)
+                if facing == .right {
+                    Text("▸").font(Theme.mono(10))
+                }
+            }
+            .foregroundStyle(isConfident ? Theme.Palette.acc : Theme.Palette.fg3)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Theme.Palette.bg0.opacity(0.72))
+            .overlay(Rectangle().stroke(isConfident ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}

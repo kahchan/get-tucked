@@ -25,10 +25,15 @@ struct LiveCameraView: View {
     var onPickFromLibrary: ((UIImage, String?) -> Void)? = nil
     let onCapture: (UIImage) -> Void
     let onCancel: () -> Void
+    // "Match this position" (Plan P2) — nil for every ordinary capture, in
+    // which case no ghost affordance appears at all.
+    var ghost: GhostReference? = nil
 
     @StateObject private var session = CameraSession()
     @State private var captureFlash = false
     @State private var showingBikePicker = false
+    // Default on (Plan P2.2) — the single show/hide control, no sub-choices.
+    @State private var showGhost = true
 
     var body: some View {
         ZStack {
@@ -40,6 +45,16 @@ struct LiveCameraView: View {
                 // Camera feed
                 CameraPreviewLayer(session: session.captureSession, rotationAngle: session.orientationBucket.videoRotationAngle)
                     .ignoresSafeArea()
+
+                // Ghost alignment overlay (Plan P2) — capture-time only,
+                // never enters the Inspect PHOTO/MASK/BONES ladder. Fades in
+                // at Motion.fast; already static so Reduce Motion has
+                // nothing to collapse.
+                if let ghost, showGhost {
+                    GhostOverlay(outlineImage: ghost.outlineImage, skeleton: ghost.skeleton, referenceAspect: ghost.referenceAspect)
+                        .ignoresSafeArea()
+                        .transition(.opacity.animation(Theme.Motion.entrance(Theme.Motion.fast)))
+                }
 
                 // HUD overlay. Branch on layout geometry, not
                 // UIDevice.current.orientation (Plan L3) — geometry is
@@ -138,6 +153,13 @@ struct LiveCameraView: View {
                 StepLabelChip(label: stepLabel)
             }
             Spacer()
+            if ghost != nil {
+                GhostToggleButton(isOn: showGhost) {
+                    withAnimation(Theme.Motion.entrance(Theme.Motion.fast)) {
+                        showGhost.toggle()
+                    }
+                }
+            }
             Button(action: onCancel) {
                 Text("✕")
                     .font(Theme.mono(Theme.Control.iconSize))
@@ -222,6 +244,27 @@ private struct StepLabelChip: View {
             .padding(.vertical, 8)
             .background(Theme.Palette.bg0.opacity(0.72))
             .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+    }
+}
+
+/// The ghost's single show/hide affordance (Plan P2.2) — no sub-choices,
+/// just on or off. Only ever appears when a reference is actually loaded.
+private struct GhostToggleButton: View {
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(isOn ? "GHOST" : "GHOST OFF")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(isOn ? Theme.Palette.acc : Theme.Palette.fg3)
+                .kerning(0.5)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Theme.Palette.bg0.opacity(0.72))
+                .overlay(Rectangle().stroke(isOn ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 

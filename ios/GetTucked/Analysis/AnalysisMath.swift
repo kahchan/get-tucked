@@ -23,6 +23,17 @@ enum AnalysisMath {
         handlebarPixels / (handlebarWidthMm / 10.0)
     }
 
+    /// Side-on scale from a wheelbase tap-calibration (Plan P1.5) — same
+    /// tap-distance math as the frontal handlebar ruler (`handlebarPixels` +
+    /// `pixelsPerCm` above), wheelbase substituted for handlebar width as
+    /// the known length. A thin, semantically-named wrapper; no new geometry.
+    static func sideOnPixelsPerCm(tap0: CGPoint, tap1: CGPoint, imageSize: CGSize, wheelbaseMm: Double) -> Double {
+        pixelsPerCm(
+            handlebarPixels: handlebarPixels(tap0: tap0, tap1: tap1, imageSize: imageSize),
+            handlebarWidthMm: wheelbaseMm
+        )
+    }
+
     /// The segmentation mask resolution differs from the source in general.
     /// Rescale source pixels/cm into mask pixel space so area and scale share units.
     static func maskPixelsPerCm(sourcePixelsPerCm: Double, maskWidth: Int, sourceWidth: Int) -> Double {
@@ -215,6 +226,113 @@ enum AnalysisMath {
         imageHeightPx: Int, pixelsPerCm: Double
     ) -> Double {
         (shoulderY - earY) * Double(imageHeightPx) / pixelsPerCm
+    }
+
+    // MARK: - Pose delta (Plan P1) — is this even the same position?
+
+    /// Distinct from the ±3% noise floor (`isDistinguishable`), which asks
+    /// "is the *area* delta real?" This asks "is the *position* even the
+    /// same?" — a comparison can clear the noise floor yet be untrustworthy
+    /// because the rider's pose drifted between shots, not their setup.
+    enum PoseDeltaSeverity: Equatable {
+        case note
+        case warn
+    }
+
+    /// Starting points only, human-gated for on-device tuning (like every
+    /// threshold in this file) — never ship a guessed number as validated.
+    static let poseDeltaNoteThresholdDeg = 4.0
+    static let poseDeltaWarnThresholdDeg = 8.0
+
+    /// Angle of the shoulder line from horizontal — the frontal counterpart
+    /// to `torsoAngleDeg`'s from-vertical convention, so a frontal delta and
+    /// a side-on delta land on the same degree scale and can share one
+    /// threshold pair below.
+    static func shoulderTiltDeg(leftShoulder: CGPoint, rightShoulder: CGPoint) -> Double {
+        let dx = Double(rightShoulder.x - leftShoulder.x)
+        let dy = Double(rightShoulder.y - leftShoulder.y)
+        return abs(atan2(dy, dx) * 180 / .pi)
+    }
+
+    /// Largest angle delta between two captured positions, across whichever
+    /// channels both positions actually have (frontal shoulder tilt, torso
+    /// angle, hip angle). Head drop is deliberately excluded — it's a cm
+    /// figure on a different scale, not degrees. nil when there's no
+    /// channel present on both sides to compare.
+    static func poseAngleDelta(
+        shoulderTiltDegA: Double?, shoulderTiltDegB: Double?,
+        torsoAngleDegA: Double?, torsoAngleDegB: Double?,
+        hipAngleDegA: Double?, hipAngleDegB: Double?
+    ) -> Double? {
+        let pairs: [(Double?, Double?)] = [
+            (shoulderTiltDegA, shoulderTiltDegB),
+            (torsoAngleDegA, torsoAngleDegB),
+            (hipAngleDegA, hipAngleDegB),
+        ]
+        let deltas = pairs.compactMap { a, b -> Double? in
+            guard let a, let b else { return nil }
+            return abs(b - a)
+        }
+        return deltas.max()
+    }
+
+    /// Advisory copy for a pose delta between two compared positions —
+    /// mirrors `shoulderWidthWarning`'s shape: nil is the pass state
+    /// (silence), never a "positions match" affirmation. Flags the
+    /// confound; doesn't claim to correct it (some of the delta is the
+    /// rider, not the setup, and that can't be separated out).
+    static func poseDeltaWarning(angleDeltaDeg: Double) -> (text: String, severity: PoseDeltaSeverity)? {
+        if angleDeltaDeg >= poseDeltaWarnThresholdDeg {
+            return ("Positions look substantially different — some of this delta may be you, not your setup.", .warn)
+        } else if angleDeltaDeg >= poseDeltaNoteThresholdDeg {
+            return ("Your position shifted a little between shots — some of this delta may be you, not your setup.", .note)
+        }
+        return nil
+    }
+
+    // MARK: - Side-on facing (Plan P3) — which way is the front?
+
+    /// A side-on photo can face either direction; without knowing which,
+    /// "front bag" vs "rear bag" is a coin toss (spec §3 forbids shipping
+    /// those). Pure and derived from the same landmarks the side-on skeleton
+    /// already stores — no new capture, no persisted guess (schema-free).
+    enum Facing: Equatable {
+        case left
+        case right
+    }
+
+    /// Starting point only, human-gated for on-device tuning — below this,
+    /// the UI shows the guess as uncertain (styled, correctable) rather than
+    /// asserting it.
+    static let sideOnFacingConfidenceThreshold = 0.5
+
+    /// Three independent x-axis cues vote on facing — torso lean toward the
+    /// bars, head reaching forward, knee ahead of hip — all things a riding
+    /// position does toward the *front* of the bike. Agreement across the
+    /// three, weighted by how large each displacement is relative to the
+    /// torso's own vertical span (so it's scale-invariant across photos),
+    /// produces a confidence: unanimous + pronounced lean → high; a
+    /// near-upright rider (small, noisy displacements) → low, correctly
+    /// signalling "don't guess."
+    static func sideOnFacing(
+        shoulder: CGPoint, hip: CGPoint, knee: CGPoint, ear: CGPoint
+    ) -> (facing: Facing, confidence: Double) {
+        let torsoLength = max(abs(Double(shoulder.y - hip.y)), 1e-6)
+        let cues: [Double] = [
+            Double(shoulder.x - hip.x),
+            Double(ear.x - shoulder.x),
+            Double(knee.x - hip.x),
+        ]
+        let positiveVotes = cues.filter { $0 >= 0 }.count
+        let majoritySign: Double = positiveVotes * 2 >= cues.count ? 1 : -1
+        let agreement = Double(cues.filter { ($0 >= 0 ? 1.0 : -1.0) == majoritySign }.count) / Double(cues.count)
+        // A cue saturates to full weight once it reaches 30% of the torso's
+        // vertical span — a genuinely leaned-forward rider clears this
+        // easily; an upright rider (near-zero horizontal displacement) doesn't.
+        let magnitudeScale = torsoLength * 0.3
+        let avgMagnitude = cues.map { min(abs($0) / magnitudeScale, 1.0) }.reduce(0, +) / Double(cues.count)
+        let confidence = agreement * avgMagnitude
+        return (majoritySign > 0 ? .right : .left, confidence)
     }
 
     // MARK: - 3D pose geometry (Plan A6 — DEBUG comparison only; inputs are

@@ -33,6 +33,17 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(ppc, 10, accuracy: acc)
     }
 
+    func testSideOnPixelsPerCmMatchesFrontalRulerMath() {
+        // Same shape as testHandlebarPixelsHorizontalSpan + testPixelsPerCm:
+        // 40% of a 1000px-wide image → 400px, over a 1050mm wheelbase.
+        let ppc = AnalysisMath.sideOnPixelsPerCm(
+            tap0: CGPoint(x: 0.2, y: 0.5), tap1: CGPoint(x: 0.6, y: 0.5),
+            imageSize: CGSize(width: 1000, height: 1000), wheelbaseMm: 1050
+        )
+        let expected = AnalysisMath.pixelsPerCm(handlebarPixels: 400, handlebarWidthMm: 1050)
+        XCTAssertEqual(ppc, expected, accuracy: acc)
+    }
+
     func testMaskPixelsPerCmDownscale() {
         // Mask is half the source width → scale halves.
         let ppc = AnalysisMath.maskPixelsPerCm(sourcePixelsPerCm: 10, maskWidth: 500, sourceWidth: 1000)
@@ -356,5 +367,95 @@ final class AnalysisMathTests: XCTestCase {
             shoulderY: 0.6, earY: 0.8, imageHeightPx: 1000, pixelsPerCm: 10
         )
         XCTAssertEqual(cm, -20, accuracy: acc)
+    }
+
+    // MARK: - Pose delta (Plan P1)
+
+    func testShoulderTiltLevelIsZero() {
+        let deg = AnalysisMath.shoulderTiltDeg(
+            leftShoulder: CGPoint(x: 0.3, y: 0.6), rightShoulder: CGPoint(x: 0.7, y: 0.6)
+        )
+        XCTAssertEqual(deg, 0, accuracy: 1e-9)
+    }
+
+    func testShoulderTilt45() {
+        let deg = AnalysisMath.shoulderTiltDeg(
+            leftShoulder: CGPoint(x: 0.3, y: 0.5), rightShoulder: CGPoint(x: 0.7, y: 0.9)
+        )
+        XCTAssertEqual(deg, 45, accuracy: 1e-9)
+    }
+
+    func testPoseAngleDeltaNilWhenNoChannelPresentOnBothSides() {
+        let delta = AnalysisMath.poseAngleDelta(
+            shoulderTiltDegA: nil, shoulderTiltDegB: nil,
+            torsoAngleDegA: 20, torsoAngleDegB: nil,
+            hipAngleDegA: nil, hipAngleDegB: 100
+        )
+        XCTAssertNil(delta)
+    }
+
+    func testPoseAngleDeltaSymmetricInputsIsZero() {
+        let delta = AnalysisMath.poseAngleDelta(
+            shoulderTiltDegA: 5, shoulderTiltDegB: 5,
+            torsoAngleDegA: 20, torsoAngleDegB: 20,
+            hipAngleDegA: 100, hipAngleDegB: 100
+        )
+        XCTAssertEqual(delta ?? -1, 0, accuracy: acc)
+    }
+
+    func testPoseAngleDeltaTakesLargestAvailableChannel() {
+        let delta = AnalysisMath.poseAngleDelta(
+            shoulderTiltDegA: 5, shoulderTiltDegB: 8,     // delta 3
+            torsoAngleDegA: 20, torsoAngleDegB: 31,       // delta 11
+            hipAngleDegA: 100, hipAngleDegB: 104          // delta 4
+        )
+        XCTAssertEqual(delta ?? -1, 11, accuracy: acc)
+    }
+
+    func testPoseDeltaWarningNilBelowNoteThreshold() {
+        XCTAssertNil(AnalysisMath.poseDeltaWarning(angleDeltaDeg: 2))
+    }
+
+    func testPoseDeltaWarningNoteTierBetweenThresholds() {
+        let warning = AnalysisMath.poseDeltaWarning(angleDeltaDeg: 5)
+        XCTAssertEqual(warning?.severity, .note)
+    }
+
+    func testPoseDeltaWarningWarnTierAboveUpperThreshold() {
+        let warning = AnalysisMath.poseDeltaWarning(angleDeltaDeg: 12)
+        XCTAssertEqual(warning?.severity, .warn)
+    }
+
+    // MARK: - Side-on facing (Plan P3)
+
+    func testSideOnFacingClearRightLeaningIsHighConfidence() {
+        // Shoulder/ear/knee all forward (+x) of hip/shoulder — a pronounced,
+        // unambiguous lean toward the bars.
+        let result = AnalysisMath.sideOnFacing(
+            shoulder: CGPoint(x: 0.65, y: 0.65), hip: CGPoint(x: 0.5, y: 0.35),
+            knee: CGPoint(x: 0.58, y: 0.15), ear: CGPoint(x: 0.72, y: 0.68)
+        )
+        XCTAssertEqual(result.facing, .right)
+        XCTAssertGreaterThanOrEqual(result.confidence, AnalysisMath.sideOnFacingConfidenceThreshold)
+    }
+
+    func testSideOnFacingClearLeftLeaningIsHighConfidence() {
+        // Mirror of the right-facing case above.
+        let result = AnalysisMath.sideOnFacing(
+            shoulder: CGPoint(x: 0.35, y: 0.65), hip: CGPoint(x: 0.5, y: 0.35),
+            knee: CGPoint(x: 0.42, y: 0.15), ear: CGPoint(x: 0.28, y: 0.68)
+        )
+        XCTAssertEqual(result.facing, .left)
+        XCTAssertGreaterThanOrEqual(result.confidence, AnalysisMath.sideOnFacingConfidenceThreshold)
+    }
+
+    func testSideOnFacingNearUprightIsLowConfidence() {
+        // Torso nearly vertical, tiny/noisy horizontal displacements — the
+        // ambiguous case the UI should ask about rather than guess.
+        let result = AnalysisMath.sideOnFacing(
+            shoulder: CGPoint(x: 0.50, y: 0.7), hip: CGPoint(x: 0.50, y: 0.4),
+            knee: CGPoint(x: 0.49, y: 0.15), ear: CGPoint(x: 0.51, y: 0.75)
+        )
+        XCTAssertLessThan(result.confidence, AnalysisMath.sideOnFacingConfidenceThreshold)
     }
 }

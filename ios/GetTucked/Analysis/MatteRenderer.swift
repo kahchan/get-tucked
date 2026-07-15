@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreImage
 #if canImport(UIKit)
 import UIKit
 
@@ -59,6 +60,62 @@ enum MatteRenderer {
 
         guard let cgImage = context.makeImage() else { return nil }
         return UIImage(cgImage: cgImage)
+    }
+
+    /// Traces the foreground boundary as a stroke-width ring (Plan P2.2): a
+    /// hollow outline, not a fill, since aligning to the ghost means seeing
+    /// the live subject *through* the guide, not occluded by it. Dilates the
+    /// mask (`CIMorphologyMaximum` — Core Image is already in the stack),
+    /// then a manual byte-level pass keeps only the band that's foreground
+    /// in the dilated version but background in the original. Same
+    /// DeviceGray/alpha-none convention as the mask it consumes, so the
+    /// result feeds straight into `tintedOverlay` like any other mask.
+    static func outlineMask(mask: CGImage, strokeWidthPx: Int) -> CGImage? {
+        guard strokeWidthPx > 0 else { return nil }
+
+        let ciImage = CIImage(cgImage: mask)
+        guard let dilateFilter = CIFilter(name: "CIMorphologyMaximum") else { return nil }
+        dilateFilter.setValue(ciImage, forKey: kCIInputImageKey)
+        dilateFilter.setValue(Double(strokeWidthPx), forKey: kCIInputRadiusKey)
+        guard let dilated = dilateFilter.outputImage else { return nil }
+
+        // Crop back to the mask's own extent — dilation grows the filter's
+        // natural output bounds, but the ring only needs to line up with
+        // the original mask's pixel dimensions for `tintedOverlay` below.
+        let extent = ciImage.extent
+        let context = CIContext()
+        guard let dilatedCG = context.createCGImage(
+            dilated, from: extent, format: .L8, colorSpace: CGColorSpaceCreateDeviceGray()
+        ),
+        let dilatedData = dilatedCG.dataProvider?.data,
+        let dilatedBytes = CFDataGetBytePtr(dilatedData),
+        let originalData = mask.dataProvider?.data,
+        let originalBytes = CFDataGetBytePtr(originalData)
+        else { return nil }
+
+        let width = mask.width
+        let height = mask.height
+        let threshold: UInt8 = 128
+        var ring = [UInt8](repeating: 0, count: width * height)
+        for y in 0 ..< height {
+            let dilatedRow = y * dilatedCG.bytesPerRow
+            let originalRow = y * mask.bytesPerRow
+            for x in 0 ..< width {
+                let isDilatedForeground = dilatedBytes[dilatedRow + x] >= threshold
+                let isOriginalForeground = originalBytes[originalRow + x] >= threshold
+                ring[y * width + x] = (isDilatedForeground && !isOriginalForeground) ? 255 : 0
+            }
+        }
+
+        guard let ringContext = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return nil }
+        ring.withUnsafeBytes { ptr in
+            ringContext.data?.copyMemory(from: ptr.baseAddress!, byteCount: ring.count)
+        }
+        return ringContext.makeImage()
     }
 
     /// Encodes a raw segmentation mask as lossless PNG, downscaling (never

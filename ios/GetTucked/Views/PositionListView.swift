@@ -54,7 +54,7 @@ struct PositionListView: View {
                             .buttonStyle(.plain)
 
                             Button {
-                                path.append(.setTheScene)
+                                path.append(.setTheScene(referenceID: nil))
                             } label: {
                                 Image(systemName: "plus")
                                     .font(.system(size: Theme.Control.iconSize, weight: .medium))
@@ -97,7 +97,7 @@ struct PositionListView: View {
                         EmptyStateView(
                             message: "No positions yet.\nCapture a position to measure frontal area.",
                             ctaLabel: "Capture a position",
-                            ctaAction: { path.append(.setTheScene) }
+                            ctaAction: { path.append(.setTheScene(referenceID: nil)) }
                         )
                     }
                 } else {

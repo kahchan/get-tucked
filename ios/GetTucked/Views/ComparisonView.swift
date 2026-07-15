@@ -41,12 +41,33 @@ struct ComparisonView: View {
         positionA.bike?.id != positionB.bike?.id
     }
 
+    // MARK: - Pose delta (Plan P1.3) — is this even the same position?
+
+    private func shoulderTiltDeg(from points: [Double]?) -> Double? {
+        guard let points, points.count == 4 else { return nil }
+        return AnalysisMath.shoulderTiltDeg(
+            leftShoulder: CGPoint(x: points[0], y: points[1]),
+            rightShoulder: CGPoint(x: points[2], y: points[3])
+        )
+    }
+
+    private var poseDeltaWarning: (text: String, severity: AnalysisMath.PoseDeltaSeverity)? {
+        let delta = AnalysisMath.poseAngleDelta(
+            shoulderTiltDegA: shoulderTiltDeg(from: metricsA?.headOnSkeletonPoints),
+            shoulderTiltDegB: shoulderTiltDeg(from: metricsB?.headOnSkeletonPoints),
+            torsoAngleDegA: metricsA?.torsoAngleDeg, torsoAngleDegB: metricsB?.torsoAngleDeg,
+            hipAngleDegA: metricsA?.hipAngleDeg, hipAngleDegB: metricsB?.hipAngleDeg
+        )
+        guard let delta else { return nil }
+        return AnalysisMath.poseDeltaWarning(angleDeltaDeg: delta)
+    }
+
     var body: some View {
         ZStack {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                NavHeader(title: "COMPARE")
+                NavHeader(title: "COMPARE", subtitle: "Same kit, same position as the reference shot?")
                 SectionDivider()
 
                 ScrollView {
@@ -74,6 +95,9 @@ struct ComparisonView: View {
                         if let delta = deltaPct, let a = areaA, let b = areaB {
                             DeltaHero(delta: delta, winner: a < b ? "A" : "B", absoluteDeltaCm2: abs(b - a),
                                       isDistinguishable: isDistinguishable, noisePct: noisePct)
+                            if let poseDeltaWarning {
+                                PoseDeltaAdvisory(warning: poseDeltaWarning)
+                            }
                             SectionDivider()
                         }
 
@@ -103,6 +127,25 @@ private struct CrossBikeWarning: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.Palette.bg1)
             .overlay(Rectangle().stroke(Theme.Palette.amb, lineWidth: 1))
+    }
+}
+
+// MARK: - Pose delta advisory (Plan P1.3)
+
+/// Complementary to the ±3% noise floor `DeltaHero` already renders: that
+/// answers "is the area delta real?", this answers "is the position even the
+/// same?" — plain text, no banner chrome (unlike `CrossBikeWarning`), same
+/// quiet surfacing `shoulderWidthWarning` gets elsewhere.
+private struct PoseDeltaAdvisory: View {
+    let warning: (text: String, severity: AnalysisMath.PoseDeltaSeverity)
+
+    var body: some View {
+        Text(warning.text)
+            .font(Theme.mono(11))
+            .foregroundStyle(warning.severity == .warn ? Theme.Palette.amb : Theme.Palette.fg2)
+            .padding(.horizontal, Theme.Space.screenMargin)
+            .padding(.bottom, Theme.Space.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -282,10 +325,29 @@ private struct DiffTable: View {
                 .cascadeIn(index: 4, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
             }
 
-            // Head drop hidden for now (Plan G decision 4) — its cm figure
-            // borrows the frontal photo's scale, unenforced same-distance
-            // assumption. Still stored on metrics; not shown here.
+            // Head drop (side-on, optional) — shown per-side only when that
+            // position's own headDropCm came from a real wheelbase ruler
+            // (Plan P1.5), not the borrowed frontal scale (spec §3). A side
+            // without a ruler shows "—", same as any other missing metric;
+            // the diff column is naturally "—" too unless both sides qualify.
+            if defensibleHeadDropCm(metricsA) != nil || defensibleHeadDropCm(metricsB) != nil {
+                DiffRow(
+                    key: "Head drop",
+                    valA: defensibleHeadDropCm(metricsA).map { "\(String(format: "%.1f", $0)) cm" },
+                    valB: defensibleHeadDropCm(metricsB).map { "\(String(format: "%.1f", $0)) cm" },
+                    diff: diff(defensibleHeadDropCm(metricsA), defensibleHeadDropCm(metricsB), unit: "cm", fmt: "%.1f")
+                )
+                .cascadeIn(index: 5, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
+            }
         }
+    }
+
+    /// nil unless this position's headDropCm was computed from a real
+    /// wheelbase ruler — the same defensibility gate RevealStep and
+    /// PositionDetailView apply, kept local since only DiffTable needs it.
+    private func defensibleHeadDropCm(_ metrics: PositionMetrics?) -> Double? {
+        guard let metrics, metrics.sideOnPixelsPerCm != nil else { return nil }
+        return metrics.headDropCm
     }
 
     private func diff(_ a: Double?, _ b: Double?, unit: String, fmt: String) -> String? {
