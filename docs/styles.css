@@ -219,21 +219,28 @@ p.body em{color:var(--fg); font-style:italic}
 }
 .floor-cap{font-family:var(--mono); font-size:13px; color:var(--fg3); margin-top:16px}
 
-/* ---------- price ---------- */
-.price-wrap{display:flex; gap:48px; flex-wrap:wrap; align-items:flex-start}
-.price-num{
-  font-family:var(--mono); font-weight:700;
-  font-size:clamp(64px,13vw,120px); line-height:.85;
-  letter-spacing:-3px;
+/* ---------- get it (what you get + where) ---------- */
+.get-grid{
+  display:grid; grid-template-columns:1.1fr .9fr; gap:56px; align-items:center;
 }
-.price-num small{
-  display:block; font-size:15px; font-weight:400; letter-spacing:1px;
-  color:var(--fg3); margin-top:14px;
+.get-list{list-style:none}
+.get-list li{
+  font-family:var(--head); font-weight:600; text-transform:uppercase;
+  font-size:clamp(22px,3vw,30px); letter-spacing:-.4px; line-height:1.15;
+  color:var(--fg); padding:14px 0 14px 30px; position:relative;
+  border-bottom:1px solid var(--line2);
 }
-.price-list{list-style:none; font-family:var(--mono); font-size:16px; padding-top:6px}
-.price-list li{padding:8px 0; color:var(--fg2); border-bottom:1px solid var(--line2)}
-.price-list li::before{content:"— "; color:var(--acc)}
-.price-foot{font-family:var(--mono); font-size:13px; color:var(--fg3); margin-top:22px}
+.get-list li:first-child{padding-top:0}
+.get-list li::before{
+  content:""; position:absolute; left:0; top:calc(.62em);
+  width:12px; height:12px; background:var(--acc);
+}
+.get-cta{display:flex; flex-direction:column; align-items:flex-start; gap:16px}
+.price-line{
+  font-family:var(--mono); font-size:14px; color:var(--fg3); letter-spacing:.5px;
+}
+.price-line .amt{color:var(--fg2); font-weight:700}
+.price-foot{font-family:var(--mono); font-size:13px; color:var(--fg3); margin-top:36px}
 
 /* ---------- CTA ---------- */
 .appstore{
@@ -354,7 +361,7 @@ details .figure-note{
 
 @media (max-width:640px){
   body{font-size:17px}
-  .price-wrap{gap:28px}
+  .get-grid{grid-template-columns:1fr; gap:32px}
   .readout .num{text-shadow:none}
 }
 
