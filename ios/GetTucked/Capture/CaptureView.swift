@@ -443,6 +443,17 @@ struct CaptureView: View {
             tapPoints[0].x, tapPoints[0].y,
             tapPoints[1].x, tapPoints[1].y,
         ]
+        // Optional wheel-check taps (Plan K3) — nil unless the rider did
+        // that step. Previously only fed wheelCheckDisagreementFraction and
+        // was discarded; now also doubles as the ghost-compare overlay's
+        // ground anchor (the more precise alternative to the mask-bottom
+        // fallback) when present.
+        if wheelTapPoints.count == 2 {
+            position.wheelTapPoints = [
+                wheelTapPoints[0].x, wheelTapPoints[0].y,
+                wheelTapPoints[1].x, wheelTapPoints[1].y,
+            ]
+        }
         let metrics = PositionMetrics(
             frontalAreaCm2: result.frontalAreaCm2,
             frontalAreaUncertainty: result.frontalAreaUncertaintyCm2,

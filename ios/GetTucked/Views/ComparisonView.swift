@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreGraphics
 
 struct ComparisonView: View {
     let positionA: Position   // first selected — the reference
@@ -9,6 +10,19 @@ struct ComparisonView: View {
     // is the deliberate second wow moment and manages its own timing instead.
     @State private var appeared = false
     private let cascadeStagger: Double = 0.025
+
+    // Ghost-compare overlay (frontal only, v1) — built once, off-main, from
+    // each position's already-persisted mask/taps. Either side independently
+    // degrades to nil (no mask, no handlebar taps, or no usable ground
+    // reference), in which case the whole section just doesn't appear —
+    // never blocks the numeric comparison above/below it.
+    @State private var overlayLayerA: GhostCompareLayer?
+    @State private var overlayLayerB: GhostCompareLayer?
+    @State private var showOutline = true
+    // Independent per-position visibility — lets you isolate one silhouette
+    // at a time rather than always looking at both overlaid.
+    @State private var showLayerA = true
+    @State private var showLayerB = true
 
     private var metricsA: PositionMetrics? { positionA.metrics }
     private var metricsB: PositionMetrics? { positionB.metrics }
@@ -90,6 +104,31 @@ struct ComparisonView: View {
                                 .cascadeIn(index: 0, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
                         }
 
+                        // Ghost-compare overlay (frontal only) — the visual
+                        // complement to the numbers below. Absent entirely
+                        // until both layers are ready; never blocks anything
+                        // else on this screen.
+                        if let overlayLayerA, let overlayLayerB {
+                            SegmentedToggleBar(labels: ["PHOTO", "OUTLINE"], selectedIndex: showOutlineBinding)
+                            GhostCompareOverlay(
+                                layerA: overlayLayerA, layerB: overlayLayerB, showOutline: showOutline,
+                                showLayerA: showLayerA, showLayerB: showLayerB
+                            )
+                            .frame(height: 300)
+                            .overlay(alignment: .topTrailing) {
+                                HStack(spacing: Theme.Space.xs) {
+                                    LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA) {
+                                        showLayerA.toggle()
+                                    }
+                                    LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB) {
+                                        showLayerB.toggle()
+                                    }
+                                }
+                                .padding(Theme.Space.sm)
+                            }
+                            SectionDivider()
+                        }
+
                         // Delta hero — the deliberate secondary wow moment;
                         // manages its own roll/fade timing, not the cascade.
                         if let delta = deltaPct, let a = areaA, let b = areaB {
@@ -113,6 +152,86 @@ struct ComparisonView: View {
         }
         .hideNavBar()
         .onAppear { appeared = true }
+        .task { await loadOverlayLayers() }
+    }
+
+    private var showOutlineBinding: Binding<Int> {
+        Binding(get: { showOutline ? 1 : 0 }, set: { showOutline = $0 == 1 })
+    }
+
+    /// Off-main, once — mirrors the pattern `CaptureView.buildGhosts()` uses
+    /// for Plan P2's ghost: read the SwiftData-backed values on the main
+    /// actor first (models aren't safe to touch off it), then hand only
+    /// plain values into the detached work.
+    private func loadOverlayLayers() async {
+        async let a = buildGhostCompareLayer(
+            maskData: positionA.maskData, photosData: positionA.photosData,
+            frontalAreaCm2: positionA.metrics?.frontalAreaCm2,
+            handlebarTapPoints: positionA.handlebarTapPoints, wheelTapPoints: positionA.wheelTapPoints,
+            tintColor: UIColor(Theme.Palette.acc)
+        )
+        async let b = buildGhostCompareLayer(
+            maskData: positionB.maskData, photosData: positionB.photosData,
+            frontalAreaCm2: positionB.metrics?.frontalAreaCm2,
+            handlebarTapPoints: positionB.handlebarTapPoints, wheelTapPoints: positionB.wheelTapPoints,
+            tintColor: UIColor(Theme.Palette.amb)
+        )
+        (overlayLayerA, overlayLayerB) = await (a, b)
+    }
+
+    private func buildGhostCompareLayer(
+        maskData: Data?, photosData: Data?, frontalAreaCm2: Double?,
+        handlebarTapPoints: [Double]?, wheelTapPoints: [Double]?, tintColor: UIColor
+    ) async -> GhostCompareLayer? {
+        guard let maskData, let cgMask = UIImage(data: maskData)?.cgImage,
+              let frontalAreaCm2,
+              let handlebarTapPoints, handlebarTapPoints.count == 4
+        else { return nil }
+        let photoImage = photosData.flatMap { UIImage(data: $0) }
+
+        return await Task.detached(priority: .userInitiated) { () -> GhostCompareLayer? in
+            guard let data = cgMask.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
+            let width = cgMask.width, height = cgMask.height, bytesPerRow = cgMask.bytesPerRow
+
+            let foregroundCount = AnalysisMath.countForegroundPixels(
+                bytes: bytes, width: width, height: height, bytesPerRow: bytesPerRow
+            )
+            let maskPixelsPerCm = AnalysisMath.maskPixelsPerCm(
+                foregroundPixelCount: foregroundCount, areaCm2: frontalAreaCm2
+            )
+            guard maskPixelsPerCm > 0 else { return nil }
+
+            // Ground reference: the wheel-check tap when present (precise),
+            // else the mask's own lowest foreground pixel (always
+            // available, noisier — same graceful-degrade shape as every
+            // other optional ruler in this app).
+            let groundUnitY: Double?
+            if let wheelTapPoints, wheelTapPoints.count == 4 {
+                groundUnitY = wheelTapPoints[1]
+            } else {
+                groundUnitY = MatteRenderer.lowestForegroundUnitY(
+                    bytes: bytes, width: width, height: height, bytesPerRow: bytesPerRow
+                )
+            }
+            guard let groundUnitY else { return nil }
+
+            let handlebarMidUnitX = (handlebarTapPoints[0] + handlebarTapPoints[2]) / 2
+            let maskSize = CGSize(width: width, height: height)
+            let anchorCm = AnalysisMath.anchorCm(
+                handlebarMidUnitX: handlebarMidUnitX, groundUnitY: groundUnitY,
+                maskSize: maskSize, maskPixelsPerCm: maskPixelsPerCm
+            )
+
+            var outlineImage: UIImage?
+            if let ring = MatteRenderer.outlineMask(mask: cgMask, strokeWidthPx: 4) {
+                outlineImage = MatteRenderer.tintedOverlay(mask: ring, color: tintColor, alpha: 0.85)
+            }
+
+            return GhostCompareLayer(
+                maskSize: maskSize, maskPixelsPerCm: maskPixelsPerCm, anchorCm: anchorCm,
+                outlineImage: outlineImage, photoImage: photoImage
+            )
+        }.value
     }
 }
 
@@ -146,6 +265,105 @@ private struct PoseDeltaAdvisory: View {
             .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.bottom, Theme.Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Ghost-compare overlay (frontal only, v1)
+
+/// One position's precomputed overlay material — built once, off-main, by
+/// `ComparisonView.buildGhostCompareLayer`. `outlineImage` is already tinted
+/// in this position's diff colour (A → `acc`, B → `amb`); `photoImage` is
+/// the raw stored photo, tinted only by opacity at render time.
+private struct GhostCompareLayer {
+    let maskSize: CGSize
+    let maskPixelsPerCm: Double
+    let anchorCm: CGPoint
+    let outlineImage: UIImage?
+    let photoImage: UIImage?
+}
+
+/// Two positions' silhouettes, scaled to real centimetres and anchored on a
+/// shared physical reference (ground + handlebar centreline — see
+/// `AnalysisMath.anchorCm`), overlaid in one view. OUTLINE mode is two
+/// translucent rings in the app's existing A/B diff colours; PHOTO mode is
+/// a soft double-exposure — legible for a glance, OUTLINE is what you'd
+/// trust for anything precise (same two-tier legibility PHOTO vs MASK/BONES
+/// already has elsewhere in the app).
+private struct GhostCompareOverlay: View {
+    let layerA: GhostCompareLayer
+    let layerB: GhostCompareLayer
+    let showOutline: Bool
+    let showLayerA: Bool
+    let showLayerB: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            // Always computed from *both* extents regardless of which
+            // layers are currently visible — toggling A/B is a pure
+            // visibility switch, never a re-layout, so hiding one silhouette
+            // can't make the other jump to a different apparent scale.
+            let extentA = AnalysisMath.overlayExtentCm(
+                maskSize: layerA.maskSize, maskPixelsPerCm: layerA.maskPixelsPerCm, anchorCm: layerA.anchorCm
+            )
+            let extentB = AnalysisMath.overlayExtentCm(
+                maskSize: layerB.maskSize, maskPixelsPerCm: layerB.maskPixelsPerCm, anchorCm: layerB.anchorCm
+            )
+            let fit = AnalysisMath.overlayFit(extentA: extentA, extentB: extentB, containerSize: proxy.size)
+
+            ZStack {
+                if showLayerA { layerView(layerA, fit: fit) }
+                if showLayerB { layerView(layerB, fit: fit) }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            // The whole composite zooms as one aligned unit (same pattern
+            // PositionDetailView/RevealStep use) — PHOTO/OUTLINE and the A/B
+            // toggles don't reset zoom, since the physical-cm placement puts
+            // both modes' content at the identical screen position/scale.
+            .pinchZoomable()
+        }
+        .background(Theme.Palette.bg1)
+        .clipped()
+    }
+
+    @ViewBuilder
+    private func layerView(
+        _ layer: GhostCompareLayer, fit: (screenPointsPerCm: CGFloat, anchorScreenPoint: CGPoint)
+    ) -> some View {
+        let placement = AnalysisMath.overlayPlacement(
+            maskSize: layer.maskSize, maskPixelsPerCm: layer.maskPixelsPerCm, anchorCm: layer.anchorCm,
+            sharedAnchorScreenPoint: fit.anchorScreenPoint, screenPointsPerCm: fit.screenPointsPerCm
+        )
+        let image = showOutline ? layer.outlineImage : layer.photoImage
+        if let image, placement.frameSize.width > 0, placement.frameSize.height > 0 {
+            Image(uiImage: image)
+                .resizable()
+                .frame(width: placement.frameSize.width, height: placement.frameSize.height)
+                .position(placement.center)
+                // OUTLINE rings don't occlude each other, so full opacity;
+                // PHOTO is a deliberate soft double-exposure.
+                .opacity(showOutline ? 1 : 0.55)
+        }
+    }
+}
+
+/// One position's visibility switch (Plan ghost-compare follow-up) — lets
+/// you isolate a single silhouette instead of always seeing both overlaid.
+private struct LayerToggleChip: View {
+    let label: String
+    let color: Color
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(isOn ? color : Theme.Palette.fg4)
+                .frame(width: 28, height: 28)
+                .background(Theme.Palette.bg0.opacity(0.72))
+                .overlay(Rectangle().stroke(isOn ? color : Theme.Palette.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 

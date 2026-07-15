@@ -96,4 +96,69 @@ final class MatteRendererTests: XCTestCase {
         let mask = makeSquareMask()
         XCTAssertNil(MatteRenderer.outlineMask(mask: mask, strokeWidthPx: 0))
     }
+
+    // MARK: - lowestForegroundUnitY (ghost-compare ground fallback)
+
+    private let overlayAcc = 1e-6
+
+    func testLowestForegroundUnitYFindsBottomMostRow() {
+        // 3x4 mask, foreground only at row 2 (one row above the bottom).
+        let bytes: [UInt8] = [
+            0, 0, 0,   // row 0 (top)
+            0, 0, 0,   // row 1
+            255, 0, 0, // row 2
+            0, 0, 0,   // row 3 (bottom)
+        ]
+        let unitY = bytes.withUnsafeBufferPointer { buf in
+            MatteRenderer.lowestForegroundUnitY(bytes: buf.baseAddress!, width: 3, height: 4, bytesPerRow: 3)
+        }
+        XCTAssertEqual(unitY ?? -1, 1.0 / 3.0, accuracy: overlayAcc)
+    }
+
+    func testLowestForegroundUnitYOnBottomRowIsZero() {
+        let bytes: [UInt8] = [
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 255, 0, // row 3 (bottom)
+        ]
+        let unitY = bytes.withUnsafeBufferPointer { buf in
+            MatteRenderer.lowestForegroundUnitY(bytes: buf.baseAddress!, width: 3, height: 4, bytesPerRow: 3)
+        }
+        XCTAssertEqual(unitY ?? -1, 0, accuracy: overlayAcc)
+    }
+
+    func testLowestForegroundUnitYOnTopRowIsOne() {
+        let bytes: [UInt8] = [
+            0, 255, 0, // row 0 (top)
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+        ]
+        let unitY = bytes.withUnsafeBufferPointer { buf in
+            MatteRenderer.lowestForegroundUnitY(bytes: buf.baseAddress!, width: 3, height: 4, bytesPerRow: 3)
+        }
+        XCTAssertEqual(unitY ?? -1, 1, accuracy: overlayAcc)
+    }
+
+    func testLowestForegroundUnitYNoForegroundReturnsNil() {
+        let bytes: [UInt8] = Array(repeating: 0, count: 12)
+        let unitY = bytes.withUnsafeBufferPointer { buf in
+            MatteRenderer.lowestForegroundUnitY(bytes: buf.baseAddress!, width: 3, height: 4, bytesPerRow: 3)
+        }
+        XCTAssertNil(unitY)
+    }
+
+    func testLowestForegroundUnitYIgnoresRowPadding() {
+        // 2x2 mask, bytesPerRow=3 (one padding byte per row). The bottom
+        // row's padding byte is 255 but must never be read as pixel data.
+        let bytes: [UInt8] = [
+            0, 0, 9,      // row 0, padding
+            0, 0, 255,    // row 1 (bottom), padding only — real pixels are background
+        ]
+        let unitY = bytes.withUnsafeBufferPointer { buf in
+            MatteRenderer.lowestForegroundUnitY(bytes: buf.baseAddress!, width: 2, height: 2, bytesPerRow: 3)
+        }
+        XCTAssertNil(unitY)
+    }
 }

@@ -8,7 +8,9 @@ struct PositionListView: View {
     @Binding var highlightID: UUID?
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
     @Query private var bikes: [Bike]
-    @State private var selectMode = false
+    // Selection is always available (no separate select mode) — each row's
+    // checkbox and its open-for-detail action are independent tap targets,
+    // so this can hold state across a trip to a position's detail and back.
     @State private var selected: [UUID] = []
     // Captured once from `highlightID` so the tick's own fade isn't cut
     // short when the shared binding gets cleared right after.
@@ -24,47 +26,37 @@ struct PositionListView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Bespoke two-row header, not the shared NavHeader: four distinct
-                // controls (select/gear/add on the title row, leaderboard link on
-                // the subtitle row) overflow a single trailing slot at this width.
+                // Bespoke two-row header, not the shared NavHeader: gear/add
+                // on the title row, leaderboard link on the subtitle row
+                // overflow a single trailing slot at this width.
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .center) {
                         Text("POSITIONS")
                             .font(Theme.heading(19))
                             .foregroundStyle(Theme.Palette.fg)
                         Spacer()
-                        if !positions.isEmpty {
-                            Button(selectMode ? "DONE" : "SELECT") {
-                                selectMode.toggle()
-                                if !selectMode { selected.removeAll() }
-                            }
-                            .font(Theme.mono(11))
-                            .foregroundStyle(selectMode ? Theme.Palette.acc : Theme.Palette.fg3)
+                        Button {
+                            path.append(.bikeList)
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: Theme.Control.iconSize, weight: .medium))
+                                .foregroundStyle(Theme.Palette.fg3)
+                                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                                .contentShape(Rectangle())
                         }
-                        if !selectMode {
-                            Button {
-                                path.append(.bikeList)
-                            } label: {
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: Theme.Control.iconSize, weight: .medium))
-                                    .foregroundStyle(Theme.Palette.fg3)
-                                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                        .buttonStyle(.plain)
 
-                            Button {
-                                path.append(.setTheScene(referenceID: nil))
-                            } label: {
-                                Image(systemName: "plus")
-                                    .font(.system(size: Theme.Control.iconSize, weight: .medium))
-                                    .foregroundStyle(bikes.isEmpty ? Theme.Palette.fg4 : Theme.Palette.acc)
-                                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(bikes.isEmpty)
+                        Button {
+                            path.append(.setTheScene(referenceID: nil))
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: Theme.Control.iconSize, weight: .medium))
+                                .foregroundStyle(bikes.isEmpty ? Theme.Palette.fg4 : Theme.Palette.acc)
+                                .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                                .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .disabled(bikes.isEmpty)
                     }
                     HStack(alignment: .center) {
                         Text("Tap two to compare.")
@@ -104,10 +96,13 @@ struct PositionListView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(positions) { position in
-                                Button {
-                                    if selectMode {
+                                PositionRow(
+                                    position: position,
+                                    isSelected: selected.contains(position.id),
+                                    isAtCapacity: selected.count >= 2 && !selected.contains(position.id),
+                                    onToggleSelect: {
                                         // Only haptic on an actual selection change — a tap
-                                        // on an already-at-capacity row is a no-op and
+                                        // on an already-at-capacity checkbox is a no-op and
                                         // shouldn't feel like it did something.
                                         if selected.contains(position.id) {
                                             selected.removeAll { $0 == position.id }
@@ -116,22 +111,9 @@ struct PositionListView: View {
                                             selected.append(position.id)
                                             Haptics.select()
                                         }
-                                    } else {
-                                        path.append(.positionDetail(position.persistentModelID))
-                                    }
-                                } label: {
-                                    // Same row across selectMode toggling (not two
-                                    // structurally-different views) so the checkbox
-                                    // can slide in/out while content shifts, instead
-                                    // of the whole row popping (N7).
-                                    PositionRow(
-                                        position: position,
-                                        isSelected: selected.contains(position.id),
-                                        isDisabled: selectMode && selected.count >= 2 && !selected.contains(position.id),
-                                        showsCheckbox: selectMode
-                                    )
-                                }
-                                .buttonStyle(.plain)
+                                    },
+                                    onOpen: { path.append(.positionDetail(position.persistentModelID)) }
+                                )
                                 .overlay(alignment: .leading) {
                                     if position.id == tickPositionID {
                                         NewSaveTick()
@@ -140,19 +122,17 @@ struct PositionListView: View {
                                 SectionDivider()
                             }
                         }
-                        .animation(Theme.Motion.entrance(), value: selectMode)
-                        // Bottom padding so compare bar doesn't overlap last row
-                        if selectMode { Color.clear.frame(height: 72) }
+                        // Bottom padding so the compare bar doesn't overlap the last row.
+                        if selected.count == 2 { Color.clear.frame(height: 72) }
                     }
                 }
             }
 
             // Compare bar — slides up when 2 positions selected
-            if selectMode && selected.count == 2 {
+            if selected.count == 2 {
                 CompareBar {
                     let pair = selectedPositions
                     path.append(.comparison(pair[0].persistentModelID, pair[1].persistentModelID))
-                    selectMode = false
                     selected.removeAll()
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -174,62 +154,92 @@ struct PositionListView: View {
 
 // MARK: - Row
 
-/// One row shape for both browsing and select mode (N7) — `showsCheckbox`
-/// toggles the leading indicator in place rather than swapping to a
-/// structurally different view, so it can slide in/out while the rest of
-/// the row's content shifts right, instead of the whole row popping.
+/// Two independent tap targets, not one whose meaning depends on a mode:
+/// the checkbox selects for comparison, everything else always opens the
+/// position's detail — even once 2 others are already selected elsewhere.
+/// Only the checkbox shows the at-capacity dimming; the rest of the row
+/// stays fully live.
 private struct PositionRow: View {
     let position: Position
     var isSelected: Bool = false
-    var isDisabled: Bool = false
-    var showsCheckbox: Bool = false
+    var isAtCapacity: Bool = false
+    let onToggleSelect: () -> Void
+    let onOpen: () -> Void
+
+    var body: some View {
+        HStack(spacing: Theme.Space.xs) {
+            Button(action: onToggleSelect) {
+                CheckboxIndicator(isSelected: isSelected, isDisabled: isAtCapacity)
+                    .frame(width: Theme.Control.iconTapTarget, height: 60)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isAtCapacity && !isSelected)
+            .accessibilityLabel(isSelected ? "Deselect for comparison" : "Select for comparison")
+            .padding(.leading, Theme.Space.screenMargin - (Theme.Control.iconTapTarget - 18) / 2)
+
+            Button(action: onOpen) {
+                HStack(alignment: .center, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(position.label)
+                            .font(Theme.mono(14, weight: .bold))
+                            .foregroundStyle(Theme.Palette.fg)
+                        Text(position.capturedAt.formatted(date: .abbreviated, time: .omitted))
+                            .font(Theme.mono(11))
+                            .foregroundStyle(Theme.Palette.fg3)
+                    }
+
+                    Spacer()
+
+                    if let area = position.metrics?.frontalAreaCm2 {
+                        Text("\(AnalysisMath.areaDisplay(area)) cm²")
+                            .font(Theme.mono(13, weight: .bold))
+                            .foregroundStyle(Theme.Palette.acc)
+                    } else {
+                        Text("···")
+                            .font(Theme.mono(13))
+                            .foregroundStyle(Theme.Palette.fg4)
+                    }
+                }
+                .padding(.trailing, Theme.Space.screenMargin)
+                .frame(height: 60)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+/// The checkbox's visual — a small square, drawn inside a much larger
+/// (`iconTapTarget`-sized) comfortable hit zone owned by the caller.
+private struct CheckboxIndicator: View {
+    let isSelected: Bool
+    let isDisabled: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(alignment: .center, spacing: Theme.Space.md) {
-            if showsCheckbox {
-                ZStack {
-                    Rectangle()
-                        .stroke(isSelected ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1)
-                        .frame(width: 18, height: 18)
-                    if isSelected {
-                        Rectangle()
-                            .fill(Theme.Palette.acc)
-                            .frame(width: 10, height: 10)
-                            .transition(
-                                reduceMotion
-                                    ? .opacity.animation(Theme.Motion.entrance(Theme.Motion.fast))
-                                    : .scale.animation(Theme.Motion.entrance(Theme.Motion.fast))
-                            )
-                    }
-                }
-                .transition(reduceMotion ? .opacity : .move(edge: .leading).combined(with: .opacity))
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(position.label)
-                    .font(Theme.mono(14, weight: .bold))
-                    .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.fg)
-                Text(position.capturedAt.formatted(date: .abbreviated, time: .omitted))
-                    .font(Theme.mono(11))
-                    .foregroundStyle(Theme.Palette.fg3)
-            }
-
-            Spacer()
-
-            if let area = position.metrics?.frontalAreaCm2 {
-                Text("\(AnalysisMath.areaDisplay(area)) cm²")
-                    .font(Theme.mono(13, weight: .bold))
-                    .foregroundStyle(isDisabled ? Theme.Palette.fg4 : Theme.Palette.acc)
-            } else {
-                Text("···")
-                    .font(Theme.mono(13))
-                    .foregroundStyle(Theme.Palette.fg4)
+        ZStack {
+            Rectangle()
+                .stroke(borderColor, lineWidth: 1)
+                .frame(width: 18, height: 18)
+            if isSelected {
+                Rectangle()
+                    .fill(Theme.Palette.acc)
+                    .frame(width: 10, height: 10)
+                    .transition(
+                        reduceMotion
+                            ? .opacity.animation(Theme.Motion.entrance(Theme.Motion.fast))
+                            : .scale.animation(Theme.Motion.entrance(Theme.Motion.fast))
+                    )
             }
         }
-        .padding(.horizontal, Theme.Space.screenMargin)
-        .frame(height: 60)
+    }
+
+    private var borderColor: Color {
+        if isSelected { Theme.Palette.acc }
+        else if isDisabled { Theme.Palette.line2 }
+        else { Theme.Palette.line }
     }
 }
 

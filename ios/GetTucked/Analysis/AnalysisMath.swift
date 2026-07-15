@@ -40,6 +40,19 @@ enum AnalysisMath {
         sourcePixelsPerCm * (Double(maskWidth) / Double(sourceWidth))
     }
 
+    /// Alternate derivation of the same quantity as `maskPixelsPerCm` above,
+    /// for a *stored* mask whose resolution wasn't tracked through its own
+    /// downscale chain (Plan ghost-compare — `downscaledMaskPNGData` and
+    /// `compressedForStorage` downscale mask and photo independently, so the
+    /// analysis-time source width no longer relates simply to what's on
+    /// disk). Self-consistent regardless: area = foregroundPixelCount /
+    /// scale², solved for scale, against the one number that's already
+    /// resolution-independent and ground-truth — the stored `frontalAreaCm2`.
+    static func maskPixelsPerCm(foregroundPixelCount: Int, areaCm2: Double) -> Double {
+        guard areaCm2 > 0 else { return 0 }
+        return (Double(foregroundPixelCount) / areaCm2).squareRoot()
+    }
+
     /// `maskPixelsPerCm` rescales by width ratio only, which is correct only
     /// if the mask preserves the source's aspect ratio. True for Vision's
     /// person segmentation in practice, but unverified in general — this
@@ -333,6 +346,105 @@ enum AnalysisMath {
         let avgMagnitude = cues.map { min(abs($0) / magnitudeScale, 1.0) }.reduce(0, +) / Double(cues.count)
         let confidence = agreement * avgMagnitude
         return (majoritySign > 0 ? .right : .left, confidence)
+    }
+
+    // MARK: - Physical overlay (ghost-compare) — two positions, one shared scale
+
+    /// This position's physical anchor, in its own mask's cm-space (Vision
+    /// convention: origin bottom-left, y increasing upward) — X from the
+    /// handlebar-tap midpoint (bike centreline), Y from the ground reference
+    /// (wheel-check tap when present, else `MatteRenderer.lowestForegroundUnitY`).
+    /// Anchoring on the bike/ground rather than the rider's own shoulders is
+    /// deliberate: it keeps bar-height changes and body drift *visible* in
+    /// the overlay instead of silently re-centering them away.
+    static func anchorCm(
+        handlebarMidUnitX: Double, groundUnitY: Double,
+        maskSize: CGSize, maskPixelsPerCm: Double
+    ) -> CGPoint {
+        guard maskPixelsPerCm > 0 else { return .zero }
+        let cmPerUnitWidth = Double(maskSize.width) / maskPixelsPerCm
+        let cmPerUnitHeight = Double(maskSize.height) / maskPixelsPerCm
+        return CGPoint(x: handlebarMidUnitX * cmPerUnitWidth, y: groundUnitY * cmPerUnitHeight)
+    }
+
+    /// Where to place a position's image (explicit on-screen frame size +
+    /// `.position()` centre) so its own anchor lands at a *shared* screen
+    /// point, at a *shared* cm→point scale — this is what makes two
+    /// independently-scaled, independently-anchored images land in one
+    /// comparable overlay rather than two arbitrarily-sized layers.
+    static func overlayPlacement(
+        maskSize: CGSize, maskPixelsPerCm: Double, anchorCm: CGPoint,
+        sharedAnchorScreenPoint: CGPoint, screenPointsPerCm: CGFloat
+    ) -> (frameSize: CGSize, center: CGPoint) {
+        guard maskPixelsPerCm > 0 else {
+            return (frameSize: .zero, center: sharedAnchorScreenPoint)
+        }
+        let widthCm = Double(maskSize.width) / maskPixelsPerCm
+        let heightCm = Double(maskSize.height) / maskPixelsPerCm
+        let frameSize = CGSize(width: widthCm * Double(screenPointsPerCm), height: heightCm * Double(screenPointsPerCm))
+
+        // Offset from this mask's own anchor to its geometric centre, in the
+        // same Vision-convention cm space (origin bottom-left, y increasing
+        // upward) `anchorCm` is expressed in.
+        let centerOffsetCmX = widthCm / 2 - Double(anchorCm.x)
+        let centerOffsetCmY = heightCm / 2 - Double(anchorCm.y)
+
+        // Screen space flips y (origin top-left, y increasing downward) —
+        // "further up physically" becomes "smaller screen y."
+        let center = CGPoint(
+            x: sharedAnchorScreenPoint.x + CGFloat(centerOffsetCmX) * screenPointsPerCm,
+            y: sharedAnchorScreenPoint.y - CGFloat(centerOffsetCmY) * screenPointsPerCm
+        )
+        return (frameSize: frameSize, center: center)
+    }
+
+    /// This position's physical extent relative to its own anchor (Vision-cm
+    /// space, not yet placed on any shared screen) — the rectangle
+    /// `overlayPlacement` will draw, expressed anchor-relative so two
+    /// positions' extents can be unioned (`overlayFit`) before any shared
+    /// screen scale is chosen.
+    static func overlayExtentCm(
+        maskSize: CGSize, maskPixelsPerCm: Double, anchorCm: CGPoint
+    ) -> (minX: Double, maxX: Double, minY: Double, maxY: Double) {
+        guard maskPixelsPerCm > 0 else { return (0, 0, 0, 0) }
+        let widthCm = Double(maskSize.width) / maskPixelsPerCm
+        let heightCm = Double(maskSize.height) / maskPixelsPerCm
+        return (
+            minX: -Double(anchorCm.x), maxX: widthCm - Double(anchorCm.x),
+            minY: -Double(anchorCm.y), maxY: heightCm - Double(anchorCm.y)
+        )
+    }
+
+    /// A shared cm→point scale and shared screen anchor point that fits the
+    /// union of two positions' anchor-relative extents into `containerSize`,
+    /// centred, with `padding` (0–1) reserved as margin — this is what makes
+    /// the overlay fit whatever device/silhouette sizes show up, rather than
+    /// a hardcoded scale.
+    static func overlayFit(
+        extentA: (minX: Double, maxX: Double, minY: Double, maxY: Double),
+        extentB: (minX: Double, maxX: Double, minY: Double, maxY: Double),
+        containerSize: CGSize, padding: Double = 0.9
+    ) -> (screenPointsPerCm: CGFloat, anchorScreenPoint: CGPoint) {
+        let minX = min(extentA.minX, extentB.minX), maxX = max(extentA.maxX, extentB.maxX)
+        let minY = min(extentA.minY, extentB.minY), maxY = max(extentA.maxY, extentB.maxY)
+        let unionWidthCm = maxX - minX
+        let unionHeightCm = maxY - minY
+        guard unionWidthCm > 0, unionHeightCm > 0, containerSize.width > 0, containerSize.height > 0 else {
+            return (1, CGPoint(x: containerSize.width / 2, y: containerSize.height / 2))
+        }
+        let scale = padding * min(
+            Double(containerSize.width) / unionWidthCm,
+            Double(containerSize.height) / unionHeightCm
+        )
+        let centerCmX = (minX + maxX) / 2
+        let centerCmY = (minY + maxY) / 2
+        // Same offset convention as overlayPlacement: a point above the
+        // anchor (larger Vision-y) sits at a smaller screen-y.
+        let anchorPoint = CGPoint(
+            x: containerSize.width / 2 - CGFloat(centerCmX) * CGFloat(scale),
+            y: containerSize.height / 2 + CGFloat(centerCmY) * CGFloat(scale)
+        )
+        return (CGFloat(scale), anchorPoint)
     }
 
     // MARK: - 3D pose geometry (Plan A6 — DEBUG comparison only; inputs are

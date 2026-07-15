@@ -7,10 +7,10 @@ struct GetTuckedApp: App {
 
     // Built explicitly (rather than the `.modelContainer(for:)` convenience)
     // so AppMigrationPlan actually runs — the convenience initializer has no
-    // migrationPlan parameter and would silently skip SchemaV1→V2 (Plan O)
-    // or V2→V3 (Plan P1.5).
+    // migrationPlan parameter and would silently skip SchemaV1→V2 (Plan O),
+    // V2→V3 (Plan P1.5), or V3→V4 (ghost-compare).
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema(versionedSchema: SchemaV3.self)
+        let schema = Schema(versionedSchema: SchemaV4.self)
         let configuration = ModelConfiguration(schema: schema)
         return try! ModelContainer(
             for: schema,

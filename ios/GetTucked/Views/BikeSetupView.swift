@@ -34,7 +34,18 @@ struct BikeSetupView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 NavHeader(title: editing == nil ? "BIKE SETUP" : "EDIT BIKE",
-                          subtitle: "Two facts. Then we shoot.")
+                          subtitle: "Two facts. Then we shoot.") {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("✕")
+                            .font(Theme.mono(Theme.Control.iconSize))
+                            .foregroundStyle(Theme.Palette.fg3)
+                            .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 SectionDivider()
 

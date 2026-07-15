@@ -458,4 +458,124 @@ final class AnalysisMathTests: XCTestCase {
         )
         XCTAssertLessThan(result.confidence, AnalysisMath.sideOnFacingConfidenceThreshold)
     }
+
+    // MARK: - Physical overlay (ghost-compare)
+
+    func testMaskPixelsPerCmFromAreaKnownRatio() {
+        // 400 foreground pixels over 100cm² → sqrt(4) = 2 px/cm.
+        let scale = AnalysisMath.maskPixelsPerCm(foregroundPixelCount: 400, areaCm2: 100)
+        XCTAssertEqual(scale, 2, accuracy: acc)
+    }
+
+    func testMaskPixelsPerCmFromAreaZeroAreaReturnsZero() {
+        XCTAssertEqual(AnalysisMath.maskPixelsPerCm(foregroundPixelCount: 400, areaCm2: 0), 0, accuracy: acc)
+    }
+
+    func testAnchorCmCentredBarsAndLowGround() {
+        // 100x200px mask at 2px/cm → 50x100cm. Bars dead-centre (unit 0.5),
+        // ground near the bottom (unit 0.1) → anchor (25, 10).
+        let anchor = AnalysisMath.anchorCm(
+            handlebarMidUnitX: 0.5, groundUnitY: 0.1,
+            maskSize: CGSize(width: 100, height: 200), maskPixelsPerCm: 2
+        )
+        XCTAssertEqual(anchor.x, 25, accuracy: acc)
+        XCTAssertEqual(anchor.y, 10, accuracy: acc)
+    }
+
+    func testAnchorCmZeroScaleReturnsZero() {
+        let anchor = AnalysisMath.anchorCm(
+            handlebarMidUnitX: 0.5, groundUnitY: 0.1,
+            maskSize: CGSize(width: 100, height: 200), maskPixelsPerCm: 0
+        )
+        XCTAssertEqual(anchor, .zero)
+    }
+
+    func testOverlayPlacementCentredAnchorNeedsNoHorizontalShift() {
+        // Same mask as above (50x100cm), anchor at its own horizontal centre
+        // (25) but 40cm below its vertical centre (10 vs the 50cm midline) —
+        // so the image's centre should land directly above the shared point,
+        // with no horizontal shift.
+        let placement = AnalysisMath.overlayPlacement(
+            maskSize: CGSize(width: 100, height: 200), maskPixelsPerCm: 2,
+            anchorCm: CGPoint(x: 25, y: 10),
+            sharedAnchorScreenPoint: CGPoint(x: 300, y: 400), screenPointsPerCm: 3
+        )
+        XCTAssertEqual(placement.frameSize.width, 150, accuracy: acc)
+        XCTAssertEqual(placement.frameSize.height, 300, accuracy: acc)
+        XCTAssertEqual(placement.center.x, 300, accuracy: acc)
+        XCTAssertEqual(placement.center.y, 280, accuracy: acc)  // 400 - 40*3
+    }
+
+    func testOverlayPlacementOffCentreAnchorShiftsHorizontally() {
+        // Same mask/scale, but the handlebar anchor sits left of the mask's
+        // own centre (20 vs 25) — the image's centre should shift right of
+        // the shared point to compensate, so the anchor still lands there.
+        let placement = AnalysisMath.overlayPlacement(
+            maskSize: CGSize(width: 100, height: 200), maskPixelsPerCm: 2,
+            anchorCm: CGPoint(x: 20, y: 10),
+            sharedAnchorScreenPoint: CGPoint(x: 300, y: 400), screenPointsPerCm: 3
+        )
+        XCTAssertEqual(placement.center.x, 315, accuracy: acc)  // 300 + 5*3
+        XCTAssertEqual(placement.center.y, 280, accuracy: acc)
+    }
+
+    func testOverlayPlacementZeroScaleReturnsSharedPoint() {
+        let placement = AnalysisMath.overlayPlacement(
+            maskSize: CGSize(width: 100, height: 200), maskPixelsPerCm: 0,
+            anchorCm: CGPoint(x: 20, y: 10),
+            sharedAnchorScreenPoint: CGPoint(x: 300, y: 400), screenPointsPerCm: 3
+        )
+        XCTAssertEqual(placement.frameSize, .zero)
+        XCTAssertEqual(placement.center, CGPoint(x: 300, y: 400))
+    }
+
+    func testOverlayExtentCmRelativeToAnchor() {
+        // 50x100cm mask (100x200px @ 2px/cm), anchor at (25, 10) —
+        // extent should span 25cm either side of the anchor horizontally,
+        // 10cm below and 90cm above it vertically.
+        let extent = AnalysisMath.overlayExtentCm(
+            maskSize: CGSize(width: 100, height: 200), maskPixelsPerCm: 2,
+            anchorCm: CGPoint(x: 25, y: 10)
+        )
+        XCTAssertEqual(extent.minX, -25, accuracy: acc)
+        XCTAssertEqual(extent.maxX, 25, accuracy: acc)
+        XCTAssertEqual(extent.minY, -10, accuracy: acc)
+        XCTAssertEqual(extent.maxY, 90, accuracy: acc)
+    }
+
+    func testOverlayFitIdenticalExtentsScalesToFitContainer() {
+        let extent = (minX: -25.0, maxX: 25.0, minY: -10.0, maxY: 90.0)
+        let fit = AnalysisMath.overlayFit(
+            extentA: extent, extentB: extent, containerSize: CGSize(width: 500, height: 1000)
+        )
+        // unionWidth 50cm into 500pt, unionHeight 100cm into 1000pt — both
+        // give scale 10, so the binding constraint is the same either axis;
+        // padding 0.9 default → scale 9.
+        XCTAssertEqual(fit.screenPointsPerCm, 9, accuracy: acc)
+        XCTAssertEqual(fit.anchorScreenPoint.x, 250, accuracy: acc)
+        XCTAssertEqual(fit.anchorScreenPoint.y, 860, accuracy: acc)  // 500 + 40*9
+    }
+
+    func testOverlayFitUnionsWiderOfTwoExtents() {
+        // B is wider on the left than A — the shared scale/anchor must
+        // account for B's extent too, not just A's.
+        let extentA = (minX: -25.0, maxX: 25.0, minY: -10.0, maxY: 90.0)
+        let extentB = (minX: -40.0, maxX: 10.0, minY: -10.0, maxY: 90.0)
+        let fit = AnalysisMath.overlayFit(
+            extentA: extentA, extentB: extentB, containerSize: CGSize(width: 650, height: 1000)
+        )
+        // unionWidth 65cm into 650pt, unionHeight 100cm into 1000pt — both
+        // scale-to-10 again, padding 0.9 → scale 9.
+        XCTAssertEqual(fit.screenPointsPerCm, 9, accuracy: acc)
+        XCTAssertEqual(fit.anchorScreenPoint.x, 392.5, accuracy: acc)  // 325 - (-7.5*9)
+        XCTAssertEqual(fit.anchorScreenPoint.y, 860, accuracy: acc)
+    }
+
+    func testOverlayFitDegenerateExtentFallsBackToContainerCentre() {
+        let zeroExtent = (minX: 0.0, maxX: 0.0, minY: 0.0, maxY: 0.0)
+        let fit = AnalysisMath.overlayFit(
+            extentA: zeroExtent, extentB: zeroExtent, containerSize: CGSize(width: 400, height: 800)
+        )
+        XCTAssertEqual(fit.anchorScreenPoint, CGPoint(x: 200, y: 400))
+    }
 }

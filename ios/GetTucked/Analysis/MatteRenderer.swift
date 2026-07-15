@@ -28,6 +28,29 @@ enum MatteRenderer {
         return out
     }
 
+    /// Ground fallback for the ghost-compare overlay's anchor, when no
+    /// wheel-check tap exists: the lowest foreground row, expressed as a
+    /// Vision-convention unit-y (0 = bottom, 1 = top). Noisier than an
+    /// explicit ground tap — it depends on where a foot/pedal happened to be
+    /// at the moment of the shot, not a fixed wheel-contact point — but
+    /// always available. Strides by `bytesPerRow` for the same row-padding
+    /// reason `overlayPixels`/`countForegroundPixels` do.
+    static func lowestForegroundUnitY(
+        bytes: UnsafePointer<UInt8>, width: Int, height: Int, bytesPerRow: Int, threshold: UInt8 = 128
+    ) -> Double? {
+        guard height > 1 else { return nil }
+        // Pixel buffers are stored top-to-bottom (row 0 = image top); the
+        // *last* row (closest to the bottom) containing a foreground pixel
+        // is the one Vision's bottom-origin unit-y convention wants.
+        for row in stride(from: height - 1, through: 0, by: -1) {
+            let rowStart = row * bytesPerRow
+            for x in 0 ..< width where bytes[rowStart + x] >= threshold {
+                return Double(height - 1 - row) / Double(height - 1)
+            }
+        }
+        return nil
+    }
+
     static func tintedOverlay(mask: CGImage, color: UIColor, alpha: CGFloat) -> UIImage? {
         guard let data = mask.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
         let width = mask.width

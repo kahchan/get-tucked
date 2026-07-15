@@ -48,6 +48,14 @@ final class Position {
     // has no wheelbase on record); kept for audit/re-display, not reprocessed.
     var sideOnTapPoints: [Double]?
 
+    // Optional wheel-ruler verification taps (Plan K3) — [groundX, groundY,
+    // topX, topY], unit coords, same storage convention. nil unless the
+    // rider did the optional wheel check. The ground point doubles as the
+    // ghost-compare overlay's Y anchor (a stable physical reference) when
+    // present; the top point is kept alongside it for the same
+    // audit/consistency reason sideOnTapPoints keeps its pair.
+    var wheelTapPoints: [Double]?
+
     @Relationship(deleteRule: .cascade)
     var metrics: PositionMetrics?
 
