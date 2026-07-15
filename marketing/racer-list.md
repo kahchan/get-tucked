@@ -145,7 +145,7 @@ post about (and any audience-fit caveat for *our* tool).
 | 9 | **Ryan Van Duzer (DuzerTV)** | MID+ | Approachable adventure YouTuber; TD setup w/ Green Guru frame bags. Big, friendly, likely to reply. | "Saw your Tour Divide setup with the Green Guru bags — you make this stuff approachable in a way most gear content doesn't, which is the whole reason a $20 measuring tool should exist." | [DuzerTV gear](https://www.duzertv.com/my-bikepacking-gear) | duzertv.com | researched |
 | 10 | **Marei Moldenhauer** | MID | MTB-leaning ultra; AMR 2024 on Trek Supercaliber w/ 55mm Rene Herse tyres; race wins in DE/NO. | "Your Atlas setup — Supercaliber on 55mm Fleecer Ridges — is a great example of the comfort-vs-speed trade this tool tries to make visible." | [Rene Herse feature](https://www.renehersecycles.com/atlas-mountain-racers-marei-moldenhauer/) | Rene Herse / IG | researched |
 | 11 | **Andrew Onermaa** | MID– | TD rider; featured in Josh Reid's documentary. *Needs a stronger, specific hook before send.* | *(hold — verify a specific setup/result of his first; don't send on a generic "saw you in Josh's film")* | [Search](https://bikepacking.com/tag/tour-divide/) | — | needs-hook |
-| 12 | *(open slot)* | — | Reserve for an **r/xbiking characterful-setup** figure — the Fabio's-Chest-energy fit. | *(find one whose whole thing is a gloriously un-aero rig; the honesty pitch lands hardest as a punchline there)* | — | — | idea |
+| 12 | *(left open)* | — | Reserved for an r/xbiking characterful-setup figure — the Fabio's-Chest-energy fit. **Decision 2026-07-15: not hunting a name — list stands at 11.** | — | — | — | not pursuing |
 
 ### Group 3 — Kiwi / local ⭐ (Kah is Wellington-based — warmest intros, shared scene)
 
@@ -158,7 +158,7 @@ truthfully.*
 |---|---|---|---|---|---|---|---|
 | 6 | **Joe Nation** | MID+ / HIGH (in scene) | **Best overall fit.** NZ; 3rd 2023 Tour Divide, won 2024 Silk Road Mountain Race, record at Tour Te Waipounamu — *and there's a published piece on his "extreme bikepacking aero hack."* He already thinks about aero on a loaded bike. | "As a fellow Kiwi I've been following your line from the Divide podium to the Silk Road win — but it was the piece on your bikepacking aero hack that made me sure you'd have opinions about what we built." | [BIKEPACKING TTW](https://bikepacking.com/news/joe-nation-tour-te-waipounamu-2024/), [Velo — aero hack](https://velo.outsideonline.com/gravel/gravel-gear/velo-podcast-joe-nation-interview/?scope=anon), [IG](https://www.instagram.com/joe__nation/) | IG / YouTube | researched |
 | 7 | **Matthew Fairbrother** | MID | NZ; famous for bikepacking the *entire* 2022 Enduro World Series, NZ MTB Rally win under human power, first Transcontinental (learned kit lessons, switching solar→dynamo). Characterful, self-supported, Kona/Tailfin. *Great "characterful rig" energy — near the xbiking fit too.* | "The whole 'Kiwi way' self-supported thing you do — bikepacking the entire EWS, the MTB Rally under human power — is exactly the audience we made this for: people who obsess over what they're carrying and why." | [Crankbrothers](https://www.crankbrothers.com/blogs/stories/matthew-fairbrother-the-kiwi-way), [Tailfin](https://www.tailfin.cc/blog/becoming-an-ultra-endurance-racer/), [site](https://www.matthewfairbrother.com/) | matthewfairbrother.com / IG | researched |
-| 8 | **Rufus Wenlock** | MID– / LOW | NZ; Joe Nation's riding partner (teamed for the Great British Divide). *Thinner public trail — needs a specific, verified hook of his own before send.* | *(hold — find one of his own results/setups; don't send on "you ride with Joe")* | [NZ Cycling Journal (Joe feature ref)](https://www.nzcyclingjournal.com/joe-nation-taking-history-and-creating-a-future/) | IG (verify) | needs-hook |
+| 8 | **Rufus Wenlock** | MID– | NZ; custom framebuilder (**Süfur Cycles**) as well as racer — podium finishes GB Divide (2nd, with Joe Nation), Trans Balkan, Tour Te Waipounamu, and **3rd at the Silk Road Mountain Race** on his own frame. Designs bikepacking geometry from scratch rather than bolting mounts to a hardtail — an expert-thinker angle, not just a rider. | "You built Süfur so a rider's whole kit lives in one big frame bag instead of scattered ones — partly for aero, partly so you always know where things are. That's exactly the loaded-rig trade-off we built this to actually measure instead of eyeball." | [NZ Cycling Journal](https://www.nzcyclingjournal.com/rufus-wenlock-built-to-ride/), [Spoke Magazine](https://spokemagazine.com/rad-rigs-rufus-wenlock-sufur-prototype/), [BIKEPACKING.com](https://bikepacking.com/plog/sufur-cycles-intro/) | IG @rufus_here / X @backalleybike — verify | researched |
 
 **Status values:** `idea` → `needs-hook` → `researched` (fact + source confirmed) → `drafted` →
 `sent` → `replied` → `on TestFlight` → `passed`. A stalled row is data, not a failure.
@@ -192,20 +192,21 @@ pointed at riders who tune *luggage and position across a season*, which is the 
 
 ## Where this is now, and what's next
 
-**Done:** first research pass complete — 10 named candidates across both reach groups, each with a
-candidate hook and a source link, plus one `needs-hook` and one open r/xbiking slot.
+**Done:** research pass complete — Rufus now has a verified hook (framebuilder/aero-thinker angle via
+Süfur Cycles), leaving Andrew Onermaa as the only `needs-hook` row. Row 12 stays open — Kah decided
+2026-07-15 not to hunt an r/xbiking name; list stands at 11.
 
 **Your move — verify, don't trust me:** go down the tracker and mark each hook `yes` / `no` /
 `fix`. I pulled these from public coverage, but I can't confirm they're *current* (a rider's plans
 change) or that the framing sits right with someone you may actually know. **Anything you don't tick
 off doesn't get sent.**
 
-**Then I'll:** write the ~12 finished personalised emails off the approved hooks — dropping each
+**Then I'll:** write the finished personalised emails off the approved hooks — dropping each
 confirmed sentence into the [`outreach-drafts.md`](outreach-drafts.md) §1 template, one per rider,
 ready for you to send individually.
 
-**Still needed before any send:** the TestFlight link (outreach fill-in slot), and a decision on the
-open row 12 (want me to hunt a specific r/xbiking rider, or leave it at 11?).
+**Still needed before any send:** the TestFlight link (outreach fill-in slot); Andrew Onermaa's hook
+is still open if he stays on the list.
 
 > Accuracy note: reach tiers are judgement calls, not measured; the hooks are sourced but
 > unconfirmed-as-current. This file is a research head-start, not a green light.

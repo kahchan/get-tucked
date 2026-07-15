@@ -67,6 +67,8 @@ Kah
 Shared body below; each outlet gets its own **subject** and **angle line**. **Send gating:** hold
 the big three (Radavist, BIKEPACKING, Escape) until there's a Reddit reception link and ≥1 named
 rider using it. **NZ Cycling Journal is the exception — send it first** to generate that first link.
+**Approved by Kah 2026-07-15 — clear to send** once the `[name]`/`[methodology link]`/`[press kit
+link]` fill-ins are in.
 
 **Shared body (after the outlet-specific angle line):**
 
