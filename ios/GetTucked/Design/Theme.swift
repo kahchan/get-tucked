@@ -93,8 +93,10 @@ enum Theme {
     // MARK: Motion tokens
     //
     // Hard-edged in form, eased in timing (Plan N): shapes stay hard-edged —
-    // wipes, scan lines, clipped reveals, no springs/bounce/blur/overshoot —
-    // but every duration below runs on an easing curve. Nothing is linear.
+    // wipes, scan lines, clipped reveals, no *overshoot/bounce/blur* —
+    // critically damped springs are the solver for interactive motion (Plan
+    // R amendment, see `interactive` below); scripted one-shot ceremonies
+    // (reveals, cascades, sweeps) keep the eased curves.
 
     enum Motion {
         static let fast: Double = 0.15      // press states, handle pops, banner text
@@ -116,6 +118,15 @@ enum Theme {
         /// in, `entrance(fast)` on release settles it out.
         static func press(_ isPressed: Bool) -> Animation? {
             isPressed ? nil : entrance(fast)
+        }
+        /// Interactive motion: critically damped spring — no overshoot (the
+        /// brand ban is on bounce, not on springs; damping 1.0 keeps the
+        /// hard-edged look while making the motion interruptible and
+        /// velocity-aware, skill §3/§4). For anything a finger can
+        /// re-trigger mid-flight — drawers, segmented underlines, overlay
+        /// enter/exit. Scripted one-shot ceremonies stay on `entrance`/`travel`.
+        static func interactive(_ response: Double = 0.35) -> Animation {
+            .spring(response: response, dampingFraction: 1.0)
         }
     }
 

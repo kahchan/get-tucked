@@ -107,6 +107,20 @@ private struct PressedOpacityButtonStyle: ButtonStyle {
     }
 }
 
+/// Touch-down feedback for `.plain`-style tappable rows (Plan R4, skill §1)
+/// — on iOS, `.plain` on custom row content shows nothing at all on touch-
+/// down by itself, and that's the foundation everything else sits on. A
+/// `bg1` background flash (rows sit on `bg0`) reads as an instant response.
+/// Not for the selection checkbox (has its own selection visual) or chips
+/// (bordered, already state-ful) — just the open-for-detail row targets.
+struct RowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Theme.Palette.bg1 : Color.clear)
+            .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
+    }
+}
+
 /// PHOTO / MASK / BONES segment selection, shared by RevealStep and
 /// PositionDetailView (frontal and side-on) so the identical three-way
 /// toggle logic (Plan O) doesn't drift between them.
@@ -143,7 +157,9 @@ struct SegmentedToggleBar: View {
             }
         }
         .frame(height: 40)
-        .animation(reduceMotion ? nil : Theme.Motion.travel(0.2), value: selectedIndex)
+        // R2: rapid tab-tapping should re-target the live underline
+        // position, not cross-fade two fixed-duration eases.
+        .animation(reduceMotion ? nil : Theme.Motion.interactive(0.3), value: selectedIndex)
     }
 
     private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {

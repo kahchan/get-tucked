@@ -143,7 +143,12 @@ struct AppNavigationView: View {
                 .zIndex(1)
             }
         }
-        .animation(reduceMotion ? nil : Theme.Motion.entrance(), value: showingIndex)
+        // R2: a fast hamburger-tap → destination-tap sequence, or an
+        // accidental open/close, should re-target smoothly rather than
+        // finish one fade before starting the next. Opacity-only (no
+        // directional edge in this presentation), so "exits the way it
+        // entered" (§7) holds trivially.
+        .animation(reduceMotion ? nil : Theme.Motion.interactive(), value: showingIndex)
     }
 
     private func closeIndex() {
@@ -216,6 +221,9 @@ private struct IndexRow: View {
 /// Builds its own content from the style rather than decorating
 /// `configuration.label` — the only way for the destination label itself
 /// (not just an ancestor tint) to react to `isPressed` with the acid accent.
+/// Also carries R4's row-press background flash (same `bg1` treatment as
+/// `RowPressStyle`) — this row needs its own style regardless since the
+/// text-recolor trick isn't expressible through a wrapping style.
 private struct IndexRowButtonStyle: ButtonStyle {
     let ordinal: String
     let label: String
@@ -233,6 +241,7 @@ private struct IndexRowButtonStyle: ButtonStyle {
         .padding(.horizontal, Theme.Space.screenMargin)
         .padding(.vertical, Theme.Space.lg)
         .contentShape(Rectangle())
+        .background(configuration.isPressed ? Theme.Palette.bg1 : Color.clear)
         .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
     }
 }

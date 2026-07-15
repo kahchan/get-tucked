@@ -40,7 +40,7 @@ struct LeaderboardView: View {
                                 } label: {
                                     RankRow(rank: index + 1, position: position, best: ranked.first)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(RowPressStyle())
                                 SectionDivider()
                             }
                         }
@@ -96,7 +96,9 @@ private struct FilterBar: View {
                 .buttonStyle(.plain)
             }
         }
-        .animation(reduceMotion ? nil : Theme.Motion.travel(0.2), value: selection)
+        // R2: rapid tab-tapping should re-target the live underline
+        // position, not cross-fade two fixed-duration eases.
+        .animation(reduceMotion ? nil : Theme.Motion.interactive(0.3), value: selection)
     }
 }
 

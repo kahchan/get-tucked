@@ -40,7 +40,7 @@ struct BikeListView: View {
                                 Button { editingBike = bike } label: {
                                     BikeRow(bike: bike)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(RowPressStyle())
                                 SectionDivider()
                             }
                         }

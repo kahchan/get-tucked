@@ -156,7 +156,11 @@ struct PositionListView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(Theme.Motion.travel(), value: selected.count)
+        // R2: CompareBar is a drawer a user can re-trigger mid-flight
+        // (select/deselect rapidly) — a critically damped spring re-targets
+        // from wherever it currently is instead of restarting a fixed-
+        // duration ease.
+        .animation(Theme.Motion.interactive(), value: selected.count)
         .hideNavBar()
         .onChange(of: path) { _, newPath in
             // Root reached (path empty) after a fresh save — capture the
@@ -229,7 +233,7 @@ private struct PositionRow: View {
                 .frame(height: Theme.Control.listRowHeight)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(RowPressStyle())
         }
     }
 }

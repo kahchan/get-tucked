@@ -24,6 +24,21 @@ struct ComparisonView: View {
     @State private var showLayerA = true
     @State private var showLayerB = true
 
+    // R1: the outline draw-in ceremony. A then B, staggered ~0.35s apart;
+    // plays once per screen visit (toggling PHOTO/OUTLINE or A/B never
+    // replays it — that's inspection, not ceremony, same rule Plan P set
+    // for the capture ghost). `layerXArmed` is completion-driven (not
+    // derived from progress==1, which updates instantly under
+    // withAnimation) so the chips visibly lag the draw finishing, per §13's
+    // causality beat.
+    @State private var drawInProgressA: Double = 0
+    @State private var drawInProgressB: Double = 0
+    @State private var layerAArmed = false
+    @State private var layerBArmed = false
+    @State private var hasPlayedDrawIn = false
+    @State private var drawInCancelled = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private var metricsA: PositionMetrics? { positionA.metrics }
     private var metricsB: PositionMetrics? { positionB.metrics }
 
@@ -112,15 +127,20 @@ struct ComparisonView: View {
                             SegmentedToggleBar(labels: ["PHOTO", "OUTLINE"], selectedIndex: showOutlineBinding)
                             GhostCompareOverlay(
                                 layerA: overlayLayerA, layerB: overlayLayerB, showOutline: showOutline,
-                                showLayerA: showLayerA, showLayerB: showLayerB
+                                showLayerA: showLayerA, showLayerB: showLayerB,
+                                drawInProgressA: reduceMotion ? 1 : drawInProgressA,
+                                drawInProgressB: reduceMotion ? 1 : drawInProgressB,
+                                onGestureBegan: cancelDrawInIfNeeded
                             )
                             .frame(height: 300)
                             .overlay(alignment: .topTrailing) {
                                 HStack(spacing: Theme.Space.xs) {
-                                    LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA) {
+                                    LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA && layerAArmed) {
+                                        cancelDrawInIfNeeded()
                                         showLayerA.toggle()
                                     }
-                                    LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB) {
+                                    LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB && layerBArmed) {
+                                        cancelDrawInIfNeeded()
                                         showLayerB.toggle()
                                     }
                                 }
@@ -156,7 +176,13 @@ struct ComparisonView: View {
     }
 
     private var showOutlineBinding: Binding<Int> {
-        Binding(get: { showOutline ? 1 : 0 }, set: { showOutline = $0 == 1 })
+        Binding(
+            get: { showOutline ? 1 : 0 },
+            set: { newValue in
+                cancelDrawInIfNeeded()
+                showOutline = newValue == 1
+            }
+        )
     }
 
     /// Off-main, once — mirrors the pattern `CaptureView.buildGhosts()` uses
@@ -168,20 +194,59 @@ struct ComparisonView: View {
             maskData: positionA.maskData, photosData: positionA.photosData,
             frontalAreaCm2: positionA.metrics?.frontalAreaCm2,
             handlebarTapPoints: positionA.handlebarTapPoints, wheelTapPoints: positionA.wheelTapPoints,
-            tintColor: UIColor(Theme.Palette.acc)
+            tintColor: UIColor(Theme.Palette.acc), strokeColor: Theme.Palette.acc
         )
         async let b = buildGhostCompareLayer(
             maskData: positionB.maskData, photosData: positionB.photosData,
             frontalAreaCm2: positionB.metrics?.frontalAreaCm2,
             handlebarTapPoints: positionB.handlebarTapPoints, wheelTapPoints: positionB.wheelTapPoints,
-            tintColor: UIColor(Theme.Palette.amb)
+            tintColor: UIColor(Theme.Palette.amb), strokeColor: Theme.Palette.amb
         )
         (overlayLayerA, overlayLayerB) = await (a, b)
+        beginDrawInIfNeeded()
+    }
+
+    /// R1.3: A draws over `Motion.sweep`, B starts ~0.35s in — overlapping,
+    /// not sequential (§8), so the pair reads as being laid over each other
+    /// rather than a slideshow. Plays once per screen visit (`hasPlayedDrawIn`).
+    private func beginDrawInIfNeeded() {
+        guard !hasPlayedDrawIn, overlayLayerA != nil, overlayLayerB != nil else { return }
+        hasPlayedDrawIn = true
+        guard !reduceMotion else {
+            layerAArmed = true
+            layerBArmed = true
+            return
+        }
+        withAnimation(Theme.Motion.travel(Theme.Motion.sweep)) {
+            drawInProgressA = 1
+        } completion: {
+            layerAArmed = true
+        }
+        withAnimation(Theme.Motion.travel(Theme.Motion.sweep).delay(0.35)) {
+            drawInProgressB = 1
+        } completion: {
+            layerBArmed = true
+        }
+    }
+
+    /// R1.4: the ceremony must never gate the screen — PHOTO/OUTLINE and the
+    /// A/B chips stay live throughout, and using any of them mid-draw snaps
+    /// straight to the settled state (RevealStep's `cancelCeremony` is the
+    /// same shape). A plain assignment outside `withAnimation`, so it's an
+    /// instant cut, not an animated jump.
+    private func cancelDrawInIfNeeded() {
+        guard !drawInCancelled else { return }
+        drawInCancelled = true
+        hasPlayedDrawIn = true
+        drawInProgressA = 1
+        drawInProgressB = 1
+        layerAArmed = true
+        layerBArmed = true
     }
 
     private func buildGhostCompareLayer(
         maskData: Data?, photosData: Data?, frontalAreaCm2: Double?,
-        handlebarTapPoints: [Double]?, wheelTapPoints: [Double]?, tintColor: UIColor
+        handlebarTapPoints: [Double]?, wheelTapPoints: [Double]?, tintColor: UIColor, strokeColor: Color
     ) async -> GhostCompareLayer? {
         guard let maskData, let cgMask = UIImage(data: maskData)?.cgImage,
               let frontalAreaCm2,
@@ -226,10 +291,11 @@ struct ComparisonView: View {
             if let ring = MatteRenderer.outlineMask(mask: cgMask, strokeWidthPx: 4) {
                 outlineImage = MatteRenderer.tintedOverlay(mask: ring, color: tintColor, alpha: 0.85)
             }
+            let contours = MatteRenderer.contourPaths(mask: cgMask)
 
             return GhostCompareLayer(
                 maskSize: maskSize, maskPixelsPerCm: maskPixelsPerCm, anchorCm: anchorCm,
-                outlineImage: outlineImage, photoImage: photoImage
+                outlineImage: outlineImage, photoImage: photoImage, contours: contours, strokeColor: strokeColor
             )
         }.value
     }
@@ -280,6 +346,16 @@ private struct GhostCompareLayer {
     let anchorCm: CGPoint
     let outlineImage: UIImage?
     let photoImage: UIImage?
+    // R1: vector boundary trace for the draw-in ceremony — unit-space
+    // (0–1), same top-left-origin convention as outlineImage's own frame
+    // (no Vision-style y-flip). Empty when tracing found nothing draw-
+    // worthy (fragmented matte); GhostCompareOverlay then falls back to
+    // outlineImage's own scanReveal wipe for that layer.
+    let contours: [CGPath]
+    // This layer's diff colour (A → acc, B → amb) — outlineImage is
+    // already tinted with it as a raster; the vector draw needs the same
+    // SwiftUI Color directly to stroke the traced contours.
+    let strokeColor: Color
 }
 
 /// Two positions' silhouettes, scaled to real centimetres and anchored on a
@@ -295,6 +371,13 @@ private struct GhostCompareOverlay: View {
     let showOutline: Bool
     let showLayerA: Bool
     let showLayerB: Bool
+    // R1: 0→1 outline draw-in progress, owned and animated by ComparisonView
+    // (caller-owned animation, same pattern as SkeletonOverlay's `progress`).
+    let drawInProgressA: Double
+    let drawInProgressB: Double
+    // R1.4: a pinch/pan starting mid-draw snaps the ceremony to done —
+    // scrolling/zooming shouldn't compete with an unrelated animation.
+    var onGestureBegan: () -> Void = {}
 
     var body: some View {
         GeometryReader { proxy in
@@ -311,15 +394,15 @@ private struct GhostCompareOverlay: View {
             let fit = AnalysisMath.overlayFit(extentA: extentA, extentB: extentB, containerSize: proxy.size)
 
             ZStack {
-                if showLayerA { layerView(layerA, fit: fit) }
-                if showLayerB { layerView(layerB, fit: fit) }
+                if showLayerA { layerView(layerA, fit: fit, drawInProgress: drawInProgressA) }
+                if showLayerB { layerView(layerB, fit: fit, drawInProgress: drawInProgressB) }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             // The whole composite zooms as one aligned unit (same pattern
             // PositionDetailView/RevealStep use) — PHOTO/OUTLINE and the A/B
             // toggles don't reset zoom, since the physical-cm placement puts
             // both modes' content at the identical screen position/scale.
-            .pinchZoomable()
+            .pinchZoomable(onGestureBegan: onGestureBegan)
         }
         .background(Theme.Palette.bg1)
         .clipped()
@@ -327,22 +410,68 @@ private struct GhostCompareOverlay: View {
 
     @ViewBuilder
     private func layerView(
-        _ layer: GhostCompareLayer, fit: (screenPointsPerCm: CGFloat, anchorScreenPoint: CGPoint)
+        _ layer: GhostCompareLayer, fit: (screenPointsPerCm: CGFloat, anchorScreenPoint: CGPoint),
+        drawInProgress: Double
     ) -> some View {
         let placement = AnalysisMath.overlayPlacement(
             maskSize: layer.maskSize, maskPixelsPerCm: layer.maskPixelsPerCm, anchorCm: layer.anchorCm,
             sharedAnchorScreenPoint: fit.anchorScreenPoint, screenPointsPerCm: fit.screenPointsPerCm
         )
-        let image = showOutline ? layer.outlineImage : layer.photoImage
-        if let image, placement.frameSize.width > 0, placement.frameSize.height > 0 {
-            Image(uiImage: image)
-                .resizable()
-                .frame(width: placement.frameSize.width, height: placement.frameSize.height)
-                .position(placement.center)
-                // OUTLINE rings don't occlude each other, so full opacity;
-                // PHOTO is a deliberate soft double-exposure.
-                .opacity(showOutline ? 1 : 0.55)
+        if placement.frameSize.width > 0, placement.frameSize.height > 0 {
+            if showOutline, !layer.contours.isEmpty {
+                // R1.2: the traced boundary draws on, in the same frame the
+                // raster ring would otherwise occupy — SkeletonOverlay is
+                // the in-repo reference for trim+progress, caller-owned
+                // animation.
+                ContourDrawView(contours: layer.contours, color: layer.strokeColor, progress: drawInProgress)
+                    .frame(width: placement.frameSize.width, height: placement.frameSize.height)
+                    .position(placement.center)
+            } else if let image = showOutline ? layer.outlineImage : layer.photoImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(width: placement.frameSize.width, height: placement.frameSize.height)
+                    .position(placement.center)
+                    // OUTLINE rings don't occlude each other, so full
+                    // opacity; PHOTO is a deliberate soft double-exposure.
+                    // An untraceable OUTLINE layer (fragmented matte) wipes
+                    // in via scanReveal on the same stagger instead of the
+                    // vector draw — same graceful-degrade shape as every
+                    // other optional visual in this app.
+                    .opacity(showOutline ? 1 : 0.55)
+                    .scanReveal(progress: showOutline ? drawInProgress : 1)
+            }
         }
+    }
+}
+
+/// Renders a layer's traced contours with a shared 0→1 trim progress — all
+/// of a layer's contours share one progress, no per-contour ceremony (R1.2).
+private struct ContourDrawView: View {
+    let contours: [CGPath]
+    let color: Color
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ForEach(contours.indices, id: \.self) { index in
+                    scaledPath(contours[index], in: proxy.size)
+                        .trim(from: 0, to: progress)
+                        .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                }
+            }
+        }
+        .opacity(0.85) // matches the raster ring's own tint alpha
+        .allowsHitTesting(false)
+    }
+
+    /// contours are unit-space (0–1), top-left origin, y-down — scaling by
+    /// this view's own pixel size lines them up with the frame the raster
+    /// `outlineImage` would otherwise occupy, no further offset needed.
+    private func scaledPath(_ cgPath: CGPath, in size: CGSize) -> Path {
+        var transform = CGAffineTransform(scaleX: size.width, y: size.height)
+        let scaled = cgPath.copy(using: &transform) ?? cgPath
+        return Path(scaled)
     }
 }
 

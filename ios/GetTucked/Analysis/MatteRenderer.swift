@@ -1,5 +1,6 @@
 import CoreGraphics
 import CoreImage
+import SwiftUI
 #if canImport(UIKit)
 import UIKit
 
@@ -139,6 +140,34 @@ enum MatteRenderer {
             ringContext.data?.copyMemory(from: ptr.baseAddress!, byteCount: ring.count)
         }
         return ringContext.makeImage()
+    }
+
+    /// Contour paths for the outline draw-in ceremony (Plan R1.1) — unit-
+    /// space (0–1), same top-left-origin convention as `outlineImage`'s own
+    /// frame, so `GhostCompareOverlay` can render them directly into the
+    /// same placement rect with no coordinate flip. Empty when the mask has
+    /// no foreground pixels at all; individual specks are already filtered
+    /// by `ContourTracer`'s own area threshold.
+    static func contourPaths(mask: CGImage) -> [CGPath] {
+        guard let data = mask.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return [] }
+        let width = mask.width, height = mask.height, bytesPerRow = mask.bytesPerRow
+        let threshold: UInt8 = 128
+
+        let polygons = ContourTracer.trace(
+            isForeground: { x, y in bytes[y * bytesPerRow + x] >= threshold },
+            width: width, height: height
+        )
+
+        return polygons.compactMap { polygon in
+            guard let first = polygon.first else { return nil }
+            var path = Path()
+            path.move(to: first)
+            for point in polygon.dropFirst() {
+                path.addLine(to: point)
+            }
+            path.closeSubpath()
+            return path.cgPath
+        }
     }
 
     /// Encodes a raw segmentation mask as lossless PNG, downscaling (never
