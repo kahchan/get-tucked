@@ -34,6 +34,10 @@ struct LiveCameraView: View {
     @State private var showingBikePicker = false
     // Default on (Plan P2.2) — the single show/hide control, no sub-choices.
     @State private var showGhost = true
+    // Q3.3: coaching content stays one tap away after it stops being
+    // mandatory (Kah's standing preference for explicit, discoverable
+    // controls over hidden functionality).
+    @State private var showingTips = false
 
     var body: some View {
         ZStack {
@@ -88,6 +92,13 @@ struct LiveCameraView: View {
                 onBikeChange(picked)
                 showingBikePicker = false
             }
+        }
+        // Sheet, not a nav push (Q3.3) — pushing would re-enter the
+        // .setTheScene route and tangle Q1's path-trim rules. GOT IT just
+        // dismisses here; it never sets hasSeenSetTheScene (that only
+        // happens the first time, via AppNavigationView).
+        .sheet(isPresented: $showingTips) {
+            SetTheSceneView { showingTips = false }
         }
     }
 
@@ -152,6 +163,20 @@ struct LiveCameraView: View {
             } else if let stepLabel {
                 StepLabelChip(label: stepLabel)
             }
+            // Head-on only (Q3.3) — side-on's HUD is already busier and the
+            // rider has just seen the head-on coaching.
+            if showsBikeChip {
+                Button {
+                    showingTips = true
+                } label: {
+                    Text("TIPS")
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg3)
+                        .kerning(0.5)
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, Theme.Space.sm)
+            }
             Spacer()
             if ghost != nil {
                 GhostToggleButton(isOn: showGhost) {
@@ -161,8 +186,8 @@ struct LiveCameraView: View {
                 }
             }
             Button(action: onCancel) {
-                Text("✕")
-                    .font(Theme.mono(Theme.Control.iconSize))
+                Image(systemName: "xmark")
+                    .font(.system(size: Theme.Control.iconSize, weight: .medium))
                     .foregroundStyle(Theme.Palette.fg)
                     .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
                     .contentShape(Rectangle())

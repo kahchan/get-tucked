@@ -30,28 +30,57 @@ enum AppScreen: Hashable {
     #endif
 }
 
+/// Trims a nav path back to the screen the capture flow was entered from —
+/// used by every ✕/cancel inside `CaptureView` (Q1.2). `while`, not
+/// `removeLast(n)`, so it stays correct whether or not `.setTheScene` was
+/// ever pushed (Q3 skips it on the match flow and once coaching has been
+/// seen once).
+func trimmedForCaptureExit(_ path: [AppScreen]) -> [AppScreen] {
+    var result = path
+    while case .capture = result.last { result.removeLast() }
+    while case .setTheScene = result.last { result.removeLast() }
+    return result
+}
+
 // MARK: - Root navigation
 
 /// Single NavigationStack driving the whole app. No tab bar.
 struct AppNavigationView: View {
-    @State private var path: [AppScreen] = []
+    @State private var path: [AppScreen]
+    // Q3.1: same UserDefaults key as PositionListView's copy — GOT IT here
+    // is the one place that ever sets it to true.
+    @AppStorage("hasSeenSetTheScene") private var hasSeenSetTheScene = false
     // Set when a fresh save lands (CaptureView), consumed by PositionListView
     // once the user is back at root — the newest row gets a brief "here's
     // what you just made" tick (Plan N7).
     @State private var justSavedPositionID: UUID?
+    // Q5: the index menu — a root-only overlay, never a path entry (so the
+    // back caret's path-emptiness check above stays correct).
+    @State private var showingIndex = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    // Q4: lets ContentView seed the very first launch straight into the
+    // capture flow after the first bike saves — read once, at this view's
+    // creation, same as any other `@State` initial value.
+    init(initialPath: [AppScreen] = []) {
+        _path = State(initialValue: initialPath)
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             NavigationStack(path: $path) {
-                PositionListView(path: $path, highlightID: $justSavedPositionID)
+                PositionListView(path: $path, highlightID: $justSavedPositionID, showingIndex: $showingIndex)
                     .navigationDestination(for: AppScreen.self) { screen in
                         switch screen {
                         case .positionList:
-                            PositionListView(path: $path, highlightID: $justSavedPositionID)
+                            PositionListView(path: $path, highlightID: $justSavedPositionID, showingIndex: $showingIndex)
                         case .positionDetail(let id):
                             PositionDetailWrapper(id: id, path: $path)
                         case .setTheScene(let referenceID):
-                            SetTheSceneView { path.append(.capture(referenceID: referenceID)) }
+                            SetTheSceneView {
+                                hasSeenSetTheScene = true
+                                path.append(.capture(referenceID: referenceID))
+                            }
                         case .capture(let referenceID):
                             #if canImport(UIKit)
                             CaptureView(path: $path, referenceID: referenceID, onSaved: { id in justSavedPositionID = id })
@@ -97,12 +126,114 @@ struct AppNavigationView: View {
                     // NavHeader has no way to report a position to.
                     .padding(.top, -2)
             }
+
+            // Q5: secondary destinations only — POSITIONS (the root) is
+            // never a menu item, and selecting one pushes onto path rather
+            // than replacing it, so the back caret always returns here.
+            // Never appears in `path` itself.
+            if showingIndex {
+                IndexOverlay(
+                    onSelect: { screen in
+                        closeIndex()
+                        path.append(screen)
+                    },
+                    onClose: closeIndex
+                )
+                .transition(reduceMotion ? .identity : .opacity)
+                .zIndex(1)
+            }
         }
+        .animation(reduceMotion ? nil : Theme.Motion.entrance(), value: showingIndex)
+    }
+
+    private func closeIndex() {
+        showingIndex = false
     }
 
     private func isCaptureScreen(_ screen: AppScreen?) -> Bool {
         if case .capture = screen { return true }
         return false
+    }
+}
+
+// MARK: - Index menu (Q5)
+
+/// Secondary-destination menu, reached via the root header's hamburger.
+/// Full-screen overlay, never a path entry — POSITIONS (the root) isn't
+/// listed since it's where the menu is opened from.
+private struct IndexOverlay: View {
+    let onSelect: (AppScreen) -> Void
+    let onClose: () -> Void
+
+    private let destinations: [(ordinal: String, label: String, screen: AppScreen)] = [
+        ("01", "BIKES", .bikeList),
+        ("02", "LEADERBOARD", .leaderboard),
+        ("03", "HOW IT WORKS", .howItWorks),
+    ]
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Theme.Palette.bg0.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer().frame(height: Theme.Space.xl + Theme.Control.iconTapTarget)
+                ForEach(destinations, id: \.label) { destination in
+                    IndexRow(ordinal: destination.ordinal, label: destination.label) {
+                        onSelect(destination.screen)
+                    }
+                    SectionDivider()
+                }
+                Spacer()
+            }
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: Theme.Control.iconSize, weight: .medium))
+                    .foregroundStyle(Theme.Palette.fg3)
+                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, Theme.Space.screenMargin - (Theme.Control.iconTapTarget - Theme.Control.iconSize) / 2)
+            .padding(.top, Theme.Space.sm)
+        }
+    }
+}
+
+private struct IndexRow: View {
+    let ordinal: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            EmptyView()
+        }
+        .buttonStyle(IndexRowButtonStyle(ordinal: ordinal, label: label))
+    }
+}
+
+/// Builds its own content from the style rather than decorating
+/// `configuration.label` — the only way for the destination label itself
+/// (not just an ancestor tint) to react to `isPressed` with the acid accent.
+private struct IndexRowButtonStyle: ButtonStyle {
+    let ordinal: String
+    let label: String
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Theme.Space.md) {
+            Text(ordinal)
+                .font(Theme.mono(13))
+                .foregroundStyle(Theme.Palette.fg4)
+            Text(label)
+                .font(Theme.heading(32))
+                .foregroundStyle(configuration.isPressed ? Theme.Palette.acc : Theme.Palette.fg)
+            Spacer()
+        }
+        .padding(.horizontal, Theme.Space.screenMargin)
+        .padding(.vertical, Theme.Space.lg)
+        .contentShape(Rectangle())
+        .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
     }
 }
 

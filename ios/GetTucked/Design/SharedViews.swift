@@ -88,18 +88,13 @@ struct HeaderLink: View {
 
 /// "HOW THE NUMBER IS MADE →" — appears on every screen that shows a computed
 /// number (Reveal, Detail, Comparison), linking to `HowItWorksView` (Plan A2).
+/// Built on `HeaderLink` (Q8.7) rather than re-implementing its look, so the
+/// two acid text-links can't drift again.
 struct HowItWorksLink: View {
     @Binding var path: [AppScreen]
 
     var body: some View {
-        Button {
-            path.append(.howItWorks)
-        } label: {
-            Text("HOW THE NUMBER IS MADE →")
-                .font(Theme.mono(11))
-                .foregroundStyle(Theme.Palette.acc)
-        }
-        .buttonStyle(PressedOpacityButtonStyle())
+        HeaderLink("HOW THE NUMBER IS MADE") { path.append(.howItWorks) }
     }
 }
 
@@ -170,25 +165,9 @@ struct SegmentedToggleBar: View {
     }
 }
 
-/// Full-height empty state for list screens.
-struct EmptySlate: View {
-    let message: String
-
-    var body: some View {
-        VStack {
-            Spacer()
-            Text(message)
-                .font(Theme.mono(13))
-                .foregroundStyle(Theme.Palette.fg4)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, Theme.Space.screenMargin)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-/// Full-height empty state with an optional inline CTA button.
+/// Full-height empty state with an optional inline CTA button (Q8.6: merged
+/// what used to be a separate `EmptySlate` — same component with and
+/// without a CTA, so the CTA is simply optional here).
 struct EmptyStateView: View {
     let message: String
     var ctaLabel: String? = nil

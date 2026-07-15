@@ -32,7 +32,7 @@ struct BikeListView: View {
                 SectionDivider()
 
                 if bikes.isEmpty {
-                    EmptySlate(message: "No bikes yet.")
+                    EmptyStateView(message: "No bikes yet.")
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -102,7 +102,7 @@ private struct BikeRow: View {
                 .kerning(0.5)
         }
         .padding(.horizontal, Theme.Space.screenMargin)
-        .frame(height: 60)
+        .frame(height: Theme.Control.listRowHeight)
         .contentShape(Rectangle())
     }
 }

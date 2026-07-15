@@ -38,8 +38,8 @@ struct BikeSetupView: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("✕")
-                            .font(Theme.mono(Theme.Control.iconSize))
+                        Image(systemName: "xmark")
+                            .font(.system(size: Theme.Control.iconSize, weight: .medium))
                             .foregroundStyle(Theme.Palette.fg3)
                             .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
                             .contentShape(Rectangle())
@@ -115,12 +115,15 @@ struct BikeSetupView: View {
                     .padding(.top, Theme.Space.md)
                 }
 
+                // Q8.3: AccentButton is always the bottom-most control —
+                // primary action at the thumb; side benefit of moving
+                // DELETE BIKE off the easiest-reach position.
                 VStack(spacing: Theme.Space.sm) {
-                    AccentButton(label: editing == nil ? "SAVE BIKE" : "SAVE CHANGES",
-                                 action: save, enabled: isValid)
                     if editing != nil {
                         GhostButton(label: "DELETE BIKE") { showDeleteConfirm = true }
                     }
+                    AccentButton(label: editing == nil ? "SAVE BIKE" : "SAVE CHANGES",
+                                 action: save, enabled: isValid)
                 }
                 .padding(.horizontal, Theme.Space.screenMargin)
                 .padding(.vertical, Theme.Space.md)
@@ -220,7 +223,6 @@ struct TypeToggle: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, Theme.Space.lg)
         .padding(.top, Theme.Space.xs)
     }
 }
@@ -243,7 +245,6 @@ struct OptionalSectionToggle: View {
                 Spacer()
             }
             .foregroundStyle(Theme.Palette.fg3)
-            .padding(.horizontal, Theme.Space.lg)
             .frame(height: 40)
             .contentShape(Rectangle())
         }
@@ -265,7 +266,6 @@ struct RimStandardToggle: View {
             row(topRow)
             row(bottomRow)
         }
-        .padding(.horizontal, Theme.Space.lg)
         .padding(.top, Theme.Space.xs)
     }
 

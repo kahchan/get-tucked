@@ -129,7 +129,10 @@ struct SectionDivider: View {
 
 // MARK: - FieldLabel / MonoField
 
-/// Uppercase field label above a `MonoField`.
+/// Uppercase field label above a `MonoField`. Q8.2: no internal horizontal
+/// padding — screen-level margin is the caller's container's job, not a
+/// field component's, so every call site gets exactly one margin instead of
+/// stacking its own on top of this.
 struct FieldLabel: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -139,7 +142,6 @@ struct FieldLabel: View {
             .font(Theme.mono(11, weight: .bold))
             .foregroundStyle(Theme.Palette.fg2)
             .kerning(0.8)
-            .padding(.horizontal, Theme.Space.lg)
     }
 }
 
@@ -158,7 +160,6 @@ struct MonoField: View {
             // needs a decimal point; whole-number fields work fine on it too.
             .keyboardType(numericOnly ? .decimalPad : .default)
             #endif
-            .padding(.horizontal, Theme.Space.lg)
             .padding(.top, Theme.Space.xs)
             .padding(.bottom, Theme.Space.sm)
             .overlay(alignment: .bottom) {

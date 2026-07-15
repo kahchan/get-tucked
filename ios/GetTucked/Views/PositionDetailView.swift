@@ -180,15 +180,25 @@ struct PositionDetailView: View {
                             .padding(.vertical, Theme.Space.lg)
                         }
 
-                        // Reuses the ordinary capture flow (SetTheSceneView →
-                        // CaptureView), just carrying this position's id as
-                        // the ghost reference (Plan P2.1) — no separate entry
-                        // point or copy path.
+                        // Straight into the camera, ghost armed (Q3.2) — by
+                        // definition the rider has captured before, and the
+                        // ghost overlay itself *is* the framing guidance, so
+                        // the coaching interstitial would be redundant here
+                        // regardless of the first-time flag.
                         GhostButton(label: "MATCH THIS POSITION") {
-                            path.append(.setTheScene(referenceID: position.persistentModelID))
+                            path.append(.capture(referenceID: position.persistentModelID))
                         }
                         .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.top, Theme.Space.lg)
+
+                        // Same-kit reminder (Q3.2) — the one piece of
+                        // SetTheSceneView's coaching this flow genuinely
+                        // needs, since that screen is never shown here.
+                        Text("Same kit, same helmet, same bar position — clothing changes your silhouette as much as a small bag does.")
+                            .font(Theme.mono(11))
+                            .foregroundStyle(Theme.Palette.fg3)
+                            .padding(.horizontal, Theme.Space.screenMargin)
+                            .padding(.top, Theme.Space.sm)
 
                         GhostButton(label: "DELETE POSITION") { showDeleteConfirm = true }
                             .padding(.horizontal, Theme.Space.screenMargin)

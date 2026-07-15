@@ -63,7 +63,7 @@ struct BikePickerSheet: View {
                                     .kerning(0.8)
                                 Spacer()
                             }
-                            .padding(.horizontal, Theme.Space.lg)
+                            .padding(.horizontal, Theme.Space.screenMargin)
                             .frame(height: 52)
                             .contentShape(Rectangle())
                         }
@@ -71,6 +71,9 @@ struct BikePickerSheet: View {
                         SectionDivider()
 
                         if addingBike {
+                            // Q8.2: FieldLabel/MonoField/TypeToggle/etc. carry
+                            // no margin of their own — this wrapper is the
+                            // form's one and only screen-edge indent.
                             VStack(alignment: .leading, spacing: 0) {
                                 FieldLabel("NICKNAME")
                                     .padding(.top, Theme.Space.md)
@@ -94,10 +97,10 @@ struct BikePickerSheet: View {
                                 }
 
                                 AccentButton(label: "SAVE & SELECT", action: saveBike, enabled: isValid)
-                                    .padding(.horizontal, Theme.Space.lg)
                                     .padding(.top, Theme.Space.lg)
                                     .padding(.bottom, Theme.Space.lg)
                             }
+                            .padding(.horizontal, Theme.Space.screenMargin)
                         }
                     }
                 }
@@ -166,8 +169,8 @@ private struct BikePickerRow: View {
             }
             Spacer()
         }
-        .padding(.horizontal, Theme.Space.lg)
-        .frame(height: 60)
+        .padding(.horizontal, Theme.Space.screenMargin)
+        .frame(height: Theme.Control.listRowHeight)
         .contentShape(Rectangle())
     }
 }

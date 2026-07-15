@@ -69,6 +69,9 @@ enum Theme {
         static let accentButtonHeight: CGFloat = 52
         static let ghostButtonHeight: CGFloat = 48
         static let metricRowHeight: CGFloat = 50
+        /// Q8.5: PositionRow, BikeRow, BikePickerRow — one list-row height so
+        /// they don't drift independently.
+        static let listRowHeight: CGFloat = 60
         static let hairline: CGFloat = 1
         /// Leading title inset for pushed screens (NavHeader), wide enough to
         /// clear the floating BackButton — a centred glyph in its own 44pt

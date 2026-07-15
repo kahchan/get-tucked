@@ -30,7 +30,7 @@ struct LeaderboardView: View {
                 SectionDivider()
 
                 if ranked.isEmpty {
-                    EmptySlate(message: "No positions yet.\nCapture a position to see it ranked here.")
+                    EmptyStateView(message: "No positions yet.\nCapture a position to see it ranked here.")
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -163,6 +163,9 @@ private struct RankRow: View {
             }
         }
         .padding(.horizontal, Theme.Space.screenMargin)
+        // Q8.5: stays off Theme.Control.listRowHeight (60) — both sides of
+        // this row carry two lines (label+bike, area+delta) rather than
+        // PositionRow/BikeRow's one, and need the extra 4pt.
         .frame(height: 64)
         .overlay(alignment: .bottom) {
             if rank == 1 {

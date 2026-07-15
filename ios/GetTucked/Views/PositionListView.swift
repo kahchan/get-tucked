@@ -6,6 +6,13 @@ struct PositionListView: View {
     // Set by CaptureView when a fresh save lands; consumed here once the
     // user is back at root (N7) — then cleared so it doesn't re-fire.
     @Binding var highlightID: UUID?
+    // Q5: opens AppNavigationView's index overlay — owned there, not here,
+    // since the overlay must never appear inside `path`.
+    @Binding var showingIndex: Bool
+    // Q3.1: SetTheScene coaches once, then gets out of the way — GOT IT
+    // sets this (AppNavigationView), every entry point after that goes
+    // straight to the camera.
+    @AppStorage("hasSeenSetTheScene") private var hasSeenSetTheScene = false
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
     @Query private var bikes: [Bike]
     // Selection is always available (no separate select mode) — each row's
@@ -21,33 +28,41 @@ struct PositionListView: View {
         selected.compactMap { id in positions.first { $0.id == id } }
     }
 
+    private var subtitleHint: String? {
+        guard positions.count >= 2 else { return nil }
+        if selected.count == 1 { return "Reference set. Tap one more to compare." }
+        return "Tap two to compare."
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Bespoke two-row header, not the shared NavHeader: gear/add
-                // on the title row, leaderboard link on the subtitle row
-                // overflow a single trailing slot at this width.
+                // Bespoke two-row header, not the shared NavHeader: hamburger
+                // (Q5's index)/add on the title row, hint-only subtitle row
+                // — LEADERBOARD and BIKES moved into the index, they no
+                // longer compete for this row's single trailing slot.
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .center) {
-                        Text("POSITIONS")
-                            .font(Theme.heading(19))
-                            .foregroundStyle(Theme.Palette.fg)
-                        Spacer()
                         Button {
-                            path.append(.bikeList)
+                            showingIndex = true
                         } label: {
-                            Image(systemName: "gearshape")
+                            Image(systemName: "line.3.horizontal")
                                 .font(.system(size: Theme.Control.iconSize, weight: .medium))
                                 .foregroundStyle(Theme.Palette.fg3)
                                 .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .padding(.leading, -(Theme.Control.iconTapTarget - Theme.Control.iconSize) / 2)
 
+                        Text("POSITIONS")
+                            .font(Theme.heading(19))
+                            .foregroundStyle(Theme.Palette.fg)
+                        Spacer()
                         Button {
-                            path.append(.setTheScene(referenceID: nil))
+                            beginCapture()
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: Theme.Control.iconSize, weight: .medium))
@@ -58,12 +73,15 @@ struct PositionListView: View {
                         .buttonStyle(.plain)
                         .disabled(bikes.isEmpty)
                     }
-                    HStack(alignment: .center) {
-                        Text("Tap two to compare.")
+                    // Q7.1: nothing to say with fewer than 2 positions — the
+                    // row collapses rather than showing a hint that doesn't
+                    // yet apply. Q7.2: once one is selected, the hint names
+                    // the otherwise-invisible A/B order (first tap = the
+                    // comparison's reference).
+                    if let subtitleHint {
+                        Text(subtitleHint)
                             .font(Theme.mono(11))
                             .foregroundStyle(Theme.Palette.fg3)
-                        Spacer()
-                        HeaderLink("LEADERBOARD") { path.append(.leaderboard) }
                     }
                 }
                 // Root screen — no floating back arrow to clear, so the title
@@ -89,7 +107,7 @@ struct PositionListView: View {
                         EmptyStateView(
                             message: "No positions yet.\nCapture a position to measure frontal area.",
                             ctaLabel: "Capture a position",
-                            ctaAction: { path.append(.setTheScene(referenceID: nil)) }
+                            ctaAction: { beginCapture() }
                         )
                     }
                 } else {
@@ -150,6 +168,12 @@ struct PositionListView: View {
             self.highlightID = nil
         }
     }
+
+    /// Q3.1: first-ever capture routes through the coaching screen; every
+    /// one after that (the flag it sets) opens the camera directly.
+    private func beginCapture() {
+        path.append(hasSeenSetTheScene ? .capture(referenceID: nil) : .setTheScene(referenceID: nil))
+    }
 }
 
 // MARK: - Row
@@ -170,7 +194,7 @@ private struct PositionRow: View {
         HStack(spacing: Theme.Space.xs) {
             Button(action: onToggleSelect) {
                 CheckboxIndicator(isSelected: isSelected, isDisabled: isAtCapacity)
-                    .frame(width: Theme.Control.iconTapTarget, height: 60)
+                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.listRowHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -202,7 +226,7 @@ private struct PositionRow: View {
                     }
                 }
                 .padding(.trailing, Theme.Space.screenMargin)
-                .frame(height: 60)
+                .frame(height: Theme.Control.listRowHeight)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

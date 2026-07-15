@@ -13,7 +13,6 @@ struct CaptureView: View {
     // give the newest row a brief highlight once the user gets back there.
     var onSaved: (UUID) -> Void = { _ in }
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
     @Query private var bikes: [Bike]
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
 
@@ -53,6 +52,10 @@ struct CaptureView: View {
     @State private var pendingSideOnMask: UIImage?
     @State private var analysisError: AnalysisError?
     @State private var showingError = false
+    // Q2: guards against silently discarding a completed analysis — gated
+    // off once the position is actually saved (.done) or before any
+    // analysis exists yet, where ✕ has nothing meaningful to lose.
+    @State private var showingDiscardConfirm = false
     // Set at the end of savePosition — lets the success screen offer a
     // direct link to the position it just created.
     @State private var savedPositionID: PersistentIdentifier?
@@ -86,10 +89,10 @@ struct CaptureView: View {
                 if step != .pickPhoto, step != .pickSideOnPhoto {
                     NavHeader(title: stepTitle) {
                         Button {
-                            dismiss()
+                            requestExitCaptureFlow()
                         } label: {
-                            Text("✕")
-                                .font(Theme.mono(Theme.Control.iconSize))
+                            Image(systemName: "xmark")
+                                .font(.system(size: Theme.Control.iconSize, weight: .medium))
                                 .foregroundStyle(Theme.Palette.fg3)
                                 .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
                                 .contentShape(Rectangle())
@@ -103,9 +106,13 @@ struct CaptureView: View {
             }
             .alert("Capture failed", isPresented: $showingError, presenting: analysisError) { _ in
                 Button("Try again") { step = .pickPhoto }
-                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Cancel", role: .cancel) { requestExitCaptureFlow() }
             } message: { error in
                 Text(error.errorDescription ?? "Unknown error.")
+            }
+            .confirmationDialog("Discard this capture?", isPresented: $showingDiscardConfirm, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) { exitCaptureFlow() }
+                Button("Cancel", role: .cancel) {}
             }
         }
         .hideNavBar()
@@ -127,8 +134,8 @@ struct CaptureView: View {
         .onChange(of: step) { _, newStep in
             OrientationLock.allowsLandscape = (newStep == .pickSideOnPhoto)
         }
-        // Covers dismiss() (✕ / cancel) and any other navigation pop, which
-        // onChange(of: step) can't see.
+        // Covers exitCaptureFlow() (✕ / cancel) and any other navigation
+        // pop, which onChange(of: step) can't see.
         .onDisappear {
             OrientationLock.allowsLandscape = false
         }
@@ -140,13 +147,21 @@ struct CaptureView: View {
             switch step {
             case .pickPhoto:
                 if let bike = selectedBike {
-                    LiveCameraView(bike: bike, bikes: bikes, onBikeChange: { selectedBike = $0 }, onCapture: { image in
+                    LiveCameraView(bike: bike, bikes: bikes, onBikeChange: { selectedBike = $0 }, onPickFromLibrary: { image, identifier in
+                        // Q6: solo library fallback — no saveToCameraRoll
+                        // (the photo is already in the library, that's the
+                        // point), mirroring the side-on call site exactly.
+                        selectedImage = image
+                        assetIdentifier = identifier
+                        tapPoints = []
+                        step = .calibrate
+                    }, onCapture: { image in
                         selectedImage = image  // already normalised in photoOutput delegate
                         assetIdentifier = nil  // live capture has no PHAsset identifier
                         tapPoints = []
                         step = .calibrate
                         Task { await saveToCameraRoll(image) }
-                    }, onCancel: { dismiss() }, ghost: headOnGhost)
+                    }, onCancel: { requestExitCaptureFlow() }, ghost: headOnGhost)
                     .transition(.identity)
                 }
             case .calibrate:
@@ -185,7 +200,7 @@ struct CaptureView: View {
                             step = .calibrateSideOn
                             Task { await saveToCameraRoll(image) }
                         },
-                        onCancel: { dismiss() },
+                        onCancel: { requestExitCaptureFlow() },
                         ghost: sideOnGhost
                     )
                     .transition(.identity)
@@ -234,8 +249,12 @@ struct CaptureView: View {
                     areaCm2: pendingResult?.frontalAreaCm2,
                     onViewAnalysis: {
                         guard let savedPositionID else { return }
-                        if !path.isEmpty { path.removeLast() }
-                        path.append(.positionDetail(savedPositionID))
+                        // Replace, not pop (Q1.1) — whatever got us here
+                        // (ordinary capture or a match flow's reference
+                        // detail) has served its purpose; the freshly saved
+                        // position's own detail is the only thing that
+                        // should remain in the stack.
+                        path = [.positionDetail(savedPositionID)]
                     },
                     onCaptureAnother: {
                         resetForNewCapture()
@@ -426,6 +445,25 @@ struct CaptureView: View {
         guard status == .authorized || status == .limited else { return }
         try? await PHPhotoLibrary.shared().performChanges {
             PHAssetCreationRequest.forAsset().addResource(with: .photo, data: image.jpegData(compressionQuality: 0.9) ?? Data(), options: nil)
+        }
+    }
+
+    /// Every ✕/cancel in the capture flow routes through this (Q1.2) instead
+    /// of `dismiss()`, which only pops one screen and strands the user on
+    /// `.setTheScene` — a screen they only passed through, never a
+    /// destination in its own right.
+    private func exitCaptureFlow() {
+        path = trimmedForCaptureExit(path)
+    }
+
+    /// Gates `exitCaptureFlow()` behind a confirmation once there's a
+    /// completed analysis to lose (Q2) — before that, or once the position
+    /// is actually saved (`.done`), ✕ exits immediately, same as before.
+    private func requestExitCaptureFlow() {
+        if pendingResult != nil, step != .done {
+            showingDiscardConfirm = true
+        } else {
+            exitCaptureFlow()
         }
     }
 
@@ -824,17 +862,17 @@ private struct RevealStep: View {
                                     .cascadeIn(index: 7, trigger: rowsVisible)
                                 }
                             }
-                            .padding(.horizontal, Theme.Space.lg)
+                            .padding(.horizontal, Theme.Space.screenMargin)
                         }
                     }
 
                     GhostButton(label: "RETAKE", action: onRetake)
-                        .padding(.horizontal, Theme.Space.lg)
+                        .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.top, Theme.Space.sm)
                         .opacity(buttonsVisible ? 1 : 0)
 
                     AccentButton(label: "NAME POSITION", action: onContinue)
-                        .padding(.horizontal, Theme.Space.lg)
+                        .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.vertical, Theme.Space.md)
                         .opacity(buttonsVisible ? 1 : 0)
                 }
@@ -983,17 +1021,20 @@ private struct NamePositionStep: View {
                     .font(Theme.heading(24))
                     .foregroundStyle(Theme.Palette.fg)
             }
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.bottom, Theme.Space.lg)
 
-            FieldLabel("POSITION NAME")
-            MonoField(placeholder: "Hoods, fully loaded", text: $label)
-                .focused($nameFieldFocused)
+            VStack(alignment: .leading, spacing: 0) {
+                FieldLabel("POSITION NAME")
+                MonoField(placeholder: "Hoods, fully loaded", text: $label)
+                    .focused($nameFieldFocused)
+            }
+            .padding(.horizontal, Theme.Space.screenMargin)
 
             Text("You'll compare against this name later.")
                 .font(Theme.mono(12))
                 .foregroundStyle(Theme.Palette.fg3)
-                .padding(.horizontal, Theme.Space.lg)
+                .padding(.horizontal, Theme.Space.screenMargin)
                 .padding(.top, Theme.Space.sm)
 
             Spacer()
@@ -1004,7 +1045,7 @@ private struct NamePositionStep: View {
                              onSave(label.trimmingCharacters(in: .whitespaces))
                          },
                          enabled: isValid)
-                .padding(.horizontal, Theme.Space.lg)
+                .padding(.horizontal, Theme.Space.screenMargin)
                 .padding(.vertical, Theme.Space.md)
         }
         // Short delay so the keyboard doesn't rise mid-way through this
@@ -1052,11 +1093,13 @@ private struct CaptureSuccessStep: View {
 
             Spacer()
 
-            AccentButton(label: "VIEW ANALYSIS", action: onViewAnalysis)
-                .padding(.horizontal, Theme.Space.lg)
-                .opacity(buttonsVisible ? 1 : 0)
+            // Q8.3: AccentButton is always the bottom-most control — primary
+            // action at the thumb.
             GhostButton(label: "CAPTURE ANOTHER POSITION", action: onCaptureAnother)
-                .padding(.horizontal, Theme.Space.lg)
+                .padding(.horizontal, Theme.Space.screenMargin)
+                .opacity(buttonsVisible ? 1 : 0)
+            AccentButton(label: "VIEW ANALYSIS", action: onViewAnalysis)
+                .padding(.horizontal, Theme.Space.screenMargin)
                 .padding(.top, Theme.Space.sm)
                 .padding(.bottom, Theme.Space.md)
                 .opacity(buttonsVisible ? 1 : 0)
@@ -1171,7 +1214,7 @@ private struct WheelbaseEntryPrompt: View {
             Spacer(minLength: Theme.Space.lg)
 
             GhostButton(label: "SKIP RULER", action: onSkip)
-                .padding(.horizontal, Theme.Space.lg)
+                .padding(.horizontal, Theme.Space.screenMargin)
                 .padding(.top, Theme.Space.sm)
             AccentButton(
                 label: "USE THIS",
@@ -1181,7 +1224,7 @@ private struct WheelbaseEntryPrompt: View {
                 },
                 enabled: isValid
             )
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.vertical, Theme.Space.md)
         }
         .task {
@@ -1641,7 +1684,7 @@ private struct TapCalibrationStep: View {
 
     private var confirmButton: some View {
         AccentButton(label: confirmLabel, action: onConfirm, enabled: tapPoints.count == 2)
-            .padding(.horizontal, Theme.Space.lg)
+            .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.vertical, Theme.Space.md)
             .background(Theme.Palette.bg0)
     }
