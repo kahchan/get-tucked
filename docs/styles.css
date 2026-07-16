@@ -268,9 +268,33 @@ footer{padding:56px 0 72px; border-top:1px solid var(--line2)}
 footer p{font-family:var(--mono); font-size:13px; color:var(--fg3); line-height:1.9}
 footer .dads{color:var(--fg2)}
 
-/* ---------- scroll entrances ---------- */
-.enter{opacity:0; transform:translateY(18px)}
-.enter.in{opacity:1; transform:none; transition:opacity .45s var(--ease-out), transform .45s var(--ease-out)}
+/* ---------- scroll entrances ----------
+   Initial hidden states only apply when JS is present (html.js), so the site
+   is complete and static with JS disabled. Motion is fade + short rise +
+   staggered cascade — eased, never linear, no bounce. */
+.js .enter{opacity:0; transform:translateY(18px)}
+.enter.in{opacity:1; transform:none;
+  transition:opacity .45s var(--ease-out), transform .45s var(--ease-out)}
+
+/* stagger groups: direct children cascade in, per-child delay via --sd (JS).
+   Hidden state is keyed on the containers themselves (stable in markup) so
+   nothing flashes before site.js runs. */
+.js :is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites) > *{
+  opacity:0; transform:translateY(16px)
+}
+:is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites).in > *{
+  opacity:1; transform:none;
+  transition:opacity .5s var(--ease-out) var(--sd,0s), transform .5s var(--ease-out) var(--sd,0s)
+}
+
+/* an acid rule draws along each section's top divider as it enters */
+section.block, .doc > section{position:relative}
+.js section.block::before, .js .doc > section::before{
+  content:""; position:absolute; top:-1px; left:0; height:1px; width:64px;
+  background:var(--acc); transform:scaleX(0); transform-origin:left;
+  transition:transform .6s var(--ease-io) .1s;
+}
+section.block.in::before, .doc > section.in::before{transform:scaleX(1)}
 
 /* ==========================================================================
    Methodology page
@@ -359,17 +383,75 @@ details .figure-note{
 }
 .doc-cta .line a{color:var(--acc)}
 
-@media (max-width:640px){
-  body{font-size:17px}
+/* ==========================================================================
+   Hover micro-interactions (eased, hard-edged; pointer devices only)
+   ========================================================================== */
+@media (hover:hover){
+  .get-list li{transition:color .18s var(--ease-out), padding-left .18s var(--ease-out)}
+  .get-list li::before{transition:transform .18s var(--ease-out), width .18s var(--ease-out)}
+  .get-list li:hover{padding-left:40px}
+  .get-list li:hover::before{width:22px}
+
+  .floor .row, .floor .verdict{transition:background .18s var(--ease-out)}
+  .floor .row:hover{background:var(--bg2)}
+
+  details summary{transition:background .18s var(--ease-out), color .18s var(--ease-out)}
+  details summary:hover{background:var(--bg2)}
+
+  .methlink .arw{display:inline-block; transition:transform .18s var(--ease-out)}
+  .methlink:hover .arw{transform:translateX(7px)}
+
+  .appstore svg{transition:transform .18s var(--ease-out)}
+  .appstore:hover svg{transform:translateX(-3px)}
+
+  .cites li{transition:color .18s var(--ease-out)}
+  .cites li:hover{color:var(--fg)}
+
+  .replay{transition:border-color .15s var(--ease-out), color .15s var(--ease-out), background .15s var(--ease-out)}
+  .replay:hover{background:var(--bg2)}
+}
+
+/* ==========================================================================
+   Responsive — desktop ≥1024 / tablet 768–1023 / mobile <768 / small <420
+   ========================================================================== */
+@media (max-width:1024px){
+  .wrap{padding:0 22px}
+  section.block{padding:56px 0}
+  .hero{padding:48px 0 36px}
+}
+@media (max-width:768px){
+  .topbar{padding:14px 20px}
+  .wrap, .doc{padding-left:20px; padding-right:20px}
+  .hero{padding:36px 0 30px}
+  .stage{aspect-ratio:4/5}
+  h1.wordmark{letter-spacing:-1.5px}
+  section.block{padding:48px 0}
   .get-grid{grid-template-columns:1fr; gap:32px}
+  .doc > section{padding:36px 0}
+  .doc-head{padding:48px 0 8px}
   .readout .num{text-shadow:none}
+}
+@media (max-width:420px){
+  body{font-size:16px}
+  .topbar{padding:12px 16px}
+  .wrap, .doc{padding-left:16px; padding-right:16px}
+  .brand{font-size:19px}
+  .top-cta{padding:8px 12px; font-size:11px}
+  h1.wordmark{font-size:clamp(44px,15vw,56px); letter-spacing:-1px}
+  .stage{aspect-ratio:3/4}
+  .appstore{font-size:20px; padding:14px 20px}
+  .get-list li{font-size:clamp(20px,6.5vw,26px)}
 }
 
 @media (prefers-reduced-motion:reduce){
   .reveal #matteLayer{animation:none; clip-path:inset(0 0 0 0)}
   .reveal #scan{animation:none; opacity:0}
   .reveal .joint{animation:none; opacity:1}
-  .enter{opacity:1; transform:none; transition:none}
+  .js .enter, .enter.in{opacity:1; transform:none; transition:none}
+  .js :is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites) > *,
+  :is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites).in > *{
+    opacity:1; transform:none; transition:none}
+  .js section.block::before, .js .doc > section::before{transform:scaleX(1); transition:none}
 }
 @media print{
   details{open:true}
