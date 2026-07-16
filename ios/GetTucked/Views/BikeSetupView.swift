@@ -13,6 +13,10 @@ struct BikeSetupView: View {
     @State private var nickname = ""
     @State private var handlebarWidthText = ""
     @State private var bikeType: BikeType = .road
+    // Plan S1: which convention the bar-width tap-calibration measures
+    // against. Tracks bikeType's own default until the rider (or a loaded
+    // bike) sets it explicitly — see the onChange below.
+    @State private var barType: BarType = .drop
     @State private var showHandlebarTip = false
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
@@ -26,6 +30,17 @@ struct BikeSetupView: View {
 
     private var isValid: Bool {
         Bike.isValidInput(nickname: nickname, handlebarWidthText: handlebarWidthText)
+    }
+
+    /// Plan S1: the real drop-bar issue — quoted width is measured at the
+    /// hoods, but the drop ends are what's tappable in a front-on photo.
+    private var handlebarWidthTip: String {
+        switch barType {
+        case .drop:
+            return "Measure outside-to-outside at the very ends of the drops — NOT the quoted size (that's measured at the hoods and flared bars are wider at the ends)."
+        case .flat:
+            return "Outside-to-outside at the bar ends, including bar-end accessories."
+        }
     }
 
     var body: some View {
@@ -64,6 +79,14 @@ struct BikeSetupView: View {
                         SectionDivider()
                             .padding(.top, Theme.Space.lg)
 
+                        // Bar type — sets which convention the width field
+                        // and the capture-time tap copy both use (Plan S1).
+                        FieldLabel("BAR TYPE")
+                            .padding(.top, Theme.Space.md)
+                        BarTypeToggle(selection: $barType)
+                        SectionDivider()
+                            .padding(.top, Theme.Space.lg)
+
                         // Handlebar width
                         HStack(alignment: .firstTextBaseline, spacing: Theme.Space.xs) {
                             FieldLabel("HANDLEBAR WIDTH (MM)")
@@ -84,7 +107,7 @@ struct BikeSetupView: View {
                         .padding(.top, Theme.Space.md)
 
                         if showHandlebarTip {
-                            Text("Centre-to-centre in mm. This sets the scale for every measurement on this bike.")
+                            Text(handlebarWidthTip)
                                 .font(Theme.mono(11))
                                 .foregroundStyle(Theme.Palette.fg3)
                                 .padding(.top, Theme.Space.xs)
@@ -131,6 +154,13 @@ struct BikeSetupView: View {
         }
         .hideNavBar()
         .onAppear(perform: loadIfNeeded)
+        // Keeps the bar-type default tracking bikeType until the rider (or
+        // a loaded bike) picks one explicitly — never fires for `editing`
+        // bikes, since loadIfNeeded sets both together after didLoad flips.
+        .onChange(of: bikeType) { _, newValue in
+            guard editing == nil else { return }
+            barType = newValue == .mtb ? .flat : .drop
+        }
         .confirmationDialog(deleteMessage, isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete bike", role: .destructive, action: deleteBike)
             Button("Cancel", role: .cancel) {}
@@ -150,6 +180,7 @@ struct BikeSetupView: View {
         nickname = bike.nickname
         handlebarWidthText = String(Int(bike.handlebarWidthMm))
         bikeType = bike.bikeType
+        barType = bike.effectiveBarType
         rimStandard = bike.rimStandard
         let tireWidthUnit = rimStandard?.tireWidthUnit ?? .mm
         tireWidthText = bike.tireWidthMm.map { formattedTireWidth($0, unit: tireWidthUnit) } ?? ""
@@ -164,6 +195,7 @@ struct BikeSetupView: View {
         bike.nickname = name
         bike.handlebarWidthMm = width
         bike.bikeType = bikeType
+        bike.barType = barType
         bike.rimStandard = rimStandard
         bike.tireWidthMm = Double(tireWidthText).map {
             AnalysisMath.tireWidthMm(fromEntry: $0, unit: rimStandard?.tireWidthUnit ?? .mm)
@@ -205,6 +237,36 @@ struct TypeToggle: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(BikeType.allCases, id: \.self) { type in
+                let selected = selection == type
+                Button {
+                    selection = type
+                } label: {
+                    Text(type.displayName.uppercased())
+                        .font(Theme.mono(12, weight: selected ? .bold : .regular))
+                        .foregroundStyle(selected ? Color.black : Theme.Palette.fg2)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(selected ? Theme.Palette.acc : Color.clear)
+                        .overlay(
+                            Rectangle()
+                                .stroke(Theme.Palette.line, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.top, Theme.Space.xs)
+    }
+}
+
+/// Drop/flat picker (Plan S1) — same shape as `TypeToggle`, separate type
+/// since BarType and BikeType are independent axes.
+struct BarTypeToggle: View {
+    @Binding var selection: BarType
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(BarType.allCases, id: \.self) { type in
                 let selected = selection == type
                 Button {
                     selection = type

@@ -9,6 +9,18 @@ enum BikeType: String, Codable, CaseIterable {
     var displayName: String { rawValue }
 }
 
+/// Which convention the handlebar-width tap-calibration measures against
+/// (Plan S1). Drop bars are quoted center-to-center at the hoods but the
+/// drop ends — the easiest points to tap in a front-on photo — are 20-60mm
+/// wider, so entering the quoted width and tapping the drops silently
+/// inflates px/cm and understates area. Flat bars have no such gap.
+enum BarType: String, Codable, CaseIterable {
+    case drop = "DROP"
+    case flat = "FLAT"
+
+    var displayName: String { rawValue }
+}
+
 /// Common rim sizes, mapped to their standardised ISO bead-seat diameter —
 /// the fixed part of "wheel diameter" that combines with tire width to
 /// approximate the tire's overall (inflated) diameter (Plan K1).
@@ -67,6 +79,12 @@ final class Bike {
     var nickname: String
     var handlebarWidthMm: Double
     var bikeType: BikeType
+    // nil means never explicitly set — either the bike predates this field
+    // (Plan S1) or was created without touching the picker's default.
+    // `effectiveBarType` below is the display/behaviour fallback; setting
+    // this explicitly (picker or the one-time existing-data caveat) is what
+    // permanently dismisses that caveat.
+    var barType: BarType?
     // Optional cross-scale verification metadata (Plan K1). None of these
     // gate capture — they exist to catch a mis-entered handlebarWidthMm.
     var rimStandard: RimStandard?
@@ -91,6 +109,10 @@ final class Bike {
     }
 
     var handlebarWidthCm: Double { handlebarWidthMm / 10.0 }
+
+    /// Falls back to bikeType when barType was never explicitly set —
+    /// mtb infers flat, road/gravel infer drop (Plan S1).
+    var effectiveBarType: BarType { barType ?? (bikeType == .mtb ? .flat : .drop) }
 
     /// nil unless both rim standard and tire width are set — the wheel
     /// check is skipped entirely (not offered) rather than guessing.

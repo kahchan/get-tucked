@@ -18,6 +18,9 @@ struct ComparisonView: View {
     // never blocks the numeric comparison above/below it.
     @State private var overlayLayerA: GhostCompareLayer?
     @State private var overlayLayerB: GhostCompareLayer?
+    // Collapses the reserved overlay section in the rare case the async
+    // build fails despite `overlaySectionExpected` passing.
+    @State private var overlayBuildFailed = false
     @State private var showOutline = true
     // Independent per-position visibility — lets you isolate one silhouette
     // at a time rather than always looking at both overlaid.
@@ -91,6 +94,37 @@ struct ComparisonView: View {
         return AnalysisMath.poseDeltaWarning(angleDeltaDeg: delta)
     }
 
+    // MARK: - Wheel check / shoulder width advisories (Plan T tier 3)
+    //
+    // Both signals are per-side and independent of each other and of
+    // deltaPct — a failing wheel check or an implausible shoulder width on
+    // either position is worth flagging even if the area delta itself
+    // can't be shown. Un-warned values still render as rows in the
+    // measurement-detail disclosure (ComparisonMeasurementDetail).
+
+    private func wheelCheckAdvisory(_ metrics: PositionMetrics?, side: String) -> String? {
+        guard let fraction = metrics?.wheelCheckDisagreementFraction else { return nil }
+        let check = AnalysisMath.wheelCheckDisplay(fraction)
+        guard check.isWarning else { return nil }
+        return "\(side) — wheel check \(check.text)."
+    }
+
+    private func shoulderWidthAdvisory(_ metrics: PositionMetrics?, side: String) -> String? {
+        guard let cm = metrics?.shoulderWidthCm, let warning = AnalysisMath.shoulderWidthWarning(cm) else { return nil }
+        return "\(side) — \(warning)"
+    }
+
+    private var advisoryLines: [String] {
+        [
+            shoulderWidthAdvisory(metricsA, side: "A"), shoulderWidthAdvisory(metricsB, side: "B"),
+            wheelCheckAdvisory(metricsA, side: "A"), wheelCheckAdvisory(metricsB, side: "B"),
+        ].compactMap { $0 }
+    }
+
+    private var hasAnyAdvisory: Bool {
+        isCrossBike || poseDeltaWarning != nil || !advisoryLines.isEmpty
+    }
+
     var body: some View {
         ZStack {
             Theme.Palette.bg0.ignoresSafeArea()
@@ -112,56 +146,112 @@ struct ComparisonView: View {
 
                         SectionDivider()
 
-                        if isCrossBike {
-                            // Appears with the panels, no special motion of
-                            // its own — a warning doesn't perform (N6).
-                            CrossBikeWarning()
-                                .cascadeIn(index: 0, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
-                        }
-
                         // Ghost-compare overlay (frontal only) — the visual
-                        // complement to the numbers below. Absent entirely
-                        // until both layers are ready; never blocks anything
-                        // else on this screen.
-                        if let overlayLayerA, let overlayLayerB {
+                        // complement to the numbers below. The section's
+                        // chrome and height are reserved *immediately* when a
+                        // cheap sync precondition says layers will build
+                        // (both positions have a mask + bar taps) — the async
+                        // build then lands its content inside a box that
+                        // already exists, so nothing below ever shifts and
+                        // the draw-in ceremony is the arrival, not a late
+                        // pop-in of the whole block. Collapses only in the
+                        // rare case the build actually fails.
+                        if overlaySectionExpected && !overlayBuildFailed {
                             SegmentedToggleBar(labels: ["PHOTO", "OUTLINE"], selectedIndex: showOutlineBinding)
-                            GhostCompareOverlay(
-                                layerA: overlayLayerA, layerB: overlayLayerB, showOutline: showOutline,
-                                showLayerA: showLayerA, showLayerB: showLayerB,
-                                drawInProgressA: reduceMotion ? 1 : drawInProgressA,
-                                drawInProgressB: reduceMotion ? 1 : drawInProgressB,
-                                onGestureBegan: cancelDrawInIfNeeded
-                            )
-                            .frame(height: 300)
-                            .overlay(alignment: .topTrailing) {
-                                HStack(spacing: Theme.Space.xs) {
-                                    LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA && layerAArmed) {
-                                        cancelDrawInIfNeeded()
-                                        showLayerA.toggle()
+                            Group {
+                                if let overlayLayerA, let overlayLayerB {
+                                    GhostCompareOverlay(
+                                        layerA: overlayLayerA, layerB: overlayLayerB, showOutline: showOutline,
+                                        showLayerA: showLayerA, showLayerB: showLayerB,
+                                        drawInProgressA: reduceMotion ? 1 : drawInProgressA,
+                                        drawInProgressB: reduceMotion ? 1 : drawInProgressB,
+                                        onGestureBegan: cancelDrawInIfNeeded
+                                    )
+                                    .overlay(alignment: .topTrailing) {
+                                        HStack(spacing: Theme.Space.xs) {
+                                            LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA && layerAArmed) {
+                                                cancelDrawInIfNeeded()
+                                                showLayerA.toggle()
+                                            }
+                                            LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB && layerBArmed) {
+                                                cancelDrawInIfNeeded()
+                                                showLayerB.toggle()
+                                            }
+                                        }
+                                        .padding(Theme.Space.sm)
                                     }
-                                    LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB && layerBArmed) {
-                                        cancelDrawInIfNeeded()
-                                        showLayerB.toggle()
+                                } else {
+                                    // Same quiet placeholder PositionDetailView
+                                    // uses while a photo decodes.
+                                    ZStack {
+                                        Theme.Palette.bg1
+                                        Text("···")
+                                            .font(Theme.mono(20))
+                                            .foregroundStyle(Theme.Palette.fg4)
                                     }
                                 }
-                                .padding(Theme.Space.sm)
                             }
+                            .frame(height: 300)
                             SectionDivider()
                         }
 
-                        // Delta hero — the deliberate secondary wow moment;
-                        // manages its own roll/fade timing, not the cascade.
+                        // Tier 1 (Plan S2): the "so what" moment — only
+                        // offered when there's an area to compare at all.
+                        if let areaA, let areaB {
+                            TimeImpactSection(areaA: areaA, areaB: areaB, isDistinguishable: isDistinguishable)
+                            SectionDivider()
+                        }
+
+                        // Delta hero (tier 2) — the deliberate secondary wow
+                        // moment; manages its own roll/fade timing, not the cascade.
                         if let delta = deltaPct, let a = areaA, let b = areaB {
                             DeltaHero(delta: delta, winner: a < b ? "A" : "B", absoluteDeltaCm2: abs(b - a),
                                       isDistinguishable: isDistinguishable, noisePct: noisePct)
-                            if let poseDeltaWarning {
-                                PoseDeltaAdvisory(warning: poseDeltaWarning)
+                        }
+
+                        // Tier 3 (Plan T): every advisory in one place,
+                        // exception-based — none of this is a standing
+                        // number, it's a reason to look twice. Independent
+                        // of the delta hero above (cross-bike, in
+                        // particular, is meaningful even with no metrics on
+                        // either side yet).
+                        if hasAnyAdvisory {
+                            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                                if isCrossBike {
+                                    CrossBikeWarning()
+                                }
+                                if let poseDeltaWarning {
+                                    PoseDeltaAdvisory(warning: poseDeltaWarning)
+                                    PoseEvidenceRows(metricsA: metricsA, metricsB: metricsB)
+                                }
+                                ForEach(advisoryLines, id: \.self) { line in
+                                    AdvisoryLine(text: line)
+                                }
                             }
+                            .padding(.bottom, Theme.Space.sm)
+                        }
+
+                        // One divider closing out tiers 2+3, whichever of
+                        // them actually rendered anything — mirrors the
+                        // original guarantee that the table never abuts the
+                        // delta hero without a line between them.
+                        if deltaPct != nil || hasAnyAdvisory {
                             SectionDivider()
                         }
 
-                        // Metric diff table
+                        // Metric diff table (tier 4) — reduced to standing
+                        // rows only; everything else moved to the
+                        // measurement-detail disclosure below (tier 5).
                         DiffTable(metricsA: metricsA, metricsB: metricsB, appeared: appeared, cascadeStagger: cascadeStagger)
+
+                        DetailDisclosure(label: "Measurement detail") {
+                            ComparisonMeasurementDetail(
+                                metricsA: metricsA, metricsB: metricsB,
+                                includePoseRows: poseDeltaWarning == nil
+                            )
+                        }
+                        .padding(.horizontal, Theme.Space.screenMargin)
+                        .padding(.vertical, Theme.Space.md)
 
                         HowItWorksLink(path: $path)
                             .padding(.horizontal, Theme.Space.screenMargin)
@@ -173,6 +263,14 @@ struct ComparisonView: View {
         .hideNavBar()
         .onAppear { appeared = true }
         .task { await loadOverlayLayers() }
+    }
+
+    /// Sync mirror of `buildGhostCompareLayer`'s own guard — cheap enough to
+    /// answer on the first frame, so the section's space can be reserved
+    /// before the async build finishes.
+    private var overlaySectionExpected: Bool {
+        positionA.maskData != nil && positionA.metrics != nil && positionA.handlebarTapPoints?.count == 4
+            && positionB.maskData != nil && positionB.metrics != nil && positionB.handlebarTapPoints?.count == 4
     }
 
     private var showOutlineBinding: Binding<Int> {
@@ -203,6 +301,9 @@ struct ComparisonView: View {
             tintColor: UIColor(Theme.Palette.amb), strokeColor: Theme.Palette.amb
         )
         (overlayLayerA, overlayLayerB) = await (a, b)
+        if overlayLayerA == nil || overlayLayerB == nil {
+            overlayBuildFailed = true
+        }
         beginDrawInIfNeeded()
     }
 
@@ -248,13 +349,19 @@ struct ComparisonView: View {
         maskData: Data?, photosData: Data?, frontalAreaCm2: Double?,
         handlebarTapPoints: [Double]?, wheelTapPoints: [Double]?, tintColor: UIColor, strokeColor: Color
     ) async -> GhostCompareLayer? {
-        guard let maskData, let cgMask = UIImage(data: maskData)?.cgImage,
+        guard let maskData,
               let frontalAreaCm2,
               let handlebarTapPoints, handlebarTapPoints.count == 4
         else { return nil }
-        let photoImage = photosData.flatMap { UIImage(data: $0) }
 
         return await Task.detached(priority: .userInitiated) { () -> GhostCompareLayer? in
+            // Decode inside the detached task — mask PNG decode and photo
+            // JPEG decode both ran on the main actor here previously, which
+            // is what made the section land late. `preparingForDisplay()`
+            // forces the photo's pixel decode now, off-main, instead of
+            // lazily at first render (which would hitch scrolling).
+            guard let cgMask = UIImage(data: maskData)?.cgImage else { return nil }
+            let photoImage = photosData.flatMap { UIImage(data: $0) }.map { $0.preparingForDisplay() ?? $0 }
             guard let data = cgMask.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
             let width = cgMask.width, height = cgMask.height, bytesPerRow = cgMask.bytesPerRow
 
@@ -331,6 +438,53 @@ private struct PoseDeltaAdvisory: View {
             .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.bottom, Theme.Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Advisory line (Plan T tier 3)
+
+/// One plain amber line — wheel-check/shoulder-width advisories share this
+/// shape with `PoseDeltaAdvisory` but are always warning-severity (unlike
+/// pose delta's note/warn split), so there's no severity parameter.
+private struct AdvisoryLine: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(Theme.mono(11))
+            .foregroundStyle(Theme.Palette.amb)
+            .padding(.horizontal, Theme.Space.screenMargin)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Torso/hip as evidence beneath the pose-delta advisory (Plan T) — the
+/// same `DiffRow` shape the table uses, standalone (no header) since a
+/// single evidence pair reads fine without one.
+private struct PoseEvidenceRows: View {
+    let metricsA: PositionMetrics?
+    let metricsB: PositionMetrics?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if metricsA?.torsoAngleDeg != nil || metricsB?.torsoAngleDeg != nil {
+                DiffRow(
+                    key: "Torso angle",
+                    valA: metricsA?.torsoAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                    valB: metricsB?.torsoAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                    diff: formatDiff(metricsA?.torsoAngleDeg, metricsB?.torsoAngleDeg, unit: "°", fmt: "%.0f")
+                )
+            }
+            if metricsA?.hipAngleDeg != nil || metricsB?.hipAngleDeg != nil {
+                DiffRow(
+                    key: "Hip angle",
+                    valA: metricsA?.hipAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                    valB: metricsB?.hipAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                    diff: formatDiff(metricsA?.hipAngleDeg, metricsB?.hipAngleDeg, unit: "°", fmt: "%.0f")
+                )
+            }
+        }
+        .padding(.horizontal, Theme.Space.screenMargin)
     }
 }
 
@@ -457,7 +611,10 @@ private struct ContourDrawView: View {
                 ForEach(contours.indices, id: \.self) { index in
                     scaledPath(contours[index], in: proxy.size)
                         .trim(from: 0, to: progress)
-                        .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        // 1pt, not 2 (Kah, on-device): the raster ring this
+                        // replaced was 4px in stored-mask space ≈ 0.7pt at
+                        // this display scale — the finer line is the look.
+                        .stroke(color, style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
                 }
             }
         }
@@ -529,6 +686,250 @@ private struct PositionPanel: View {
     }
 }
 
+// MARK: - Time impact (Plan S2)
+
+/// The "so what" moment (Plan S2's own name for the feature) — a felt
+/// time-over-distance estimate from the measured area delta, at equal
+/// assumed Cd. Deliberately crosses the "no faster/slower verdict" line the
+/// raw cm² comparison holds elsewhere (torsten-aero-notes.md §D) because a
+/// cm² delta has no felt meaning; the honesty debt is paid with the
+/// noise-floor gate below, the conditional "at your usual effort" framing,
+/// and an assumptions line that's always attached, never optional. No P3
+/// rear-located gate here (dropped for this pass — Plan P3 as built only
+/// disambiguates side-on facing, it doesn't localise a frontal silhouette
+/// diff; revisit if that ever gets built) — the wake/rear-bag caveat is
+/// always-on in the assumptions line instead.
+private struct TimeImpactSection: View {
+    let areaA: Double
+    let areaB: Double
+    let isDistinguishable: Bool
+
+    private enum Field: Hashable { case speed, mass, distance }
+
+    private enum DistancePreset: Double, CaseIterable {
+        case c100 = 100, c200 = 200, c400 = 400, c1000 = 1000
+        var label: String { "\(Int(rawValue)) KM" }
+    }
+
+    // Persisted user-level (not per-bike, per Plan S2) so the section works
+    // with zero typing on repeat visits. Speed defaults to a representative
+    // flat-road cruise (matches the Cd worked-example/marketing-site
+    // baseline) rather than an empty/unset state — an estimate should be on
+    // screen immediately, with `inputsConfirmed` below tracking whether it's
+    // still running on that guess or on the rider's own numbers.
+    @AppStorage("effortSpeedKmh") private var persistedSpeedKmh: Double = 30
+    @AppStorage("effortMassKg") private var persistedMassKg: Double = 80
+    // True once the rider has actually committed a value to either field —
+    // distinct from the values themselves, since a rider could deliberately
+    // enter exactly the default and that's still a confirmed number, not a
+    // guess. Drives the "using defaults, edit below" call-out in the
+    // estimate sentence.
+    @AppStorage("effortInputsConfirmed") private var inputsConfirmed = false
+
+    // Live-typed text, committed to the @AppStorage values above on blur
+    // (this app's numeric-field convention) rather than on every keystroke.
+    @State private var speedText = ""
+    @State private var massText = ""
+    @State private var selectedPreset: DistancePreset? = .c200
+    @State private var customDistanceText = ""
+    @FocusState private var focusedField: Field?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("TIME IMPACT")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg3)
+                .kerning(0.5)
+                .padding(.horizontal, Theme.Space.screenMargin)
+                .padding(.top, Theme.Space.lg)
+
+            if isDistinguishable {
+                if let outputBand {
+                    outputCard(outputBand)
+                        .padding(.horizontal, Theme.Space.screenMargin)
+                        .padding(.top, Theme.Space.sm)
+                }
+                inputs
+                    .padding(.horizontal, Theme.Space.screenMargin)
+                    .padding(.top, Theme.Space.md)
+            } else {
+                // Spec: a delta smaller than the noise floor must never
+                // imply a time difference (Plan A4's rule, extended by S2 §2)
+                // — DeltaHero below still carries the full "within
+                // measurement noise" verdict and raw numbers.
+                Text("Too close to call a time difference.")
+                    .font(Theme.mono(13))
+                    .foregroundStyle(Theme.Palette.fg3)
+                    .padding(.horizontal, Theme.Space.screenMargin)
+                    .padding(.top, Theme.Space.sm)
+            }
+        }
+        .padding(.bottom, Theme.Space.lg)
+        .onAppear {
+            speedText = String(Int(persistedSpeedKmh))
+            massText = String(Int(persistedMassKg))
+        }
+        .onChange(of: focusedField) { oldValue, _ in
+            switch oldValue {
+            case .speed: commitSpeed()
+            case .mass: commitMass()
+            case .distance, nil: break
+            }
+        }
+    }
+
+    // MARK: - Output
+
+    private typealias OutputBand = (winnerLabel: String, lowMinutes: Double, highMinutes: Double, speedKmh: Double, massKg: Double)
+
+    @ViewBuilder
+    private func outputCard(_ band: OutputBand) -> some View {
+        // EST + the sentence + the assumptions line, all inside one bordered
+        // card (S2 §5) — a screenshot crop tight enough to isolate a bare
+        // number visibly cuts off the border, which is the practical
+        // "uncroppable" this can guarantee.
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 6) {
+                Text("EST")
+                    .font(Theme.mono(10, weight: .bold))
+                    .foregroundStyle(Theme.Palette.bg0)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Theme.Palette.acc)
+                Text(sentence(band))
+                    .font(Theme.mono(15, weight: .bold))
+                    .foregroundStyle(Theme.Palette.fg)
+            }
+            if !inputsConfirmed {
+                Text("Using default numbers — edit speed and weight below for yours.")
+                    .font(Theme.mono(11, weight: .bold))
+                    .foregroundStyle(Theme.Palette.amb)
+            }
+            Text("Estimate — assumes equal effort, equal drag coefficient, flat course, no wind. A rear-mounted bag can change drag through wake effects this model doesn't capture.")
+                .font(Theme.mono(10))
+                .foregroundStyle(Theme.Palette.fg3)
+        }
+        .padding(Theme.Space.md)
+        .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+    }
+
+    /// Conditional voice throughout (S2 §5) — while running on unconfirmed
+    /// defaults, the values themselves are called out ("an assumed X km/h")
+    /// rather than the confident "your usual effort," so the estimate can
+    /// never be mistaken for a personalised one.
+    private func sentence(_ band: OutputBand) -> String {
+        if inputsConfirmed {
+            return "At your usual effort, position \(band.winnerLabel) is \(formattedRange(band)) faster over \(distanceLabel)."
+        }
+        return "At an assumed \(Int(band.speedKmh)) km/h and \(Int(band.massKg)) kg, position \(band.winnerLabel) would be \(formattedRange(band)) faster over \(distanceLabel)."
+    }
+
+    /// nil when any input is missing/out of range (Plan S2 edge cases) —
+    /// no output card at all in that case, just the bare fields.
+    private var outputBand: OutputBand? {
+        guard let distanceKm, distanceKm > 0,
+              let speedKmh = Double(speedText), (10...60).contains(speedKmh),
+              let massKg = Double(massText), (40...150).contains(massKg)
+        else { return nil }
+
+        let speedMS = speedKmh / 3.6
+        let distanceM = distanceKm * 1000
+        let point = EffortModel.timeDeltaMinutes(
+            areaACm2: areaA, areaBCm2: areaB, speedMS: speedMS, massKg: massKg, distanceM: distanceM
+        )
+        let band = EffortModel.timeDeltaBandMinutes(
+            areaACm2: areaA, areaBCm2: areaB, speedMS: speedMS, massKg: massKg, distanceM: distanceM
+        )
+
+        if band.low >= 0 { return ("B", band.low, band.high, speedKmh, massKg) }
+        if band.high <= 0 { return ("A", -band.high, -band.low, speedKmh, massKg) }
+        // Band spans zero (S2 §4): the delta cleared the *area* noise floor
+        // but the independently-perturbed time band still straddles it —
+        // show the honest zero-anchored range rather than clamping the low
+        // end away from zero. Direction follows the point estimate's sign.
+        let magnitude = max(abs(band.low), abs(band.high))
+        return (point >= 0 ? "B" : "A", 0, magnitude, speedKmh, massKg)
+    }
+
+    private func formattedRange(_ band: OutputBand) -> String {
+        let lo = Int(band.lowMinutes.rounded())
+        let hi = Int(band.highMinutes.rounded())
+        if hi >= 90 {
+            return "~\(formattedMinutes(lo))–\(formattedMinutes(hi))"
+        }
+        return "~\(lo)–\(hi) min"
+    }
+
+    /// Whole minutes only, ever (S2 Output framing) — switches to "Xh Ym"
+    /// past 90 min.
+    private func formattedMinutes(_ minutes: Int) -> String {
+        guard minutes >= 90 else { return "\(minutes) min" }
+        return "\(minutes / 60)h \(minutes % 60)m"
+    }
+
+    private var distanceLabel: String {
+        guard let distanceKm else { return "" }
+        return "\(Int(distanceKm)) km"
+    }
+
+    // MARK: - Inputs
+
+    private var inputs: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.sm) {
+            FieldLabel("DISTANCE")
+            SegmentedToggleBar(labels: presetLabels, selectedIndex: presetIndexBinding)
+            if selectedPreset == nil {
+                MonoField(placeholder: "e.g. 250", text: $customDistanceText, numericOnly: true)
+                    .focused($focusedField, equals: .distance)
+            }
+
+            HStack(spacing: Theme.Space.md) {
+                VStack(alignment: .leading, spacing: 4) {
+                    FieldLabel("FLAT-ROAD SPEED (KM/H)")
+                    MonoField(placeholder: "30", text: $speedText, numericOnly: true)
+                        .focused($focusedField, equals: .speed)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    FieldLabel("RIDER + BIKE + KIT (KG)")
+                    MonoField(placeholder: "80", text: $massText, numericOnly: true)
+                        .focused($focusedField, equals: .mass)
+                }
+            }
+            Text("The speed you'd hold on a flat, calm road — not a ridden average (that bundles hills, stops and wind).")
+                .font(Theme.mono(10))
+                .foregroundStyle(Theme.Palette.fg4)
+        }
+    }
+
+    private var presetLabels: [String] { DistancePreset.allCases.map(\.label) + ["CUSTOM"] }
+
+    private var presetIndexBinding: Binding<Int> {
+        Binding(
+            get: { selectedPreset.flatMap { DistancePreset.allCases.firstIndex(of: $0) } ?? DistancePreset.allCases.count },
+            set: { newIndex in
+                selectedPreset = DistancePreset.allCases.indices.contains(newIndex) ? DistancePreset.allCases[newIndex] : nil
+            }
+        )
+    }
+
+    private var distanceKm: Double? {
+        if let selectedPreset { return selectedPreset.rawValue }
+        return Double(customDistanceText)
+    }
+
+    private func commitSpeed() {
+        guard let value = Double(speedText), (10...60).contains(value) else { return }
+        persistedSpeedKmh = value
+        inputsConfirmed = true
+    }
+
+    private func commitMass() {
+        guard let value = Double(massText), (40...150).contains(value) else { return }
+        persistedMassKg = value
+        inputsConfirmed = true
+    }
+}
+
 // MARK: - Delta hero
 
 private struct DeltaHero: View {
@@ -595,8 +996,30 @@ private struct DeltaHero: View {
     }
 }
 
+// MARK: - Diff formatting (shared by the table, pose-evidence rows, and the
+// measurement-detail disclosure)
+
+private func formatDiff(_ a: Double?, _ b: Double?, unit: String, fmt: String) -> String? {
+    guard let a, let b else { return nil }
+    let d = b - a
+    let sign = d >= 0 ? "+" : ""
+    return "\(sign)\(String(format: fmt, d)) \(unit)"
+}
+
+/// nil unless this position's headDropCm was computed from a real
+/// wheelbase ruler — the same defensibility gate RevealStep and
+/// PositionDetailView apply.
+private func defensibleHeadDropCm(_ metrics: PositionMetrics?) -> Double? {
+    guard let metrics, metrics.sideOnPixelsPerCm != nil else { return nil }
+    return metrics.headDropCm
+}
+
 // MARK: - Diff table
 
+/// Tier 4 (Plan T) — reduced to the standing rows every comparison cares
+/// about. Everything else (consistency signals, provenance) moved to
+/// `ComparisonMeasurementDetail` behind the disclosure, or promoted to a
+/// tier-3 advisory when it's actively warning about something.
 private struct DiffTable: View {
     let metricsA: PositionMetrics?
     let metricsB: PositionMetrics?
@@ -635,42 +1058,9 @@ private struct DiffTable: View {
                 key: "Frontal area",
                 valA: metricsA.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
                 valB: metricsB.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
-                diff: diff(metricsA?.frontalAreaCm2, metricsB?.frontalAreaCm2, unit: "cm²", fmt: "%.0f")
+                diff: formatDiff(metricsA?.frontalAreaCm2, metricsB?.frontalAreaCm2, unit: "cm²", fmt: "%.0f")
             )
             .cascadeIn(index: 1, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
-
-            // Shoulder width (head-on pose, optional)
-            if metricsA?.shoulderWidthCm != nil || metricsB?.shoulderWidthCm != nil {
-                DiffRow(
-                    key: "Shoulder width",
-                    valA: metricsA?.shoulderWidthCm.map { "\(String(format: "%.1f", $0)) cm" },
-                    valB: metricsB?.shoulderWidthCm.map { "\(String(format: "%.1f", $0)) cm" },
-                    diff: diff(metricsA?.shoulderWidthCm, metricsB?.shoulderWidthCm, unit: "cm", fmt: "%.1f")
-                )
-                .cascadeIn(index: 2, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
-            }
-
-            // Torso angle (side-on, optional)
-            if metricsA?.torsoAngleDeg != nil || metricsB?.torsoAngleDeg != nil {
-                DiffRow(
-                    key: "Torso angle",
-                    valA: metricsA?.torsoAngleDeg.map { "\(String(format: "%.0f", $0))°" },
-                    valB: metricsB?.torsoAngleDeg.map { "\(String(format: "%.0f", $0))°" },
-                    diff: diff(metricsA?.torsoAngleDeg, metricsB?.torsoAngleDeg, unit: "°", fmt: "%.0f")
-                )
-                .cascadeIn(index: 3, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
-            }
-
-            // Hip angle (side-on, optional)
-            if metricsA?.hipAngleDeg != nil || metricsB?.hipAngleDeg != nil {
-                DiffRow(
-                    key: "Hip angle",
-                    valA: metricsA?.hipAngleDeg.map { "\(String(format: "%.0f", $0))°" },
-                    valB: metricsB?.hipAngleDeg.map { "\(String(format: "%.0f", $0))°" },
-                    diff: diff(metricsA?.hipAngleDeg, metricsB?.hipAngleDeg, unit: "°", fmt: "%.0f")
-                )
-                .cascadeIn(index: 4, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
-            }
 
             // Head drop (side-on, optional) — shown per-side only when that
             // position's own headDropCm came from a real wheelbase ruler
@@ -682,26 +1072,98 @@ private struct DiffTable: View {
                     key: "Head drop",
                     valA: defensibleHeadDropCm(metricsA).map { "\(String(format: "%.1f", $0)) cm" },
                     valB: defensibleHeadDropCm(metricsB).map { "\(String(format: "%.1f", $0)) cm" },
-                    diff: diff(defensibleHeadDropCm(metricsA), defensibleHeadDropCm(metricsB), unit: "cm", fmt: "%.1f")
+                    diff: formatDiff(defensibleHeadDropCm(metricsA), defensibleHeadDropCm(metricsB), unit: "cm", fmt: "%.1f")
                 )
-                .cascadeIn(index: 5, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
+                .cascadeIn(index: 2, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
             }
         }
     }
+}
 
-    /// nil unless this position's headDropCm was computed from a real
-    /// wheelbase ruler — the same defensibility gate RevealStep and
-    /// PositionDetailView apply, kept local since only DiffTable needs it.
-    private func defensibleHeadDropCm(_ metrics: PositionMetrics?) -> Double? {
-        guard let metrics, metrics.sideOnPixelsPerCm != nil else { return nil }
-        return metrics.headDropCm
-    }
+/// Tier 5 (Plan T) — everything the table used to show that isn't a
+/// standing answer: consistency signals not currently firing a warning,
+/// plus provenance (scale, bar width). `includePoseRows` is false when
+/// torso/hip are already visible as tier-3 evidence under the pose-delta
+/// advisory, so they're never shown twice.
+private struct ComparisonMeasurementDetail: View {
+    let metricsA: PositionMetrics?
+    let metricsB: PositionMetrics?
+    let includePoseRows: Bool
 
-    private func diff(_ a: Double?, _ b: Double?, unit: String, fmt: String) -> String? {
-        guard let a, let b else { return nil }
-        let d = b - a
-        let sign = d >= 0 ? "+" : ""
-        return "\(sign)\(String(format: fmt, d)) \(unit)"
+    var body: some View {
+        VStack(spacing: 0) {
+            if includePoseRows {
+                if metricsA?.torsoAngleDeg != nil || metricsB?.torsoAngleDeg != nil {
+                    DiffRow(
+                        key: "Torso angle",
+                        valA: metricsA?.torsoAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                        valB: metricsB?.torsoAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                        diff: formatDiff(metricsA?.torsoAngleDeg, metricsB?.torsoAngleDeg, unit: "°", fmt: "%.0f")
+                    )
+                }
+                if metricsA?.hipAngleDeg != nil || metricsB?.hipAngleDeg != nil {
+                    DiffRow(
+                        key: "Hip angle",
+                        valA: metricsA?.hipAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                        valB: metricsB?.hipAngleDeg.map { "\(String(format: "%.0f", $0))°" },
+                        diff: formatDiff(metricsA?.hipAngleDeg, metricsB?.hipAngleDeg, unit: "°", fmt: "%.0f")
+                    )
+                }
+            }
+
+            if metricsA?.shoulderWidthCm != nil || metricsB?.shoulderWidthCm != nil {
+                DiffRow(
+                    key: "Shoulder width",
+                    valA: metricsA?.shoulderWidthCm.map { "\(String(format: "%.1f", $0)) cm" },
+                    valB: metricsB?.shoulderWidthCm.map { "\(String(format: "%.1f", $0)) cm" },
+                    diff: formatDiff(metricsA?.shoulderWidthCm, metricsB?.shoulderWidthCm, unit: "cm", fmt: "%.1f")
+                )
+            }
+
+            if metricsA?.pixelsPerCm != nil || metricsB?.pixelsPerCm != nil {
+                DiffRow(
+                    key: "Scale",
+                    valA: metricsA.map { "\(String(format: "%.1f", $0.pixelsPerCm)) px/cm" },
+                    valB: metricsB.map { "\(String(format: "%.1f", $0.pixelsPerCm)) px/cm" },
+                    diff: formatDiff(metricsA?.pixelsPerCm, metricsB?.pixelsPerCm, unit: "px/cm", fmt: "%.1f")
+                )
+            }
+
+            if metricsA?.handlebarWidthMmUsed != nil || metricsB?.handlebarWidthMmUsed != nil {
+                DiffRow(
+                    key: "Bar width",
+                    valA: metricsA?.handlebarWidthMmUsed.map { "\(Int($0)) mm" },
+                    valB: metricsB?.handlebarWidthMmUsed.map { "\(Int($0)) mm" },
+                    diff: formatDiff(metricsA?.handlebarWidthMmUsed, metricsB?.handlebarWidthMmUsed, unit: "mm", fmt: "%.0f")
+                )
+            }
+
+            // Wheel check has no meaningful numeric diff between sides — the
+            // two text values (agree/disagree, independently) are the whole
+            // story, so the diff column stays "—" (DiffRow's own nil case).
+            if metricsA?.wheelCheckDisagreementFraction != nil || metricsB?.wheelCheckDisagreementFraction != nil {
+                DiffRow(
+                    key: "Wheel check",
+                    valA: metricsA?.wheelCheckDisagreementFraction.map { AnalysisMath.wheelCheckDisplay($0).text },
+                    valB: metricsB?.wheelCheckDisagreementFraction.map { AnalysisMath.wheelCheckDisplay($0).text },
+                    diff: nil
+                )
+            }
+
+            DiffRow(
+                key: "Foreground pixels",
+                valA: metricsA.map { "\($0.foregroundPixelCount)" },
+                valB: metricsB.map { "\($0.foregroundPixelCount)" },
+                diff: nil
+            )
+
+            DiffRow(
+                key: "Computed",
+                valA: metricsA?.computedAt.formatted(date: .abbreviated, time: .omitted),
+                valB: metricsB?.computedAt.formatted(date: .abbreviated, time: .omitted),
+                diff: nil
+            )
+        }
     }
 }
 

@@ -21,6 +21,29 @@ struct CaptureView: View {
         return positions.first { $0.persistentModelID == referenceID }
     }
 
+    /// Plan S1: drop bars are tapped at the drop ends (the tappable
+    /// feature), flat bars at the plain bar ends — must match whatever
+    /// convention BikeSetupView's help text told the rider to measure.
+    private var barTapPrompts: (first: String, second: String) {
+        switch selectedBike?.effectiveBarType {
+        case .drop:
+            return ("Tap the outermost point of the LEFT drop", "Now tap the outermost point of the RIGHT drop")
+        case .flat, nil:
+            return ("Tap the left end of your handlebars", "Now tap the right end")
+        }
+    }
+
+    /// One-time existing-data caveat (Plan S1) — nil once the bike has an
+    /// explicit barType, which dismissing sets, so this can never show twice
+    /// for the same bike.
+    private var dropBarCaveatBanner: (text: String, onDismiss: () -> Void)? {
+        guard let bike = selectedBike, bike.barType == nil, bike.effectiveBarType == .drop else { return nil }
+        return (
+            "This bike's bar width was entered before drop-bar taps were split out — confirm it was measured at the drop ends, not the hoods.",
+            { bike.barType = .drop }
+        )
+    }
+
     @State private var step: CaptureStep = .pickPhoto
     @State private var selectedBike: Bike?
     @State private var pickerItem: PhotosPickerItem?
@@ -170,7 +193,9 @@ struct CaptureView: View {
                         image: image,
                         tapPoints: $tapPoints,
                         wheelTapPoints: $wheelTapPoints,
-                        wheelDiameterMm: selectedBike?.wheelDiameterMm
+                        wheelDiameterMm: selectedBike?.wheelDiameterMm,
+                        primaryTapPrompts: barTapPrompts,
+                        caveatBanner: dropBarCaveatBanner
                     ) {
                         step = .analysing
                         Task { await runAnalysis() }
@@ -1234,6 +1259,31 @@ private struct WheelbaseEntryPrompt: View {
     }
 }
 
+/// One-time existing-data caveat (Plan S1) — a drop-bar bike whose width was
+/// entered before the bar-type split may carry a hood-width number, not a
+/// drop-end one. Dismiss is the only action (no forced re-entry); it reads
+/// as an acknowledgement, not a correction.
+private struct DropBarCaveatBanner: View {
+    let text: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Theme.Space.sm) {
+            Text(text)
+                .font(Theme.mono(11))
+                .foregroundStyle(Theme.Palette.amb)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button("GOT IT", action: onDismiss)
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.amb)
+                .buttonStyle(.plain)
+        }
+        .padding(Theme.Space.md)
+        .background(Theme.Palette.bg1)
+        .overlay(Rectangle().stroke(Theme.Palette.amb, lineWidth: 1))
+    }
+}
+
 /// Two-tap distance calibration against a photo — pinch/zoom/pan, drag-to-
 /// fine-tune, floating loupe, connecting line. Originally built for the
 /// head-on handlebar ruler; generalised (Plan P1.5) to also drive the
@@ -1256,6 +1306,12 @@ private struct TapCalibrationStep: View {
         "Tap the left end of your handlebars", "Now tap the right end"
     )
     var confirmLabel: String = "CONFIRM SCALE"
+    // Plan S1: one-time existing-data caveat for a drop-bar bike whose width
+    // predates the bar-type split — nil (the default) shows nothing, so the
+    // side-on wheelbase call site is unaffected. Dismissing is the
+    // acknowledgement (CaptureView's onDismiss sets barType explicitly),
+    // there's no separate "confirmed" state to track here.
+    var caveatBanner: (text: String, onDismiss: () -> Void)? = nil
     // Never gates confirm (same "advisory only" rule as the wheel check) —
     // nil (the default) omits the affordance entirely, matching the
     // head-on ruler's no-skip behaviour today.
@@ -1307,6 +1363,10 @@ private struct TapCalibrationStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let caveatBanner {
+                DropBarCaveatBanner(text: caveatBanner.text, onDismiss: caveatBanner.onDismiss)
+            }
+
             instructionBanner
 
             GeometryReader { proxy in

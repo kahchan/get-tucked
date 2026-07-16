@@ -158,6 +158,37 @@
     <div class="floor-cap">A difference smaller than the noise isn't a result. It's noise.</div>
   </section>
 
+  <!-- ============ SO WHAT (felt time) ============ -->
+  <section class="block">
+    <div class="sec-label">Felt, not just measured</div>
+    <h2>A smaller<br>silhouette costs<br>less time.</h2>
+    <p class="body">
+      Drag a guess at how much frontal area a change might save — a tucked elbow, a
+      smaller bar bag, dropped hoods — and see what that implies over 200&nbsp;km, at a
+      typical loaded-touring cruise.
+    </p>
+
+    <div class="sowhat" id="sowhat">
+      <input type="range" id="sowhatPct" min="1" max="15" value="8" step="1"
+             aria-label="Estimated area saved, percent">
+      <div class="sowhat-anchors">
+        <span class="a-lo">1%<i>tucking your elbows</i></span>
+        <span class="a-mid">8%<i>hoods → drops</i></span>
+        <span class="a-hi">15%<i>removing a bar roll</i></span>
+      </div>
+      <div class="sowhat-out">
+        <span class="tag-est">EST</span>
+        <span id="sowhatRange" class="sowhat-range">~3–17 min</span>
+        <span class="sowhat-sub">faster over 200&nbsp;km, at <span id="sowhatPctLabel">8</span>% smaller</span>
+      </div>
+      <p class="sowhat-fine">
+        Illustrative anchors, not sourced claims — assumes a 30&nbsp;km/h flat cruise,
+        80&nbsp;kg rider+bike+kit, equal effort and drag coefficient, no wind.
+        This slider is a guess. <strong>The app measures your actual number.</strong>
+      </p>
+    </div>
+  </section>
+
   <!-- ============ GET IT ============ -->
   <section class="block" id="download">
     <div class="sec-label">What you get</div>

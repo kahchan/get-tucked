@@ -89,12 +89,17 @@ struct HeaderLink: View {
 /// "HOW THE NUMBER IS MADE →" — appears on every screen that shows a computed
 /// number (Reveal, Detail, Comparison), linking to `HowItWorksView` (Plan A2).
 /// Built on `HeaderLink` (Q8.7) rather than re-implementing its look, so the
-/// two acid text-links can't drift again.
+/// two acid text-links can't drift again. Self-centering (Kah, on-device:
+/// it was left-aligned on some screens and centered on others, since
+/// `HeaderLink` has no frame of its own and just inherits whatever
+/// alignment its parent VStack happens to use) — always centered here so
+/// call sites can't drift into that inconsistency again either.
 struct HowItWorksLink: View {
     @Binding var path: [AppScreen]
 
     var body: some View {
         HeaderLink("HOW THE NUMBER IS MADE") { path.append(.howItWorks) }
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 }
 

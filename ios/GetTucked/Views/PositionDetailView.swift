@@ -415,6 +415,13 @@ private struct MetricsSection: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var heroVisible = false
 
+    /// nil when the optional wheel check was never done; otherwise the same
+    /// text/warning pair PositionDetailView and ComparisonView have always
+    /// shared (Plan I4) — Plan T just changes where a warning displays it.
+    private var wheelCheck: (text: String, isWarning: Bool)? {
+        metrics.wheelCheckDisagreementFraction.map(AnalysisMath.wheelCheckDisplay)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
@@ -447,9 +454,19 @@ private struct MetricsSection: View {
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
 
+                // Tier 2 (Plan T): warnings only, exception-based — nothing
+                // here is a standing number, it's evidence something needs a
+                // second look. A failing wheel check escapes the disclosure
+                // below to sit alongside the shoulder-width warning.
                 if let shoulder = metrics.shoulderWidthCm,
                    let warning = AnalysisMath.shoulderWidthWarning(shoulder) {
                     Text(warning)
+                        .font(Theme.mono(11))
+                        .foregroundStyle(Theme.Palette.amb)
+                        .padding(.top, Theme.Space.xs)
+                }
+                if let wheelCheck, wheelCheck.isWarning {
+                    Text("Wheel check \(wheelCheck.text) — check your taps and the bike's bar width.")
                         .font(Theme.mono(11))
                         .foregroundStyle(Theme.Palette.amb)
                         .padding(.top, Theme.Space.xs)
@@ -461,39 +478,45 @@ private struct MetricsSection: View {
 
             SectionDivider()
 
-            Group {
-                if let w = metrics.shoulderWidthCm {
-                    MetricRow(key: "Shoulder width", value: "\(String(format: "%.1f", w)) cm")
+            // Tier 3: the one posture number riders actually talk about
+            // (bar drop / head position) — shown only when a real wheelbase
+            // ruler produced it (Plan P1.5). Still stored on
+            // metrics.headDropCm regardless; the gate is purely display.
+            if let d = metrics.headDropCm, metrics.sideOnPixelsPerCm != nil {
+                MetricRow(key: "Head drop", value: "\(String(format: "%.1f", d)) cm")
+                    .padding(.horizontal, Theme.Space.screenMargin)
+            }
+
+            // Tier 4: provenance/diagnostics + the consistency signals that
+            // aren't currently firing a warning — audit trail, not content
+            // (Plan T). Collapsed by default but visible/discoverable.
+            DetailDisclosure(label: "Measurement detail") {
+                VStack(spacing: 0) {
+                    if let w = metrics.shoulderWidthCm {
+                        MetricRow(key: "Shoulder width", value: "\(String(format: "%.1f", w)) cm")
+                    }
+                    if let t = metrics.torsoAngleDeg {
+                        MetricRow(key: "Torso angle", value: "\(String(format: "%.0f", t))°")
+                    }
+                    if let h = metrics.hipAngleDeg {
+                        MetricRow(key: "Hip angle", value: "\(String(format: "%.0f", h))°")
+                    }
+                    MetricRow(
+                        key: "Scale",
+                        value: "\(String(format: "%.1f", metrics.pixelsPerCm)) px/cm"
+                    )
+                    if let barWidth = metrics.handlebarWidthMmUsed {
+                        MetricRow(key: "Bar width", value: "\(Int(barWidth)) mm")
+                    }
+                    if let wheelCheck, !wheelCheck.isWarning {
+                        MetricRow(key: "Wheel check", value: wheelCheck.text)
+                    }
+                    MetricRow(key: "Foreground pixels", value: "\(metrics.foregroundPixelCount)")
+                    MetricRow(
+                        key: "Computed",
+                        value: metrics.computedAt.formatted(date: .abbreviated, time: .shortened)
+                    )
                 }
-                if let t = metrics.torsoAngleDeg {
-                    MetricRow(key: "Torso angle", value: "\(String(format: "%.0f", t))°")
-                }
-                if let h = metrics.hipAngleDeg {
-                    MetricRow(key: "Hip angle", value: "\(String(format: "%.0f", h))°")
-                }
-                // Shown only when a real wheelbase ruler produced it (Plan
-                // P1.5) — see RevealStep for why. Still stored on
-                // metrics.headDropCm regardless; the gate is purely display.
-                if let d = metrics.headDropCm, metrics.sideOnPixelsPerCm != nil {
-                    MetricRow(key: "Head drop", value: "\(String(format: "%.1f", d)) cm")
-                }
-                MetricRow(
-                    key: "Scale",
-                    value: "\(String(format: "%.1f", metrics.pixelsPerCm)) px/cm"
-                )
-                if let barWidth = metrics.handlebarWidthMmUsed {
-                    MetricRow(key: "Bar width", value: "\(Int(barWidth)) mm")
-                }
-                if let fraction = metrics.wheelCheckDisagreementFraction {
-                    let check = AnalysisMath.wheelCheckDisplay(fraction)
-                    MetricRow(key: "Wheel check", value: check.text,
-                              valueColor: check.isWarning ? Theme.Palette.amb : Theme.Palette.fg)
-                }
-                MetricRow(key: "Foreground pixels", value: "\(metrics.foregroundPixelCount)")
-                MetricRow(
-                    key: "Computed",
-                    value: metrics.computedAt.formatted(date: .abbreviated, time: .shortened)
-                )
             }
             .padding(.horizontal, Theme.Space.screenMargin)
         }

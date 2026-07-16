@@ -151,6 +151,16 @@ struct MonoField: View {
     @Binding var text: String
     var numericOnly: Bool = false
 
+    // Own, private focus state (independent of whatever FocusState a call
+    // site may also bind for its own commit-on-blur logic — SwiftUI allows
+    // multiple independent `.focused()` bindings on the same responder).
+    // Scopes the Done button to *this* field: when several numeric fields
+    // share a screen, only the one actually focused contributes toolbar
+    // content, so the keyboard accessory bar never shows more than one.
+    #if canImport(UIKit)
+    @FocusState private var isFocused: Bool
+    #endif
+
     var body: some View {
         TextField(placeholder, text: $text)
             .font(Theme.mono(18))
@@ -159,6 +169,21 @@ struct MonoField: View {
             // .decimalPad, not .numberPad — tire width in inches (e.g. "2.1")
             // needs a decimal point; whole-number fields work fine on it too.
             .keyboardType(numericOnly ? .decimalPad : .default)
+            .focused($isFocused)
+            // decimalPad has no Return key, so without this a numeric field
+            // has no way to dismiss its own keyboard (Kah, on-device) — every
+            // numeric field gets this for free rather than each call site
+            // wiring its own FocusState just to add a Done button.
+            .toolbar {
+                if numericOnly && isFocused {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") { isFocused = false }
+                            .font(Theme.mono(14, weight: .bold))
+                            .foregroundStyle(Theme.Palette.acc)
+                    }
+                }
+            }
             #endif
             .padding(.top, Theme.Space.xs)
             .padding(.bottom, Theme.Space.sm)
@@ -229,6 +254,65 @@ struct StatusPill: View {
                     dotOpacity = 1
                 }
             }
+        }
+    }
+}
+
+// MARK: - DetailDisclosure (Plan T)
+
+/// Collapsed-by-default "MEASUREMENT DETAIL" disclosure — shared by
+/// PositionDetailView and ComparisonView so provenance/diagnostic rows
+/// (scale, bar width, foreground pixels, computed-at, and any consistency
+/// signal not currently firing as a warning) sit behind one visible,
+/// discoverable control instead of sharing altitude with the answer above
+/// them (Kah's standing preference: discoverable, not hidden). A drawer the
+/// finger can re-trigger mid-flight, hence `Theme.Motion.interactive()`
+/// rather than a scripted one-shot curve; Reduce Motion drops straight to
+/// the fade.
+struct DetailDisclosure<Content: View>: View {
+    let label: String
+    @ViewBuilder let content: Content
+
+    @State private var expanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // A bordered, filled row (not plain text) so this reads as a
+            // control rather than another eyebrow-style section label like
+            // "FRONTAL AREA"/"TIME IMPACT" above it (Kah, on-device) — the
+            // acid +/− is the interactivity cue, the box is the tap target.
+            Button { toggle() } label: {
+                HStack(spacing: Theme.Space.xs) {
+                    Text(expanded ? "−" : "+")
+                        .font(Theme.mono(14, weight: .bold))
+                        .foregroundStyle(Theme.Palette.acc)
+                    Text(label.uppercased())
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg2)
+                        .kerning(0.5)
+                    Spacer()
+                }
+                .padding(.horizontal, Theme.Space.md)
+                .frame(height: 40)
+                .background(Theme.Palette.bg1)
+                .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if expanded {
+                content
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func toggle() {
+        if reduceMotion {
+            expanded.toggle()
+        } else {
+            withAnimation(Theme.Motion.interactive()) { expanded.toggle() }
         }
     }
 }
