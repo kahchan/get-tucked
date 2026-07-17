@@ -150,6 +150,7 @@ struct PositionDetailView: View {
                             MetricsSection(metrics: metrics)
                             HowItWorksLink(path: $path)
                                 .padding(.horizontal, Theme.Space.screenMargin)
+                                .padding(.top, Theme.Space.lg)
                                 .padding(.bottom, Theme.Space.md)
                         } else {
                             Text("No metrics computed.")

@@ -368,17 +368,23 @@ struct WheelSizeFields: View {
     private var tireWidthUnit: TireWidthUnit { rimStandard?.tireWidthUnit ?? .mm }
 
     var body: some View {
+        // `lg` between each field group, not `md`: the main form separates
+        // its fields with a divider plus ~40pt of air, so a bare `md` (16)
+        // here made the optional wheel fields read noticeably tighter than
+        // the core fields directly above them. This section stays
+        // dividerless (it's a lighter, optional sub-group) but breathes at a
+        // comparable rhythm.
         Group {
             FieldLabel("RIM SIZE")
-                .padding(.top, Theme.Space.md)
+                .padding(.top, Theme.Space.lg)
             RimStandardToggle(selection: $rimStandard)
 
             FieldLabel(tireWidthUnit.fieldLabel)
-                .padding(.top, Theme.Space.md)
+                .padding(.top, Theme.Space.lg)
             MonoField(placeholder: tireWidthUnit.placeholder, text: $tireWidthText, numericOnly: true)
 
             FieldLabel("WHEELBASE (MM)")
-                .padding(.top, Theme.Space.md)
+                .padding(.top, Theme.Space.lg)
             MonoField(placeholder: "1050", text: $wheelbaseText, numericOnly: true)
         }
         // Switching rim families (mm ↔ inches) would otherwise silently

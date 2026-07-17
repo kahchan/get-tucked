@@ -875,29 +875,40 @@ private struct TimeImpactSection: View {
     // MARK: - Inputs
 
     private var inputs: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.sm) {
-            FieldLabel("DISTANCE")
-            SegmentedToggleBar(labels: presetLabels, selectedIndex: presetIndexBinding)
-            if selectedPreset == nil {
-                MonoField(placeholder: "e.g. 250", text: $customDistanceText, numericOnly: true)
-                    .focused($focusedField, equals: .distance)
+        // Two distinct field groups (distance / rider params), each with a
+        // tight `sm` internal rhythm, separated by a larger `md` gap so the
+        // DISTANCE selector doesn't crowd the SPEED/WEIGHT row — the same
+        // group-binding contrast the rest of the app uses (a flat `sm`
+        // throughout made the two groups read as one block). The helper text
+        // lives inside the second group so it binds to the fields it
+        // describes rather than floating equidistant between the two.
+        VStack(alignment: .leading, spacing: Theme.Space.md) {
+            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                FieldLabel("DISTANCE")
+                SegmentedToggleBar(labels: presetLabels, selectedIndex: presetIndexBinding)
+                if selectedPreset == nil {
+                    MonoField(placeholder: "e.g. 250", text: $customDistanceText, numericOnly: true)
+                        .focused($focusedField, equals: .distance)
+                }
             }
 
-            HStack(spacing: Theme.Space.md) {
-                VStack(alignment: .leading, spacing: 4) {
-                    FieldLabel("FLAT-ROAD SPEED (KM/H)")
-                    MonoField(placeholder: "30", text: $speedText, numericOnly: true)
-                        .focused($focusedField, equals: .speed)
+            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                HStack(spacing: Theme.Space.md) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        FieldLabel("FLAT-ROAD SPEED (KM/H)")
+                        MonoField(placeholder: "30", text: $speedText, numericOnly: true)
+                            .focused($focusedField, equals: .speed)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        FieldLabel("RIDER + BIKE + KIT (KG)")
+                        MonoField(placeholder: "80", text: $massText, numericOnly: true)
+                            .focused($focusedField, equals: .mass)
+                    }
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    FieldLabel("RIDER + BIKE + KIT (KG)")
-                    MonoField(placeholder: "80", text: $massText, numericOnly: true)
-                        .focused($focusedField, equals: .mass)
-                }
+                Text("The speed you'd hold on a flat, calm road — not a ridden average (that bundles hills, stops and wind).")
+                    .font(Theme.mono(10))
+                    .foregroundStyle(Theme.Palette.fg4)
             }
-            Text("The speed you'd hold on a flat, calm road — not a ridden average (that bundles hills, stops and wind).")
-                .font(Theme.mono(10))
-                .foregroundStyle(Theme.Palette.fg4)
         }
     }
 
