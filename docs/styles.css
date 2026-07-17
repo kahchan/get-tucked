@@ -72,18 +72,18 @@ a:hover{text-decoration:underline; text-underline-offset:3px}
 .brand:hover{text-decoration:none}
 .brand b{color:var(--acc)}
 .top-cta{
-  font-family:var(--mono); font-size:12px; font-weight:700;
-  text-transform:uppercase; letter-spacing:1px;
-  color:#0b0d0f; background:var(--acc);
-  padding:9px 16px; border:1px solid var(--acc);
-  transition:transform .15s var(--ease-out), background .15s var(--ease-out);
+  display:block; line-height:0;
+  transition:transform .15s var(--ease-out), filter .15s var(--ease-out);
 }
-.top-cta:hover{background:#e6ff33; text-decoration:none; transform:translateY(-1px)}
-.top-cta.ghost{background:none; color:var(--fg2); border-color:var(--line)}
-.top-cta.ghost:hover{color:var(--acc); border-color:var(--acc); background:none; transform:none}
+.top-cta .badge{display:block; height:32px; width:auto}
+.top-cta:hover{text-decoration:none; transform:translateY(-1px); filter:brightness(1.08)}
 
 /* ---------- hero (landing) ---------- */
-.hero{padding:56px 0 40px}
+.hero{
+  padding:48px 0 40px;
+  display:grid; grid-template-columns:1.05fr .95fr; gap:52px; align-items:center;
+}
+.hero-copy{min-width:0}
 .eyebrow{
   font-family:var(--mono); font-size:12px; letter-spacing:2.5px;
   text-transform:uppercase; color:var(--fg3); margin-bottom:20px;
@@ -91,15 +91,22 @@ a:hover{text-decoration:underline; text-underline-offset:3px}
 .eyebrow .dot{color:var(--acc)}
 h1.wordmark{
   font-family:var(--head); font-weight:700; text-transform:uppercase;
-  font-size:clamp(56px, 12vw, 132px); line-height:.92;
+  font-size:clamp(56px, 9vw, 108px); line-height:.92;
   letter-spacing:-2.5px; margin-bottom:8px;
 }
 .tagline{
   font-family:var(--head); font-weight:600;
   font-size:clamp(22px,4vw,34px); letter-spacing:-.6px;
-  color:var(--fg2); margin-bottom:36px;
+  color:var(--fg2); margin-bottom:18px;
 }
 .tagline em{color:var(--fg); font-style:normal}
+.hero-sub{
+  font-size:clamp(16px,1.5vw,19px); line-height:1.5; color:var(--fg2);
+  max-width:36ch; margin-bottom:30px;
+}
+.hero-cta{display:flex; flex-direction:column; align-items:flex-start; gap:12px}
+.hero-cta .appstore{margin-top:0}
+.hero-stage{min-width:0; width:100%; max-width:440px; justify-self:end}
 
 /* ---------- hero composite ---------- */
 .stage{
@@ -107,7 +114,7 @@ h1.wordmark{
   background:
     radial-gradient(120% 90% at 30% 0%, #1b1f24 0%, var(--bg1) 55%, #101317 100%);
   border:1px solid var(--line);
-  aspect-ratio:3/2; overflow:hidden;
+  aspect-ratio:4/5; overflow:hidden;
 }
 .stage svg{position:absolute; inset:0; width:100%; height:100%}
 
@@ -136,24 +143,29 @@ h1.wordmark{
 .reveal .joint{ animation:pop .3s var(--ease-out) forwards }
 @keyframes pop{ from{opacity:0; transform:scale(.2)} to{opacity:1; transform:scale(1)} }
 
+/* result bar pinned to the base of the stage — reads as the app's readout
+   panel, so the number never sits directly on top of the silhouette */
 .readout{
-  position:absolute; left:0; bottom:0;
-  display:flex; align-items:flex-end; gap:14px;
-  padding:18px 22px;
+  position:absolute; left:0; right:0; bottom:0; z-index:2;
+  display:flex; align-items:baseline; gap:12px;
+  padding:16px 22px;
+  background:linear-gradient(to top,
+    rgba(12,14,17,.97) 30%, rgba(12,14,17,.72) 78%, transparent);
+  border-top:1px solid var(--line);
 }
 .readout .num{
   font-family:var(--mono); font-weight:700;
-  font-size:clamp(44px,9vw,88px); line-height:.9;
+  font-size:clamp(40px,6.4vw,72px); line-height:.9;
   color:var(--acc); letter-spacing:-2px;
   font-variant-numeric:tabular-nums;
   text-shadow:0 2px 30px rgba(217,240,32,.25);
 }
 .readout .unit{
   font-family:var(--mono); font-size:16px; color:var(--fg2);
-  padding-bottom:10px; letter-spacing:1px;
+  letter-spacing:1px;
 }
-.stage .tag{
-  position:absolute; right:22px; bottom:24px;
+.readout .tag{
+  margin-left:auto; align-self:center;
   font-family:var(--mono); font-size:11px; letter-spacing:2px;
   text-transform:uppercase; color:var(--fg3);
   border:1px solid var(--line); padding:5px 9px;
@@ -163,14 +175,6 @@ h1.wordmark{
   font-family:var(--mono); font-size:13px; color:var(--fg3);
   margin-top:14px; letter-spacing:.3px;
 }
-.replay{
-  font-family:var(--mono); font-size:11px; letter-spacing:1.5px;
-  text-transform:uppercase; color:var(--fg3);
-  background:none; border:1px solid var(--line); cursor:pointer;
-  padding:6px 12px; margin-top:14px; margin-left:12px;
-  transition:border-color .15s, color .15s;
-}
-.replay:hover{border-color:var(--acc); color:var(--acc)}
 .cap-row{display:flex; align-items:center; flex-wrap:wrap}
 
 /* ---------- generic section ---------- */
@@ -252,6 +256,41 @@ p.body em{color:var(--fg); font-style:italic}
 .sowhat-fine{font-family:var(--mono); font-size:12px; color:var(--fg4); margin-top:16px; line-height:1.6}
 .sowhat-fine strong{color:var(--fg3)}
 
+/* ---------- proof strip (what it looks like) ---------- */
+.shots{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:22px;
+  max-width:860px; margin-top:8px;
+}
+.shot{margin:0}
+.shot-frame{
+  aspect-ratio:3/4; background:var(--bg1); border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.shot-frame img{width:100%; height:100%; object-fit:cover; display:block}
+.shot-frame span{
+  font-family:var(--mono); font-size:11px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--fg4);
+}
+.shot-cap{
+  font-family:var(--mono); font-size:13px; color:var(--fg2);
+  margin-top:14px; line-height:1.5;
+}
+.shot-cap b{color:var(--acc); margin-right:8px; font-weight:700}
+
+/* ---------- FAQ (objections) ---------- */
+.faq{
+  display:grid; grid-template-columns:1fr 1fr; gap:0 52px;
+  max-width:900px; margin-top:8px;
+}
+.qa{padding:22px 0; border-top:1px solid var(--line2)}
+.qa h3{
+  font-family:var(--head); font-weight:700; text-transform:uppercase;
+  font-size:21px; letter-spacing:-.3px; color:var(--fg); margin-bottom:8px;
+}
+.qa p{color:var(--fg2); font-size:16px; line-height:1.55; max-width:46ch}
+.qa p a{border-bottom:1px solid var(--acc)}
+.qa p a:hover{text-decoration:none; color:var(--acc)}
+
 /* ---------- get it (what you get + where) ---------- */
 .get-grid{
   display:grid; grid-template-columns:1.1fr .9fr; gap:56px; align-items:center;
@@ -277,15 +316,11 @@ p.body em{color:var(--fg); font-style:italic}
 
 /* ---------- CTA ---------- */
 .appstore{
-  display:inline-flex; align-items:center; gap:12px;
-  font-family:var(--head); font-weight:700; text-transform:uppercase;
-  font-size:24px; letter-spacing:.3px;
-  color:#0b0d0f; background:var(--acc);
-  padding:16px 28px; border:1px solid var(--acc); margin-top:8px;
-  transition:transform .15s var(--ease-out), background .15s var(--ease-out);
+  display:inline-block; line-height:0; margin-top:8px;
+  transition:transform .15s var(--ease-out), filter .15s var(--ease-out);
 }
-.appstore:hover{background:#e6ff33; text-decoration:none; transform:translateY(-2px)}
-.appstore svg{width:22px; height:22px}
+.appstore .badge{display:block; height:58px; width:auto}
+.appstore:hover{text-decoration:none; transform:translateY(-2px); filter:brightness(1.04)}
 
 .methlink{
   display:inline-block; margin-top:28px;
@@ -312,10 +347,10 @@ footer .dads{color:var(--fg2)}
 /* stagger groups: direct children cascade in, per-child delay via --sd (JS).
    Hidden state is keyed on the containers themselves (stable in markup) so
    nothing flashes before site.js runs. */
-.js :is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites) > *{
+.js :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites) > *{
   opacity:0; transform:translateY(16px)
 }
-:is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites).in > *{
+:is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites).in > *{
   opacity:1; transform:none;
   transition:opacity .5s var(--ease-out) var(--sd,0s), transform .5s var(--ease-out) var(--sd,0s)
 }
@@ -434,14 +469,8 @@ details .figure-note{
   .methlink .arw{display:inline-block; transition:transform .18s var(--ease-out)}
   .methlink:hover .arw{transform:translateX(7px)}
 
-  .appstore svg{transition:transform .18s var(--ease-out)}
-  .appstore:hover svg{transform:translateX(-3px)}
-
   .cites li{transition:color .18s var(--ease-out)}
   .cites li:hover{color:var(--fg)}
-
-  .replay{transition:border-color .15s var(--ease-out), color .15s var(--ease-out), background .15s var(--ease-out)}
-  .replay:hover{background:var(--bg2)}
 }
 
 /* ==========================================================================
@@ -450,16 +479,20 @@ details .figure-note{
 @media (max-width:1024px){
   .wrap{padding:0 22px}
   section.block{padding:56px 0}
-  .hero{padding:48px 0 36px}
+  .hero{padding:44px 0 36px; gap:40px}
+  .shots{gap:16px}
 }
 @media (max-width:768px){
   .topbar{padding:14px 20px}
   .wrap, .doc{padding-left:20px; padding-right:20px}
-  .hero{padding:36px 0 30px}
-  .stage{aspect-ratio:4/5}
+  .hero{grid-template-columns:1fr; gap:28px; padding:32px 0 30px}
+  .hero-stage{max-width:420px; justify-self:start}
+  .hero-sub{max-width:46ch}
   h1.wordmark{letter-spacing:-1.5px}
   section.block{padding:48px 0}
   .get-grid{grid-template-columns:1fr; gap:32px}
+  .shots{grid-template-columns:1fr 1fr}
+  .faq{grid-template-columns:1fr; gap:0}
   .doc > section{padding:36px 0}
   .doc-head{padding:48px 0 8px}
   .readout .num{text-shadow:none}
@@ -469,11 +502,12 @@ details .figure-note{
   .topbar{padding:12px 16px}
   .wrap, .doc{padding-left:16px; padding-right:16px}
   .brand{font-size:19px}
-  .top-cta{padding:8px 12px; font-size:11px}
-  h1.wordmark{font-size:clamp(44px,15vw,56px); letter-spacing:-1px}
-  .stage{aspect-ratio:3/4}
-  .appstore{font-size:20px; padding:14px 20px}
+  .top-cta .badge{height:28px}
+  h1.wordmark{font-size:clamp(44px,15vw,60px); letter-spacing:-1px}
+  .appstore .badge{height:52px}
   .get-list li{font-size:clamp(20px,6.5vw,26px)}
+  .shots{grid-template-columns:1fr; max-width:320px}
+  .shot-frame{aspect-ratio:4/3}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -481,8 +515,8 @@ details .figure-note{
   .reveal #scan{animation:none; opacity:0}
   .reveal .joint{animation:none; opacity:1}
   .js .enter, .enter.in{opacity:1; transform:none; transition:none}
-  .js :is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites) > *,
-  :is(section.block, .doc > section, .floor, .get-list, ul.plain, .cites).in > *{
+  .js :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites) > *,
+  :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites).in > *{
     opacity:1; transform:none; transition:none}
   .js section.block::before, .js .doc > section::before{transform:scaleX(1); transition:none}
 }

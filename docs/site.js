@@ -9,7 +9,6 @@
   var stage = document.getElementById('stage');
   if (stage) {
     var num = document.getElementById('areaNum');
-    var replay = document.getElementById('replay');
     var TARGET = 3860; // cm² — plausible loaded-rig frontal area
     var fmt = function (n) { return n.toLocaleString('en-US'); };
 
@@ -35,12 +34,15 @@
       setTimeout(countUp, 450); // count overlaps the tail of the sweep
     };
 
-    var fired = false;
+    // Play on first view, then re-arm whenever the stage leaves the viewport
+    // so scrolling back up to the top replays the reveal.
+    var canPlay = true;
     new IntersectionObserver(function (es) {
-      es.forEach(function (en) { if (en.isIntersecting && !fired) { fired = true; play(); } });
+      es.forEach(function (en) {
+        if (en.isIntersecting) { if (canPlay) { canPlay = false; play(); } }
+        else { canPlay = true; }
+      });
     }, { threshold: 0.4 }).observe(stage);
-
-    if (replay) replay.addEventListener('click', play);
   }
 
   /* ---------- so-what calculator (Plan S3) ----------
@@ -110,7 +112,7 @@
      CSS keyed on these same selectors, so there is no flash before this runs;
      here we only set per-child delays and observe for the .in trigger. */
   var groups = document.querySelectorAll(
-    'section.block, .doc > section, .floor, .get-list, ul.plain, .cites'
+    'section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites'
   );
   groups.forEach(function (g) {
     var kids = g.children;
@@ -120,7 +122,7 @@
   });
 
   var targets = document.querySelectorAll(
-    'section.block, .doc > section, .floor, .get-list, ul.plain, .cites, .enter'
+    'section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites, .enter'
   );
 
   if (reduce) {
