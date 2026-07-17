@@ -440,7 +440,12 @@ details .figure-note{
   color:var(--fg2); font-size:16px;
 }
 .cites li b{color:var(--fg)}
-.cites .mono{font-family:var(--mono); font-size:13px; color:var(--fg3)}
+.cites a{
+  font-family:var(--mono); font-size:13px; color:var(--acc);
+  overflow-wrap:anywhere;
+}
+.cites a:hover{text-decoration:underline; text-underline-offset:2px}
+.cites .lang{font-family:var(--mono); font-size:12px; color:var(--fg4)}
 
 /* closing CTA on methodology */
 .doc-cta{padding:56px 0; border-top:1px solid var(--line2)}

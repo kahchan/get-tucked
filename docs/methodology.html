@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>How the number is made — Get Tucked</title>
-<meta name="description" content="Exactly what Get Tucked measures, how it measures it, and what it is not claiming. Frontal area from calibrated photos — no CdA, no CFD, no airflow modelling." />
-<meta property="og:title" content="How the number is made — Get Tucked" />
+<title>How the number is made · Get Tucked</title>
+<meta name="description" content="Exactly what Get Tucked measures, how it measures it, and what it is not claiming. Frontal area from calibrated photos. No CdA, no CFD, no airflow modelling." />
+<meta property="og:title" content="How the number is made · Get Tucked" />
 <meta property="og:description" content="What we measure, how we measure it, and what we deliberately don't claim." />
 <meta property="og:type" content="article" />
 
@@ -29,7 +29,7 @@
     <div class="doc-eyebrow">Methodology</div>
     <h1 class="doc-title">How the number is made</h1>
     <p class="doc-intro">
-      Here is exactly what we measure, how we measure it, and what we are not claiming. If a
+      This page lays out what we measure, how we measure it, and what we don't claim. If a
       figure on this page can't be explained in two sentences, it isn't in the app. That rule
       is the reason Get Tucked exists.
     </p>
@@ -37,20 +37,20 @@
 
   <!-- 2. What we measure -->
   <section>
-    <h2><span class="num-label">02</span>What we measure — and how</h2>
+    <h2><span class="num-label">02</span>What we measure, and how</h2>
     <p>
-      We measure the <strong>frontal area</strong> of the whole system — you, your bike, and
-      everything strapped to it — in square centimetres. That's the size of the silhouette you
+      We measure the <strong>frontal area</strong> of the whole system (you, your bike, and
+      everything strapped to it) in square centimetres. That's the size of the silhouette you
       present to the wind, and it's the single biggest thing you control that affects how hard
       you push through the air. Because we measure the whole rig, "does this bag actually cost me
       anything?" is a question you can answer: shoot with the fork bags, shoot without, compare.
     </p>
     <p>
-      The process is three steps. First we <strong>isolate</strong> the system — you, the bike,
-      the bags — from the background, and throw the background away; only the silhouette survives.
+      The process is three steps. First we <strong>isolate</strong> the system (you, the bike,
+      the bags) from the background, and throw the background away; only the silhouette survives.
       Then we <strong>scale</strong> it, turning pixels into real centimetres using a ruler that's
       already in the photo (next section). Then we <strong>project</strong>: we sum the lit
-      silhouette into one figure — frontal area, in cm².
+      silhouette into one figure, the frontal area, in cm².
     </p>
 
     <details>
@@ -61,9 +61,9 @@
           the background. We count the foreground pixels directly from the mask, thresholding at
           the mask's mid-value and striding row by row so that buffer row-padding is never
           miscounted as body. Frontal area is then
-          <code>foreground_pixels ÷ (mask_pixels_per_cm)²</code> — a direct pixel-to-area
+          <code>foreground_pixels ÷ (mask_pixels_per_cm)²</code>, a direct pixel-to-area
           conversion once the scale is known. No 3D reconstruction, no volume estimate: it is the
-          flat projected area the camera sees, and we call it exactly that.
+          flat projected area the camera sees, and that is what we call it.
         </p>
       </div>
     </details>
@@ -74,15 +74,15 @@
     <h2><span class="num-label">03</span>The scale chain</h2>
     <p>
       A photo is just pixels until something in it has a known real-world size. Your bike is full
-      of known sizes. The primary one is your <strong>handlebar width</strong> — a number you
+      of known sizes. The primary one is your <strong>handlebar width</strong>, a number you
       enter once. You tap the two bar ends in the photo, we measure that span in pixels, and that
       gives us pixels-per-centimetre for the whole frame. No depth sensor. No camera calibration.
       Just a ruler you already own, held up in the same plane as the rest of you.
     </p>
     <p>
-      Then we check our own work against a second ruler. Tap your <strong>wheel</strong> — its
-      diameter is another dimension we can compute from your rim and tyre — and we work the scale
-      out a second way, independently. If the two rulers agree, you can trust the number. If they
+      Then we check our own work against a second ruler. Tap your <strong>wheel</strong> (its
+      diameter is another dimension we can compute from your rim and tyre), and we work the scale
+      out a second, independent way. If the two rulers agree, you can trust the number. If they
       disagree by more than 10%, something was mis-tapped or mis-entered, and we say so rather
       than hand you a confident wrong answer. (We also record your <strong>wheelbase</strong> as
       a reference for side-on shots.)
@@ -91,7 +91,7 @@
     <details>
       <summary>Show your working</summary>
       <div class="disc-body">
-        <span class="figure-note">Figure — the two rulers: the handlebar-width span (bar end to
+        <span class="figure-note">Figure. The two rulers: the handlebar-width span (bar end to
           bar end) and the wheel span (ground contact to tyre top), each labelled. Reuses a frame
           from the hero shoot.</span>
         <p>
@@ -99,15 +99,15 @@
           source dimensions, and the bar span is their Euclidean distance. Scale is
           <code>bar_px ÷ (bar_width_mm ÷ 10)</code> → source pixels-per-cm, then rescaled into the
           segmentation mask's pixel space by the width ratio (valid because Vision's person mask
-          preserves the source aspect ratio — we check that it does, to a 2% tolerance, rather
+          preserves the source aspect ratio; we check that it does, to a 2% tolerance, rather
           than assume it).
         </p>
         <p>
-          <strong>Triangulation, not a single point of failure.</strong> The wheel ruler is a
-          genuinely independent scale: front-wheel overall diameter = rim bead-seat diameter +
+          <strong>Triangulation, not a single point of failure.</strong> The wheel ruler is
+          an independent scale: front-wheel overall diameter = rim bead-seat diameter +
           2 × tyre width, tapped ground contact to tyre top. We compare it to the bar ruler as a
-          relative disagreement against the bar (the bar stays authoritative — we never silently
-          swap one scale for the other), and flag anything over 10%. Wheelbase is recorded as a
+          relative disagreement against the bar (the bar stays authoritative, and we never swap
+          one scale for the other without saying so), and flag anything over 10%. Wheelbase is recorded as a
           candidate side-on reference; today it is stored metadata, not yet an active cross-check,
           so we don't claim it triangulates until it does.
         </p>
@@ -115,8 +115,8 @@
           <strong>One known bias, stated plainly.</strong> The handlebars sit slightly forward of
           your torso, so the ruler is marginally closer to the camera than the body it's
           measuring. That makes the absolute area read a touch low. It is consistent shot to shot,
-          so it very largely cancels when you compare two positions photographed the same way —
-          which is what the app is for.
+          so it largely cancels when you compare two positions photographed the same way, which is
+          what the app is for.
         </p>
       </div>
     </details>
@@ -157,7 +157,7 @@
       reading in Get Tucked carries a <strong>±3% margin</strong>. When you compare two setups,
       we combine both readings' margins and check whether the difference between them is bigger
       than that combined floor. If it isn't, we tell you the two are
-      <strong>indistinguishable</strong> — not "1.8% better." A difference smaller than the noise
+      <strong>indistinguishable</strong>, not "1.8% better." A difference smaller than the noise
       is not a result; it's noise.
     </p>
     <p>
@@ -170,14 +170,14 @@
       <summary>The maths behind the shrug</summary>
       <div class="disc-body">
         <p>
-          The ±3% is a fixed, deliberately conservative margin applied to every computed area — it
+          The ±3% is a fixed, conservative margin applied to every computed area. It
           stands in for the combined jitter of segmentation and scale, the two largest error
           sources in a photo measurement. It is a model, not a per-photo error bar, and we'd
           rather it erred toward caution than toward flattering a difference.
         </p>
         <p>
           For a comparison of two areas <em>A</em> and <em>B</em>, the two margins combine in
-          quadrature — <code>√(u_A² + u_B²)</code>, the standard rule for independent errors, not
+          quadrature, <code>√(u_A² + u_B²)</code>, the standard rule for independent errors, not
           simple addition. A difference <code>|A − B|</code> is reported as real only when it
           exceeds that combined floor; for two similar areas the floor works out to roughly ±4% of
           the reading. Everything below it is shown as <em>indistinguishable</em>, and the
@@ -197,19 +197,19 @@
         frontal area; area is not the whole aerodynamic story, only the largest controllable part
         of it.</li>
       <li><strong>It can't see airflow.</strong> Two setups with the <em>same</em> frontal area
-        can have different real drag — a bag tucked into the low-pressure wake behind you can even
-        make you slightly faster without changing your silhouette at all (this has been measured
-        in the field). Frontal area is the biggest lever a photo can honestly show you; it is not
+        can have different real drag. A bag tucked into the low-pressure wake behind you can even
+        make you a little faster without changing your silhouette (riders have measured this
+        in the field). Frontal area is the biggest lever a photo can show you; it is not
         the only one that exists.</li>
       <li><strong>Segmentation degrades in poor light</strong> or against a cluttered background.
-        A plain, evenly lit wall is not fussiness — it's the difference between a clean silhouette
+        A plain, evenly lit wall is not fussiness. It's the difference between a clean silhouette
         and a guess.</li>
       <li><strong>The scale is only as good as your handlebar width.</strong> Enter it wrong and
         every centimetre downstream is wrong by the same factor. (This is what the optional wheel
         cross-check is there to catch.)</li>
-      <li><strong>Absolute numbers are less trustworthy than comparisons.</strong> The app is
-        built to answer "did this change anything?", not "what is my exact area?" — and it's most
-        honest when used that way.</li>
+      <li><strong>Absolute numbers are less trustworthy than comparisons.</strong> We built the
+        app to answer "did this change anything?", not "what is my exact area?", and it's most
+        honest when you use it that way.</li>
     </ul>
 
     <details>
@@ -222,12 +222,12 @@
           rather than report a confident wrong number. The <strong>wheel cross-check</strong>
           (section 03) is the second: an independent scale that flags a >10% disagreement with the
           bar ruler. Neither check blocks a measurement; both refuse to let a suspicious one pass
-          silently.
+          unflagged.
         </p>
         <p>
-          Posture angles — torso lean from vertical (0° upright, 90° flat), hip angle, and head
-          drop — are computed from detected body landmarks in the same scaled frame, and inherit
-          the same scale dependence as the area.
+          Posture angles come from detected body landmarks in the same scaled frame: torso lean
+          from vertical (0° upright, 90° flat), hip angle, and head drop. They inherit the same
+          scale dependence as the area.
         </p>
       </div>
     </details>
@@ -235,8 +235,8 @@
 
   <!-- 6b. Just for fun -->
   <section>
-    <h2><span class="num-label">—</span>Just for fun</h2>
-    <p>Honest answers to the questions people actually ask.</p>
+    <h2><span class="num-label">·</span>Just for fun</h2>
+    <p>Honest answers to the questions people ask.</p>
 
     <details>
       <summary class="fun">🙂 &nbsp;Wait, why is it called Get Tucked?</summary>
@@ -265,12 +265,12 @@
       <summary class="fun">🙂 &nbsp;Can I measure Fabio's Chest?</summary>
       <div class="disc-body">
         <p>
-          You can measure anything you can strap to a bike, and yes, we checked. Here's the
-          honest, slightly annoying answer: a bag that rides in the shadow your torso already casts
-          adds almost nothing to your <em>frontal</em> area — it's hiding behind the widest part of
-          you. So a big chest-height bar bag can genuinely come back <strong>inside the noise
+          You can measure anything you can strap to a bike, and yes, we checked. The honest,
+          annoying answer: a bag that rides in the shadow your torso already casts
+          adds almost nothing to your <em>frontal</em> area. It's hiding behind the widest part of
+          you. So a big chest-height bar bag can come back <strong>inside the noise
           floor</strong>, and the app will say "indistinguishable." Read that as scientific
-          permission. (This is a real property of projected area, not a bit we invented — which is
+          permission. (This is a real property of projected area, not a bit we invented, which is
           the only reason it's funny.)
         </p>
       </div>
@@ -281,24 +281,30 @@
   <section>
     <h2><span class="num-label">07</span>Citations</h2>
     <p>
-      The sources behind "frontal area is a defensible proxy for aerodynamic drag." Links to be
-      confirmed by the measurement owner before publish.
+      The sources behind "frontal area is a defensible proxy for aerodynamic drag":
+      peer-reviewed aerodynamics research, plus the field tests and plain-language overviews we
+      point people to.
     </p>
     <ul class="cites">
-      <li><b>Defraeye, T. et al.</b> — cyclist aerodynamics, position and frontal area.
-        <span class="mono">[link]</span></li>
-      <li><b>Crouch, T. N. et al.</b> — cyclist aerodynamics review; frontal area and drag.
-        <span class="mono">[link]</span></li>
-      <li><b>García-López, J. et al.</b> — aerodynamic drag and rider position in the field.
-        <span class="mono">[link]</span></li>
-      <li><b>Torsten Frank — field aero-test of bikepacking bag setups.</b> 28 tests / 107 runs
-        measuring CdA, <em>with error margins reported</em> — a good example of the same honesty
+      <li><b>Defraeye, T., et al.</b> "Aerodynamic study of different cyclist positions: CFD
+        analysis and full-scale wind-tunnel tests." <em>Journal of Biomechanics</em>, 43(7), 2010.
+        <a href="https://doi.org/10.1016/j.jbiomech.2010.01.025" target="_blank" rel="noopener">doi.org/10.1016/j.jbiomech.2010.01.025</a></li>
+      <li><b>Crouch, T. N., et al.</b> "Riding against the wind: a review of competition cycling
+        aerodynamics." <em>Sports Engineering</em>, 20, 2017.
+        <a href="https://doi.org/10.1007/s12283-017-0234-1" target="_blank" rel="noopener">doi.org/10.1007/s12283-017-0234-1</a></li>
+      <li><b>García-López, J., et al.</b> "Reference values and improvement of aerodynamic drag
+        in professional cyclists." <em>Journal of Sports Sciences</em>, 26(3), 2008.
+        <a href="https://doi.org/10.1080/02640410701501697" target="_blank" rel="noopener">doi.org/10.1080/02640410701501697</a></li>
+      <li><b>Torsten Frank, field aero-test of bikepacking bag setups.</b> 28 tests / 107 runs
+        measuring CdA, <em>with error margins reported</em>. A good example of the same honesty
         ethos, and the source for "a bag in your wake can add zero (or negative) drag." Note: he
-        measures <strong>CdA</strong> (full drag), which is precisely what we <em>don't</em> —
-        useful because it shows the gap between frontal area and true drag.
-        <span class="mono">[link — torstenfrank.wordpress.com]</span></li>
-      <li>Plus one accessible overview article for the non-specialist reader.
-        <span class="mono">[link]</span></li>
+        measures <strong>CdA</strong> (full drag), which is what we <em>don't</em>. That's useful:
+        it shows the gap between frontal area and true drag.
+        <a href="https://torstenfrank.wordpress.com/2021/12/07/aerodynamik-von-bikepacking-taschen-diese-taschen-machen-dich-schneller/" target="_blank" rel="noopener">torstenfrank.wordpress.com</a> <span class="lang">(in German)</span></li>
+      <li><b>Denham, A. "The Fascinating Aerodynamics of Bikepacking and Bicycle Touring."</b>
+        CYCLINGABOUT, 2020. A plain-language overview for the non-specialist reader: frontal area,
+        luggage placement, and position, without the maths.
+        <a href="https://www.cyclingabout.com/fascinating-aerodynamics-bikepacking-bicycle-touring/" target="_blank" rel="noopener">cyclingabout.com</a></li>
     </ul>
   </section>
 
