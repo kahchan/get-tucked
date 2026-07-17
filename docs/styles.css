@@ -76,7 +76,7 @@ a:hover{text-decoration:underline; text-underline-offset:3px}
   transition:transform .15s var(--ease-out), filter .15s var(--ease-out);
 }
 .top-cta .badge{display:block; height:32px; width:auto}
-.top-cta:hover{text-decoration:none; transform:translateY(-1px); filter:brightness(1.08)}
+.top-cta:active{transform:scale(.97)}  /* press feedback (works on touch) */
 
 /* ---------- hero (landing) ---------- */
 .hero{
@@ -320,7 +320,7 @@ p.body em{color:var(--fg); font-style:italic}
   transition:transform .15s var(--ease-out), filter .15s var(--ease-out);
 }
 .appstore .badge{display:block; height:58px; width:auto}
-.appstore:hover{text-decoration:none; transform:translateY(-2px); filter:brightness(1.04)}
+.appstore:active{transform:scale(.97)}  /* press feedback (works on touch) */
 
 .methlink{
   display:inline-block; margin-top:28px;
@@ -429,6 +429,19 @@ details .figure-note{
   display:block; font-family:var(--mono); font-size:12px; color:var(--fg4);
   border-left:2px solid var(--line); padding:6px 0 6px 12px; margin:0 0 14px;
 }
+/* Slide the disclosure body in instead of snapping. Progressive enhancement:
+   where ::details-content / interpolate-size aren't supported the rule is
+   dropped and <details> opens instantly, as before (no regression). The
+   chevron rotation above already animates in every browser. */
+@supports (interpolate-size: allow-keywords){
+  :root{interpolate-size:allow-keywords}
+  details::details-content{
+    block-size:0; opacity:0; overflow:clip;
+    transition:block-size .22s var(--ease-io), opacity .22s var(--ease-io),
+               content-visibility .22s allow-discrete;
+  }
+  details[open]::details-content{block-size:auto; opacity:1}
+}
 
 /* callout (deliberately-don't) */
 .dont{border-left:3px solid var(--amb); padding:4px 0 4px 22px; margin:8px 0 4px}
@@ -476,6 +489,14 @@ details .figure-note{
 
   .cites li{transition:color .18s var(--ease-out)}
   .cites li:hover{color:var(--fg)}
+
+  /* CTA hover lifts live on pointer devices only, so a tap can't leave the
+     badge stuck in the hover state; :active (above) owns touch feedback.
+     :hover:active re-asserts the press so it wins over the lift on desktop. */
+  .appstore:hover{text-decoration:none; transform:translateY(-2px); filter:brightness(1.04)}
+  .appstore:hover:active{transform:scale(.97)}
+  .top-cta:hover{text-decoration:none; transform:translateY(-1px); filter:brightness(1.08)}
+  .top-cta:hover:active{transform:scale(.97)}
 }
 
 /* ==========================================================================
@@ -524,6 +545,7 @@ details .figure-note{
   :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites).in > *{
     opacity:1; transform:none; transition:none}
   .js section.block::before, .js .doc > section::before{transform:scaleX(1); transition:none}
+  details::details-content{transition:none}  /* snap open, no height slide */
 }
 @media print{
   details{open:true}
