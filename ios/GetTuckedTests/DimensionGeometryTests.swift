@@ -13,6 +13,42 @@ final class DimensionGeometryTests: XCTestCase {
         XCTAssertEqual(m.y, 40, accuracy: acc)
     }
 
+    // MARK: - point(forTopLeftUnit:in:): Z1 regression — no Vision-style flip
+
+    func testPointForTopLeftUnitDoesNotFlipY() {
+        // y=0.9 in top-left-origin unit space is near the image's BOTTOM
+        // edge — must land in the view's bottom 20%. Plan X's shipped bug
+        // borrowed SkeletonGeometry's Vision-bottom-left flip here, which
+        // would have put this point near the TOP instead.
+        let size = CGSize(width: 400, height: 1000)
+        let point = DimensionGeometry.point(forTopLeftUnit: CGPoint(x: 0.5, y: 0.9), in: size)
+        XCTAssertEqual(point.x, 200, accuracy: acc)
+        XCTAssertEqual(point.y, 900, accuracy: acc)
+        XCTAssertGreaterThan(point.y, size.height * 0.8, "a y=0.9 top-left tap must land in the bottom 20% of the view")
+    }
+
+    func testHorizontalTapPairNearBottomStaysNearBottom() {
+        // Bar-style dimension: two taps sharing a similar y near 0.9.
+        let size = CGSize(width: 400, height: 1000)
+        let from = DimensionGeometry.point(forTopLeftUnit: CGPoint(x: 0.2, y: 0.9), in: size)
+        let to = DimensionGeometry.point(forTopLeftUnit: CGPoint(x: 0.8, y: 0.9), in: size)
+        XCTAssertGreaterThan(from.y, size.height * 0.8)
+        XCTAssertGreaterThan(to.y, size.height * 0.8)
+    }
+
+    func testVerticalTapPairNearBottomStaysNearBottomAndOrdered() {
+        // Wheel-style dimension: a vertical pair (ground tap, top tap),
+        // both nearer the image's bottom than its top, with the larger
+        // unit-y (ground) rendering strictly lower on screen than the
+        // smaller unit-y (top) — never flipped.
+        let size = CGSize(width: 400, height: 1000)
+        let ground = DimensionGeometry.point(forTopLeftUnit: CGPoint(x: 0.5, y: 0.9), in: size)
+        let top = DimensionGeometry.point(forTopLeftUnit: CGPoint(x: 0.5, y: 0.7), in: size)
+        XCTAssertGreaterThan(ground.y, size.height * 0.8)
+        XCTAssertGreaterThan(top.y, size.height * 0.6)
+        XCTAssertGreaterThan(ground.y, top.y, "ground tap (larger unit y) must render lower on screen than the top tap")
+    }
+
     // MARK: - tickEndpoints: perpendicularity
 
     func testTickIsPerpendicularToHorizontalSegment() {

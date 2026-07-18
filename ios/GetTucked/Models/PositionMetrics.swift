@@ -37,7 +37,18 @@ final class PositionMetrics {
     // consumed, persisted so the skeleton overlay replays what produced the
     // numbers rather than re-estimating (and possibly disagreeing with them).
     // Flattened [x0, y0, x1, y1, ...], Vision-normalised coords (0–1, origin
-    // bottom-left) — same convention as handlebarTapPoints.
+    // BOTTOM-left, y-up) — Vision's own convention; `SkeletonGeometry.point
+    // (forUnit:)` flips it to view space.
+    //
+    // This is NOT the same convention as `handlebarTapPoints` /
+    // `wheelTapPoints` (on `Position`) / `sideOnTapPoints`, which come from
+    // `CalibrationTransform.unitPoint(forScreen:in:)` and are TOP-left,
+    // y-down (plain screen space, no flip). Plan X's `DimensionOverlay`
+    // wrongly assumed the two matched and ran the Vision flip on tap points
+    // too, mirroring every dimension line vertically — fixed in Plan Z1 via
+    // `DimensionGeometry.point(forTopLeftUnit:in:)`. Don't let this comment
+    // lie a second time: verify which convention a field actually uses
+    // before touching its rendering.
     //
     // headOnSkeletonPoints: [leftShoulderX, leftShoulderY, rightShoulderX, rightShoulderY]
     var headOnSkeletonPoints: [Double]?

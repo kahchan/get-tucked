@@ -50,8 +50,12 @@ final class Position {
     // is unviewable forever, and the FRONTAL/SIDE-ON toggle never appears.
     var sideOnPhotoData: Data?
 
-    // Scale calibration: two tap points in unit coordinates (0–1)
-    // stored as [x0, y0, x1, y1]
+    // Scale calibration: two tap points in unit coordinates (0–1),
+    // TOP-left origin, y-down — stored as [x0, y0, x1, y1]. Comes from
+    // `CalibrationTransform.unitPoint(forScreen:in:)` (plain screen space,
+    // no flip) — NOT the same convention as the Vision-bottom-left pose
+    // landmarks on `PositionMetrics` (see that file's fields for the
+    // Plan Z1 note on why this distinction matters).
     var handlebarTapPoints: [Double]?
 
     // Side-on scale calibration (Plan P1.5) — the two wheelbase tap points

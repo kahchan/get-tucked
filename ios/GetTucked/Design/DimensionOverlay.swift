@@ -14,6 +14,18 @@ enum DimensionGeometry {
         CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
     }
 
+    /// Top-left-origin unit coords (0–1, y-down) → view-space point — the
+    /// dimension lines' own convention (Plan Z1). `handlebarTapPoints` /
+    /// `wheelTapPoints` / `sideOnTapPoints` come from
+    /// `CalibrationTransform.unitPoint(forScreen:in:)`, which is already
+    /// screen space (no flip) — deliberately NOT `SkeletonGeometry.point
+    /// (forUnit:)`, which flips y for Vision's bottom-left pose-landmark
+    /// convention. Borrowing that flip here was Plan X's shipped bug: every
+    /// dimension line rendered vertically mirrored.
+    static func point(forTopLeftUnit unit: CGPoint, in size: CGSize) -> CGPoint {
+        CGPoint(x: unit.x * size.width, y: unit.y * size.height)
+    }
+
     /// A short tick perpendicular to the `lineFrom`→`lineTo` segment,
     /// centred on `point` (one of the segment's own terminals in practice).
     /// Degenerates to a zero-length tick at `point` if the segment itself
@@ -161,8 +173,8 @@ struct DimensionOverlay: View {
 
     @ViewBuilder
     private func dimensionView(_ dimension: Dimension, size: CGSize) -> some View {
-        let from = SkeletonGeometry.point(forUnit: dimension.unitFrom, in: size)
-        let to = SkeletonGeometry.point(forUnit: dimension.unitTo, in: size)
+        let from = DimensionGeometry.point(forTopLeftUnit: dimension.unitFrom, in: size)
+        let to = DimensionGeometry.point(forTopLeftUnit: dimension.unitTo, in: size)
         let mid = DimensionGeometry.midpoint(from, to)
         let label = DimensionGeometry.calloutLabel(mm: dimension.valueMm)
         let boxSize = DimensionGeometry.calloutBoxSize(label: label, fontSize: Self.fontSize, padding: Self.boxPadding)
