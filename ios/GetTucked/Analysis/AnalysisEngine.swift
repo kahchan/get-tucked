@@ -15,7 +15,7 @@ enum AnalysisError: LocalizedError {
         case .noPersonDetected: "No rider found. Step back so your full body is visible."
         case .multiplePersonsDetected: "More than one person detected. Ask helpers to step aside."
         case .personClipsFrame: "Part of your body is cut off. Step back or recompose."
-        case .personTooSmallInFrame: "You're too far away. Step closer so your body fills the frame."
+        case .personTooSmallInFrame: "You're too far away. Step closer — or zoom in from where you are — so your body fills the frame."
         case .segmentationFailed: "Couldn't compute a segmentation mask."
         case .scaleNotCalibrated: "Scale reference not set. Tap both ends of your handlebars first."
         case .poseNotDetected: "Couldn't detect body pose. Make sure your full body is visible."
@@ -256,12 +256,20 @@ struct AnalysisEngine {
 
         let box = dominant.boundingBox // normalised, origin bottom-left
 
-        // Spec §3: rider should fill the frame. Require bbox height > 50% of frame.
-        // This is a DIFFERENT physical problem from clipping below — too small
-        // means too far away (fix: step closer), not too close (fix: step back).
-        // Conflating the two under one message told "too far away" users to do
-        // the opposite of what would fix it.
-        if box.height < 0.5 {
+        // Spec §3: rider should fill the frame. Require bbox height > 35% of
+        // frame — relaxed from 50% (Plan W3): the front wheel sits well
+        // forward of the handlebar scale plane and reads oversized up close;
+        // shooting from farther away with optical zoom flattens that
+        // single-plane error, so the coaching copy (SetTheSceneView) now
+        // actively encourages standing back and zooming in rather than
+        // walking up close. This floor still catches a genuinely-too-far
+        // shot, just without punishing the smaller rider that better
+        // technique produces. This is a DIFFERENT physical problem from
+        // clipping below — too small means too far away (fix: step closer
+        // or zoom in), not too close (fix: step back). Conflating the two
+        // under one message told "too far away" users to do the opposite of
+        // what would fix it.
+        if box.height < 0.35 {
             throw AnalysisError.personTooSmallInFrame
         }
 

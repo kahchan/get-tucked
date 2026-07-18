@@ -10,6 +10,9 @@ struct SetTheSceneView: View {
         ("☀", "Even, diffuse light"),
         ("⊡", "Plain, high-contrast background"),
         ("⊙", "Camera at hub height"),
+        // Plan W3: shooting from farther away with optical zoom flattens the
+        // near-wheel perspective error a close-up shot bakes in.
+        ("↔", "Stand back 5–6m, zoom in 2–3×"),
     ]
 
     private let avoidItems: [(icon: String, text: String)] = [
@@ -17,6 +20,7 @@ struct SetTheSceneView: View {
         ("✕", "Backlit or shadows across body"),
         ("✕", "Busy or patterned background"),
         ("✕", "Camera too high or too low"),
+        ("✕", "Standing close — inflates the near wheel"),
     ]
 
     var body: some View {
