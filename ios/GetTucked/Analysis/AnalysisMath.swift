@@ -516,4 +516,128 @@ enum AnalysisMath {
         let cosine = max(-1.0, min(1.0, dot / (magA * magB)))
         return acos(cosine) * 180 / .pi
     }
+
+    // MARK: - Bike swap rescale (Plan Y) — wrong-bike swap-and-rescale from
+    // PositionDetailView. Masks, tap points, and pose landmarks are photo
+    // geometry — the bike only enters as the mm behind the rulers, so
+    // swapping is exact closed-form arithmetic on stored metrics, no
+    // re-analysis. No SwiftData types below (Y1) — `BikeSwap` (Views/) wraps
+    // this against the real `Position`/`Bike` models.
+
+    /// Old→new ratio for the bar-tap ruler — `newBarMm / oldBarMm`.
+    static func barRescaleRatio(oldBarMm: Double, newBarMm: Double) -> Double {
+        newBarMm / oldBarMm
+    }
+
+    /// Old→new ratio for the wheelbase ruler (side-on) —
+    /// `newWheelbaseMm / oldWheelbaseMm`.
+    static func wheelbaseRescaleRatio(oldWheelbaseMm: Double, newWheelbaseMm: Double) -> Double {
+        newWheelbaseMm / oldWheelbaseMm
+    }
+
+    /// Everything `rescaledMetrics` needs, pulled from the stored
+    /// `PositionMetrics`/`Position` plus the old/new `Bike` hard points —
+    /// no SwiftData types, so this (and the function below) are unit
+    /// testable without a model context.
+    struct BikeSwapInput {
+        let pixelsPerCm: Double
+        let frontalAreaCm2: Double
+        let frontalAreaUncertainty: Double
+        let shoulderWidthCm: Double?
+        let sideOnPixelsPerCm: Double?
+        let headDropCm: Double?
+        /// `Position.wheelTapPoints` — [groundX, groundY, topX, topY], unit
+        /// coords. nil (or not exactly 4 values) skips the wheel-check
+        /// recompute entirely, same as the wheel check never having run.
+        let wheelTapPoints: [Double]?
+        /// Any `CGSize` sharing the source (head-on) photo's aspect ratio —
+        /// the wheel-check recompute's absolute scale cancels out of the
+        /// bar/wheel disagreement ratio, only the width:height ratio
+        /// matters (mirrors how `AnalysisEngine` calls `wheelPixelsPerCm`
+        /// with the true pixel `imageSize`, just without needing to decode
+        /// the photo here).
+        let imageAspect: CGSize
+
+        /// `metrics.handlebarWidthMmUsed` — the bar width the *stored*
+        /// numbers were actually derived from (Plan I3), not a live read of
+        /// the old bike (which the rider could since have edited).
+        let oldHandlebarWidthMm: Double
+        let newHandlebarWidthMm: Double
+        /// Live reads of the old/new bike are correct here (unlike the bar
+        /// width above) — there's no equivalent "wheelbaseMmUsed"
+        /// provenance field on `PositionMetrics`.
+        let oldWheelbaseMm: Double?
+        let newWheelbaseMm: Double?
+        let newWheelDiameterMm: Double?
+    }
+
+    struct BikeSwapResult {
+        let pixelsPerCm: Double
+        let frontalAreaCm2: Double
+        let frontalAreaUncertainty: Double
+        let shoulderWidthCm: Double?
+        let wheelCheckDisagreementFraction: Double?
+        let sideOnPixelsPerCm: Double?
+        let headDropCm: Double?
+        let handlebarWidthMmUsed: Double
+    }
+
+    /// The closed-form swap: same tapped pixel spans, different physical
+    /// hard points behind them. See the Plan Y doc's "why this needs no
+    /// re-analysis" for the derivation of each field below.
+    static func rescaledMetrics(_ input: BikeSwapInput) -> BikeSwapResult {
+        let r = barRescaleRatio(oldBarMm: input.oldHandlebarWidthMm, newBarMm: input.newHandlebarWidthMm)
+        let newPixelsPerCm = input.pixelsPerCm / r
+        let newFrontalAreaCm2 = input.frontalAreaCm2 * r * r
+        let newFrontalAreaUncertainty = input.frontalAreaUncertainty * r * r
+        let newShoulderWidthCm = input.shoulderWidthCm.map { $0 * r }
+
+        // Wheel check: recomputed fresh from the stored taps against the
+        // NEW bike's wheel diameter (reuses wheelPixelsPerCm +
+        // rulerDisagreementFraction exactly, same as AnalysisEngine's
+        // capture-time derivation) rather than scaling the old fraction —
+        // the stored fraction is unsigned (`abs`), so it can't be
+        // algebraically un-rescaled.
+        var newWheelCheck: Double?
+        if let wheelTapPoints = input.wheelTapPoints, wheelTapPoints.count == 4,
+           let newWheelDiameterMm = input.newWheelDiameterMm {
+            let groundTap = CGPoint(x: wheelTapPoints[0], y: wheelTapPoints[1])
+            let topTap = CGPoint(x: wheelTapPoints[2], y: wheelTapPoints[3])
+            let newWheelPixelsPerCm = wheelPixelsPerCm(
+                groundTap: groundTap, topTap: topTap,
+                imageSize: input.imageAspect, wheelDiameterMm: newWheelDiameterMm
+            )
+            newWheelCheck = rulerDisagreementFraction(barPixelsPerCm: newPixelsPerCm, wheelPixelsPerCm: newWheelPixelsPerCm)
+        }
+
+        // Side-on: only rescales when a real wheelbase ruler produced the
+        // old scale AND the new bike has a wheelbase on record — otherwise
+        // both nil out (spec §3: can't defend the number, don't show it).
+        // When the old scale was already nil, headDropCm (if present)
+        // borrowed the frontal scale and is already hidden from display —
+        // left untouched here, old-data rules keep applying (Plan Y1).
+        var newSideOnPixelsPerCm: Double?
+        var newHeadDropCm = input.headDropCm
+        if let oldSideOnPixelsPerCm = input.sideOnPixelsPerCm {
+            if let oldWheelbaseMm = input.oldWheelbaseMm, let newWheelbaseMm = input.newWheelbaseMm {
+                let s = wheelbaseRescaleRatio(oldWheelbaseMm: oldWheelbaseMm, newWheelbaseMm: newWheelbaseMm)
+                newSideOnPixelsPerCm = oldSideOnPixelsPerCm / s
+                newHeadDropCm = input.headDropCm.map { $0 * s }
+            } else {
+                newSideOnPixelsPerCm = nil
+                newHeadDropCm = nil
+            }
+        }
+
+        return BikeSwapResult(
+            pixelsPerCm: newPixelsPerCm,
+            frontalAreaCm2: newFrontalAreaCm2,
+            frontalAreaUncertainty: newFrontalAreaUncertainty,
+            shoulderWidthCm: newShoulderWidthCm,
+            wheelCheckDisagreementFraction: newWheelCheck,
+            sideOnPixelsPerCm: newSideOnPixelsPerCm,
+            headDropCm: newHeadDropCm,
+            handlebarWidthMmUsed: input.newHandlebarWidthMm
+        )
+    }
 }

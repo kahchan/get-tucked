@@ -622,4 +622,197 @@ final class AnalysisMathTests: XCTestCase {
         let boxes: [Int: CGRect] = [1: CGRect(x: 0, y: 0, width: 0.2, height: 0.2)]
         XCTAssertTrue(AnalysisMath.connectedInstances(riderInstance: 99, instanceBoxes: boxes).isEmpty)
     }
+
+    // MARK: - Bike swap rescale (Plan Y1)
+
+    func testBarRescaleRatio() {
+        XCTAssertEqual(AnalysisMath.barRescaleRatio(oldBarMm: 400, newBarMm: 500), 1.25, accuracy: acc)
+    }
+
+    func testWheelbaseRescaleRatio() {
+        XCTAssertEqual(AnalysisMath.wheelbaseRescaleRatio(oldWheelbaseMm: 1000, newWheelbaseMm: 1100), 1.1, accuracy: acc)
+    }
+
+    /// A full swap, no wheel check, no side-on ruler — just the bar-driven
+    /// numbers. r = 500/400 = 1.25: pixelsPerCm divides by r, area/uncertainty
+    /// scale by r², shoulder width scales by r.
+    func testRescaledMetricsScalesFrontalNumbersByBarRatio() {
+        let input = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: 10,
+            frontalAreaCm2: 400,
+            frontalAreaUncertainty: 12,
+            shoulderWidthCm: 42,
+            sideOnPixelsPerCm: nil,
+            headDropCm: nil,
+            wheelTapPoints: nil,
+            imageAspect: CGSize(width: 1, height: 1),
+            oldHandlebarWidthMm: 400,
+            newHandlebarWidthMm: 500,
+            oldWheelbaseMm: nil,
+            newWheelbaseMm: nil,
+            newWheelDiameterMm: nil
+        )
+        let result = AnalysisMath.rescaledMetrics(input)
+        XCTAssertEqual(result.pixelsPerCm, 8, accuracy: acc) // 10 / 1.25
+        XCTAssertEqual(result.frontalAreaCm2, 625, accuracy: acc) // 400 * 1.25^2
+        XCTAssertEqual(result.frontalAreaUncertainty, 18.75, accuracy: acc) // 12 * 1.25^2
+        XCTAssertEqual(result.shoulderWidthCm ?? -1, 52.5, accuracy: acc) // 42 * 1.25
+        XCTAssertEqual(result.handlebarWidthMmUsed, 500, accuracy: acc)
+        XCTAssertNil(result.wheelCheckDisagreementFraction)
+        XCTAssertNil(result.sideOnPixelsPerCm)
+    }
+
+    /// Pins the wheel-check recompute against the exact same functions
+    /// AnalysisEngine's capture-time derivation uses (wheelPixelsPerCm +
+    /// rulerDisagreementFraction), worked by hand: a 356px vertical tap span
+    /// on a square 1000x1000-equivalent image, bar re-derived to 8 px/cm
+    /// (400mm bar, r=1.25 → 10/1.25), new wheel diameter 800mm.
+    func testRescaledMetricsWheelCheckRecomputeMatchesCaptureTimeDerivation() {
+        let input = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: 10,
+            frontalAreaCm2: 400,
+            frontalAreaUncertainty: 12,
+            shoulderWidthCm: nil,
+            sideOnPixelsPerCm: nil,
+            headDropCm: nil,
+            wheelTapPoints: [0.5, 0.9, 0.5, 0.544],
+            imageAspect: CGSize(width: 1000, height: 1000),
+            oldHandlebarWidthMm: 400,
+            newHandlebarWidthMm: 500,
+            oldWheelbaseMm: nil,
+            newWheelbaseMm: nil,
+            newWheelDiameterMm: 800
+        )
+        let result = AnalysisMath.rescaledMetrics(input)
+        // wheelPixels = hypot(0, 0.356*1000) = 356; wheelPixelsPerCm = 356/80 = 4.45
+        // barPixelsPerCm (new) = 8; disagreement = |4.45 - 8| / 8 = 0.44375
+        XCTAssertEqual(result.wheelCheckDisagreementFraction ?? -1, 0.44375, accuracy: 1e-6)
+
+        // Same value derived independently via the plain functions, as a
+        // belt-and-braces check that the recompute really does reuse them.
+        let expectedWheelPpc = AnalysisMath.wheelPixelsPerCm(
+            groundTap: CGPoint(x: 0.5, y: 0.9), topTap: CGPoint(x: 0.5, y: 0.544),
+            imageSize: CGSize(width: 1000, height: 1000), wheelDiameterMm: 800
+        )
+        let expected = AnalysisMath.rulerDisagreementFraction(barPixelsPerCm: 8, wheelPixelsPerCm: expectedWheelPpc)
+        XCTAssertEqual(result.wheelCheckDisagreementFraction ?? -1, expected, accuracy: 1e-9)
+    }
+
+    func testRescaledMetricsWheelCheckNilWhenNewBikeHasNoWheelData() {
+        let input = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
+            shoulderWidthCm: nil, sideOnPixelsPerCm: nil, headDropCm: nil,
+            wheelTapPoints: [0.5, 0.9, 0.5, 0.544], imageAspect: CGSize(width: 1000, height: 1000),
+            oldHandlebarWidthMm: 400, newHandlebarWidthMm: 500,
+            oldWheelbaseMm: nil, newWheelbaseMm: nil, newWheelDiameterMm: nil
+        )
+        XCTAssertNil(AnalysisMath.rescaledMetrics(input).wheelCheckDisagreementFraction)
+    }
+
+    /// Side-on numbers scale by the wheelbase ratio when both bikes have a
+    /// wheelbase on record.
+    func testRescaledMetricsSideOnScalesByWheelbaseRatio() {
+        let input = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
+            shoulderWidthCm: nil, sideOnPixelsPerCm: 12, headDropCm: 5,
+            wheelTapPoints: nil, imageAspect: CGSize(width: 1, height: 1),
+            oldHandlebarWidthMm: 400, newHandlebarWidthMm: 400,
+            oldWheelbaseMm: 1000, newWheelbaseMm: 1100, newWheelDiameterMm: nil
+        )
+        let result = AnalysisMath.rescaledMetrics(input)
+        XCTAssertEqual(result.sideOnPixelsPerCm ?? -1, 12 / 1.1, accuracy: acc)
+        XCTAssertEqual(result.headDropCm ?? -1, 5.5, accuracy: acc) // 5 * 1.1
+    }
+
+    /// Plan Y2's edge case: the new bike has no wheelbase on record — both
+    /// side-on numbers nil out rather than showing an indefensible figure.
+    func testRescaledMetricsSideOnNilsOutWhenNewBikeLacksWheelbase() {
+        let input = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
+            shoulderWidthCm: nil, sideOnPixelsPerCm: 12, headDropCm: 5,
+            wheelTapPoints: nil, imageAspect: CGSize(width: 1, height: 1),
+            oldHandlebarWidthMm: 400, newHandlebarWidthMm: 400,
+            oldWheelbaseMm: 1000, newWheelbaseMm: nil, newWheelDiameterMm: nil
+        )
+        let result = AnalysisMath.rescaledMetrics(input)
+        XCTAssertNil(result.sideOnPixelsPerCm)
+        XCTAssertNil(result.headDropCm)
+    }
+
+    /// A side-on capture with no wheelbase ruler (sideOnPixelsPerCm already
+    /// nil pre-swap) leaves headDropCm untouched — it borrowed the frontal
+    /// scale and stays hidden from display regardless (Plan Y1).
+    func testRescaledMetricsLeavesBorrowedHeadDropUntouchedWhenSideOnScaleAlreadyNil() {
+        let input = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
+            shoulderWidthCm: nil, sideOnPixelsPerCm: nil, headDropCm: 3.5,
+            wheelTapPoints: nil, imageAspect: CGSize(width: 1, height: 1),
+            oldHandlebarWidthMm: 400, newHandlebarWidthMm: 500,
+            oldWheelbaseMm: nil, newWheelbaseMm: 1100, newWheelDiameterMm: nil
+        )
+        let result = AnalysisMath.rescaledMetrics(input)
+        XCTAssertNil(result.sideOnPixelsPerCm)
+        XCTAssertEqual(result.headDropCm ?? -1, 3.5, accuracy: acc)
+    }
+
+    /// Swap A→B then back to A restores every field to within 1e-9 — the
+    /// closed-form round trip Plan Y1 requires. Each leg is recomputed fresh
+    /// (not chained multiplicatively), so this also exercises that the
+    /// wheel-check recompute genuinely returns to its original value rather
+    /// than drifting.
+    func testRescaledMetricsRoundTripRestoresOriginalValues() {
+        let original = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: 10,
+            frontalAreaCm2: 437.5,
+            frontalAreaUncertainty: 13.125,
+            shoulderWidthCm: 41.3,
+            sideOnPixelsPerCm: 9.6,
+            headDropCm: 4.2,
+            wheelTapPoints: [0.5, 0.9, 0.5, 0.544],
+            imageAspect: CGSize(width: 1000, height: 1000),
+            oldHandlebarWidthMm: 400,
+            newHandlebarWidthMm: 500, // -> bike B
+            oldWheelbaseMm: 1000,
+            newWheelbaseMm: 1080,
+            newWheelDiameterMm: 700
+        )
+        let toB = AnalysisMath.rescaledMetrics(original)
+
+        let backToA = AnalysisMath.BikeSwapInput(
+            pixelsPerCm: toB.pixelsPerCm,
+            frontalAreaCm2: toB.frontalAreaCm2,
+            frontalAreaUncertainty: toB.frontalAreaUncertainty,
+            shoulderWidthCm: toB.shoulderWidthCm,
+            sideOnPixelsPerCm: toB.sideOnPixelsPerCm,
+            headDropCm: toB.headDropCm,
+            wheelTapPoints: original.wheelTapPoints,
+            imageAspect: original.imageAspect,
+            oldHandlebarWidthMm: toB.handlebarWidthMmUsed, // 500 (bike B)
+            newHandlebarWidthMm: original.oldHandlebarWidthMm, // back to 400 (bike A)
+            oldWheelbaseMm: original.newWheelbaseMm, // bike B's wheelbase
+            newWheelbaseMm: original.oldWheelbaseMm, // back to bike A's
+            newWheelDiameterMm: 712 // bike A's original wheel diameter
+        )
+        let backResult = AnalysisMath.rescaledMetrics(backToA)
+
+        XCTAssertEqual(backResult.pixelsPerCm, original.pixelsPerCm, accuracy: 1e-9)
+        XCTAssertEqual(backResult.frontalAreaCm2, original.frontalAreaCm2, accuracy: 1e-9)
+        XCTAssertEqual(backResult.frontalAreaUncertainty, original.frontalAreaUncertainty, accuracy: 1e-9)
+        XCTAssertEqual(backResult.shoulderWidthCm ?? -1, original.shoulderWidthCm ?? -2, accuracy: 1e-9)
+        XCTAssertEqual(backResult.sideOnPixelsPerCm ?? -1, original.sideOnPixelsPerCm ?? -2, accuracy: 1e-9)
+        XCTAssertEqual(backResult.headDropCm ?? -1, original.headDropCm ?? -2, accuracy: 1e-9)
+        XCTAssertEqual(backResult.handlebarWidthMmUsed, original.oldHandlebarWidthMm, accuracy: 1e-9)
+
+        // Wheel check recomputed against bike A's original wheel diameter
+        // (712mm, same worked example as testWheelPixelsPerCm) must match
+        // what capture time would have produced for the same taps/scale.
+        let expectedWheelPpc = AnalysisMath.wheelPixelsPerCm(
+            groundTap: CGPoint(x: 0.5, y: 0.9), topTap: CGPoint(x: 0.5, y: 0.544),
+            imageSize: CGSize(width: 1000, height: 1000), wheelDiameterMm: 712
+        )
+        let expectedDisagreement = AnalysisMath.rulerDisagreementFraction(
+            barPixelsPerCm: original.pixelsPerCm, wheelPixelsPerCm: expectedWheelPpc
+        )
+        XCTAssertEqual(backResult.wheelCheckDisagreementFraction ?? -1, expectedDisagreement, accuracy: 1e-9)
+    }
 }
