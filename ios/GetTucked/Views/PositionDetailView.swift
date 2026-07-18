@@ -103,6 +103,11 @@ struct PositionDetailView: View {
                                     .aspectRatio(headOnAspectRatio, contentMode: .fit)
                                     .skeletonReveal(visible: frontalPhotoSegment == .bones)
                             }
+                            if !showingSideOn, !frontalDimensions.isEmpty {
+                                DimensionOverlay(dimensions: frontalDimensions)
+                                    .aspectRatio(headOnAspectRatio, contentMode: .fit)
+                                    .skeletonReveal(visible: frontalPhotoSegment == .bones)
+                            }
                             if showingSideOn, let sideOnMaskOverlay {
                                 Image(uiImage: sideOnMaskOverlay)
                                     .resizable()
@@ -112,6 +117,11 @@ struct PositionDetailView: View {
                             }
                             if showingSideOn, let sideOnSkeletonOverlay {
                                 sideOnSkeletonOverlay
+                                    .aspectRatio(sideOnAspectRatio, contentMode: .fit)
+                                    .skeletonReveal(visible: sideOnPhotoSegment == .bones)
+                            }
+                            if showingSideOn, !sideOnDimensions.isEmpty {
+                                DimensionOverlay(dimensions: sideOnDimensions)
                                     .aspectRatio(sideOnAspectRatio, contentMode: .fit)
                                     .skeletonReveal(visible: sideOnPhotoSegment == .bones)
                             }
@@ -309,6 +319,26 @@ struct PositionDetailView: View {
             arm: position.metrics?.sideOnArmPoints,
             ankle: position.metrics?.sideOnAnklePoint
         )
+    }
+
+    /// The measured hard points, drawn (Plan X): bar width + wheel diameter
+    /// on the frontal photo, degrading independently — a position missing
+    /// the wheel check (or captured before Plan K) just omits that one
+    /// dimension rather than hiding both. Wheel diameter reuses
+    /// `Bike.wheelDiameterMm`'s derivation (same one the wheel check itself
+    /// uses) rather than re-deriving it here.
+    private var frontalDimensions: [DimensionOverlay.Dimension] {
+        [
+            DimensionOverlay.dimension(unitPoints: position.handlebarTapPoints, mm: position.metrics?.handlebarWidthMmUsed),
+            DimensionOverlay.dimension(unitPoints: position.wheelTapPoints, mm: position.bike?.wheelDiameterMm),
+        ].compactMap { $0 }
+    }
+
+    /// Wheelbase, drawn over the side-on photo — nil unless the rider used
+    /// the wheelbase ruler (sideOnTapPoints) and the bike has a wheelbase on
+    /// record.
+    private var sideOnDimensions: [DimensionOverlay.Dimension] {
+        [DimensionOverlay.dimension(unitPoints: position.sideOnTapPoints, mm: position.bike?.wheelbaseMm)].compactMap { $0 }
     }
 
     /// Derived fresh from the same stored landmarks every time (Plan P3) —
