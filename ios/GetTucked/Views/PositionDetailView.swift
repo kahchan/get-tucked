@@ -93,39 +93,29 @@ struct PositionDetailView: View {
                                     .transition(.opacity)
                                     .opacity(showingSideOn ? 1 : 0)
                             }
-                            if !showingSideOn, let maskOverlay {
-                                Image(uiImage: maskOverlay)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .transition(.opacity)
-                                    .opacity(frontalPhotoSegment == .photo ? 0 : 1)
+                            // Plan Z6 + Z7: matte → dimensions → skeleton
+                            // (skeleton topmost), with a scripted BONES
+                            // draw-on that replays every time the segment
+                            // becomes .bones.
+                            if !showingSideOn {
+                                BonesDrawOnOverlay(
+                                    maskOverlay: maskOverlay,
+                                    skeleton: frontalSkeletonOverlay,
+                                    dimensions: frontalDimensions,
+                                    spannedDimensions: [],
+                                    aspectRatio: headOnAspectRatio,
+                                    segment: frontalPhotoSegment
+                                )
                             }
-                            if !showingSideOn, let frontalSkeletonOverlay {
-                                frontalSkeletonOverlay
-                                    .aspectRatio(headOnAspectRatio, contentMode: .fit)
-                                    .skeletonReveal(visible: frontalPhotoSegment == .bones)
-                            }
-                            if !showingSideOn, !frontalDimensions.isEmpty {
-                                DimensionOverlay(dimensions: frontalDimensions)
-                                    .aspectRatio(headOnAspectRatio, contentMode: .fit)
-                                    .skeletonReveal(visible: frontalPhotoSegment == .bones)
-                            }
-                            if showingSideOn, let sideOnMaskOverlay {
-                                Image(uiImage: sideOnMaskOverlay)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .transition(.opacity)
-                                    .opacity(sideOnPhotoSegment == .photo ? 0 : 1)
-                            }
-                            if showingSideOn, let sideOnSkeletonOverlay {
-                                sideOnSkeletonOverlay
-                                    .aspectRatio(sideOnAspectRatio, contentMode: .fit)
-                                    .skeletonReveal(visible: sideOnPhotoSegment == .bones)
-                            }
-                            if showingSideOn, !sideOnDimensions.isEmpty || !sideOnSpannedDimensions.isEmpty {
-                                DimensionOverlay(dimensions: sideOnDimensions, spannedDimensions: sideOnSpannedDimensions)
-                                    .aspectRatio(sideOnAspectRatio, contentMode: .fit)
-                                    .skeletonReveal(visible: sideOnPhotoSegment == .bones)
+                            if showingSideOn {
+                                BonesDrawOnOverlay(
+                                    maskOverlay: sideOnMaskOverlay,
+                                    skeleton: sideOnSkeletonOverlay,
+                                    dimensions: sideOnDimensions,
+                                    spannedDimensions: sideOnSpannedDimensions,
+                                    aspectRatio: sideOnAspectRatio,
+                                    segment: sideOnPhotoSegment
+                                )
                             }
                         }
                         .overlay(alignment: .topTrailing) {
@@ -519,6 +509,162 @@ struct PositionDetailView: View {
         }
     }
     #endif
+}
+
+// MARK: - BONES draw-on (Plan Z6 + Z7)
+
+/// Replaces the mask/skeleton/dimension trio for one photo side (frontal or
+/// side-on): the matte shows for MASK and BONES alike (a plain crossfade
+/// for MASK, unchanged), but only BONES gets the skeleton + dimensions —
+/// and only BONES gets a scripted draw-on: a matte wipe-in, the skeleton
+/// drawing from the top, then the dimensions growing tap→tap with their box
+/// popping on completion. Replayed every time `segment` becomes `.bones`
+/// (Plan O5's "no draw-on on the detail screen" rule is deliberately
+/// reversed here, per Kah's 2026-07-18 direction) — under ~0.5s total and
+/// interruptible: switching to PHOTO/MASK mid-draw snaps everything to its
+/// finished state instead of leaving a half-drawn skeleton frozen, so rapid
+/// toggling never stacks or drags (an every-tap animation, unlike
+/// CaptureView's one-time 0.9s reveal sweep, which this deliberately does
+/// NOT reuse). Reduce Motion collapses the draw-on to today's instant fade
+/// (each sub-view already clamps its own progress to 1 in that case).
+///
+/// Z-order (Plan Z6): matte → dimensions → skeleton, skeleton topmost.
+private struct BonesDrawOnOverlay: View {
+    let maskOverlay: UIImage?
+    let skeleton: SkeletonOverlay?
+    let dimensions: [DimensionOverlay.Dimension]
+    let spannedDimensions: [DimensionOverlay.SpannedDimension]
+    let aspectRatio: CGFloat
+    let segment: PhotoSegment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var matteProgress: Double = 1
+    @State private var skeletonProgress: Double = 1
+    @State private var dimensionProgress: Double = 1
+    @State private var cancelled = false
+
+    private var isBones: Bool { segment == .bones }
+    private var hasDimensions: Bool { !dimensions.isEmpty || !spannedDimensions.isEmpty }
+
+    /// The skeleton with this instance's own draw-on progress baked in —
+    /// mirrors `RevealStep.frontalSkeletonOverlay`'s pattern (mutate a copy,
+    /// never the stored original).
+    private var animatedSkeleton: SkeletonOverlay? {
+        guard var overlay = skeleton else { return nil }
+        overlay.progress = reduceMotion ? 1 : skeletonProgress
+        return overlay
+    }
+
+    var body: some View {
+        ZStack {
+            if let maskOverlay {
+                Image(uiImage: maskOverlay)
+                    .resizable()
+                    .scaledToFit()
+                    .transition(.opacity)
+                    .opacity(segment == .photo ? 0 : 1)
+                    .scanReveal(progress: isBones ? (reduceMotion ? 1 : matteProgress) : 1)
+            }
+            if hasDimensions {
+                DimensionOverlay(
+                    dimensions: dimensions,
+                    progress: reduceMotion ? 1 : dimensionProgress,
+                    spannedDimensions: spannedDimensions
+                )
+                .aspectRatio(aspectRatio, contentMode: .fit)
+                .opacity(isBones ? 1 : 0)
+                .animation(Theme.Motion.entrance(Theme.Motion.fast), value: isBones)
+            }
+            if let animatedSkeleton {
+                animatedSkeleton
+                    .aspectRatio(aspectRatio, contentMode: .fit)
+                    .opacity(isBones ? 1 : 0)
+                    .animation(Theme.Motion.entrance(Theme.Motion.fast), value: isBones)
+            }
+        }
+        .onChange(of: segment) { _, newValue in
+            if newValue == .bones {
+                beginDrawOn()
+            } else {
+                cancelDrawOn()
+            }
+        }
+        .onAppear {
+            if isBones { beginDrawOn() }
+        }
+    }
+
+    /// Matte wipe and skeleton draw start together; the dimensions only
+    /// start growing once the skeleton's own draw-in completes, so the box
+    /// reads as *caused by* the skeleton finishing (the same causality beat
+    /// X3 built for the reveal) — kept brief (`Motion.fast`, not `.base`)
+    /// specifically to hold the whole sequence under ~0.5s even when the
+    /// skeleton's own cascade runs close to its Plan V2 cap of 3 windows
+    /// (~0.35s).
+    ///
+    /// This fires from `.onChange(of: segment)`, which runs inside whatever
+    /// ambient transaction the segment toggle itself used (`Theme.Motion
+    /// .travel(Theme.Motion.base)`, from `frontalPhotoSegmentBinding`) — the
+    /// reset-to-0 below runs inside `withoutAnimation` so it's a true reset,
+    /// not a brief visible "un-draw" borrowing that ambient animation.
+    private func beginDrawOn() {
+        cancelled = false
+        guard !reduceMotion else {
+            snapToDone()
+            return
+        }
+        withoutAnimation {
+            matteProgress = 0
+            skeletonProgress = 0
+            dimensionProgress = 0
+        }
+        withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
+            matteProgress = 1
+        }
+        if let skeleton {
+            withAnimation(Theme.Motion.travel(skeleton.totalDrawDuration)) {
+                skeletonProgress = 1
+            } completion: {
+                startDimensionDrawOn()
+            }
+        } else {
+            startDimensionDrawOn()
+        }
+    }
+
+    private func startDimensionDrawOn() {
+        guard !cancelled else { return }
+        guard hasDimensions else {
+            dimensionProgress = 1
+            return
+        }
+        withAnimation(Theme.Motion.travel(Theme.Motion.fast)) {
+            dimensionProgress = 1
+        }
+    }
+
+    private func snapToDone() {
+        matteProgress = 1
+        skeletonProgress = 1
+        dimensionProgress = 1
+    }
+
+    /// Snaps every progress straight to "done" — no animation, even though
+    /// this too runs inside the segment toggle's ambient transaction — so a
+    /// mid-draw PHOTO/MASK tap never leaves a half-drawn skeleton frozen
+    /// mid-crossfade, and a stale `startDimensionDrawOn` completion arriving
+    /// after this can't restart anything (`cancelled` gates it).
+    private func cancelDrawOn() {
+        guard !cancelled else { return }
+        cancelled = true
+        withoutAnimation { snapToDone() }
+    }
+
+    private func withoutAnimation(_ body: () -> Void) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction, body)
+    }
 }
 
 // MARK: - Metrics section

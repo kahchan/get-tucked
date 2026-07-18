@@ -838,15 +838,17 @@ private struct RevealStep: View {
                                         .scanReveal(progress: reduceMotion ? 1 : sweepProgress)
                                         .opacity(revealSegment == .photo ? 0 : 1)
                                 }
-                                if revealSegment == .bones, let frontalSkeletonOverlay {
-                                    frontalSkeletonOverlay
-                                        .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
-                                        .skeletonReveal(visible: skeletonVisible)
-                                }
+                                // Plan Z6: dimensions render below the skeleton
+                                // (matte → dimensions → skeleton, skeleton topmost).
                                 if revealSegment == .bones, !frontalDimensions.isEmpty {
                                     DimensionOverlay(dimensions: frontalDimensions, progress: dimensionProgress)
                                         .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
                                         .skeletonReveal(visible: dimensionsVisible)
+                                }
+                                if revealSegment == .bones, let frontalSkeletonOverlay {
+                                    frontalSkeletonOverlay
+                                        .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
+                                        .skeletonReveal(visible: skeletonVisible)
                                 }
                             }
                             .frame(maxWidth: .infinity)

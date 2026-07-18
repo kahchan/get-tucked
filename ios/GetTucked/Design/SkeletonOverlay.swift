@@ -268,10 +268,14 @@ extension SkeletonOverlay {
         return SkeletonOverlay(joints: joints, bones: bones)
     }
 
-    /// Side-on: shoulder–hip, hip–knee, shoulder–ear, all `.measured`, each
-    /// its own window (no parallel bones). `arm` (`.context` — the reach
-    /// line to the bars, explanatory like the frontal arm chains) adds
-    /// shoulder→elbow to window 1 and elbow→wrist to window 2. `ankle`
+    /// Side-on: shoulder–hip, shoulder–ear, hip–knee, all `.measured`, each
+    /// its own window (no parallel bones) — window order reads top-down
+    /// (Plan Z7): the spine (shoulder–hip) and the head reach (shoulder–ear)
+    /// are both anchored at the topmost joint and draw first/second; the
+    /// thigh (hip–knee), the lowest-reaching of the three, draws last.
+    /// `arm` (`.context` — the reach line to the bars, explanatory like the
+    /// frontal arm chains) adds shoulder→elbow to window 1 (alongside the
+    /// other shoulder-anchored bone) and elbow→wrist to window 2. `ankle`
     /// (`.detail` — continues the leg the hip–knee bone ends at) adds
     /// knee→ankle to window 2. Both share windows with the existing bones
     /// deliberately (Plan V3): `windowCount` stays 3, denser not longer.
@@ -285,8 +289,8 @@ extension SkeletonOverlay {
         // joints: 0 shoulder, 1 hip, 2 knee, 3 ear
         var bones = [
             Bone(from: 0, to: 1, tier: .measured, window: 0),
-            Bone(from: 1, to: 2, tier: .measured, window: 1),
-            Bone(from: 0, to: 3, tier: .measured, window: 2),
+            Bone(from: 0, to: 3, tier: .measured, window: 1),
+            Bone(from: 1, to: 2, tier: .measured, window: 2),
         ]
 
         if let arm {
