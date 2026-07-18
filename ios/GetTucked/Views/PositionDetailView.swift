@@ -18,6 +18,10 @@ struct PositionDetailView: View {
     @State private var maskOverlay: UIImage?
     @State private var sideOnMaskOverlay: UIImage?
     #endif
+    // Bike coverage diagnostic (Plan Z4) — subject-minus-person pixel share
+    // of the subject mask, as a fraction; nil when there's no subject mask
+    // (old positions) to measure.
+    @State private var bikeCoverageFraction: Double?
     @State private var showingSideOn = false
     @State private var showingWrongBikeSheet = false
     // Remembered per photo side for the session (Plan O5) — not persisted,
@@ -149,7 +153,7 @@ struct PositionDetailView: View {
                         SectionDivider()
 
                         if let metrics = position.metrics {
-                            MetricsSection(metrics: metrics)
+                            MetricsSection(metrics: metrics, bikeCoverageFraction: bikeCoverageFraction)
                             HowItWorksLink(path: $path)
                                 .padding(.horizontal, Theme.Space.screenMargin)
                                 .padding(.top, Theme.Space.lg)
@@ -433,11 +437,25 @@ struct PositionDetailView: View {
 
         async let maskTask = buildMaskOverlay(maskData: maskData, subjectMaskData: subjectMaskData, photo: decodedHeadOn)
         async let sideOnMaskTask = buildMaskOverlay(maskData: sideOnMaskData, photo: decodedSideOn)
-        let (overlay, sideOnOverlay) = await (maskTask, sideOnMaskTask)
+        async let coverageTask = Self.bikeCoverageFraction(subjectMaskData: subjectMaskData, personMaskData: maskData)
+        let (overlay, sideOnOverlay, coverage) = await (maskTask, sideOnMaskTask, coverageTask)
         withAnimation(Theme.Motion.entrance()) {
             maskOverlay = overlay
             sideOnMaskOverlay = sideOnOverlay
         }
+        bikeCoverageFraction = coverage
+    }
+
+    /// Off-main pixel arithmetic (Plan Z4) — pure mask-vs-mask comparison,
+    /// no photo decode needed at all. `static` (unlike `buildMaskOverlay`)
+    /// since it touches no view state on its way in.
+    private static func bikeCoverageFraction(subjectMaskData: Data?, personMaskData: Data?) async -> Double? {
+        guard let subjectMaskData else { return nil }
+        return await Task.detached(priority: .userInitiated) { () -> Double? in
+            guard let subjectMask = UIImage(data: subjectMaskData)?.cgImage else { return nil }
+            let personMask = personMaskData.flatMap { UIImage(data: $0)?.cgImage }
+            return MatteRenderer.bikeCoverageFraction(subjectMask: subjectMask, personMask: personMask)
+        }.value
     }
 
     /// Off-main JPEG decode when bytes are already on hand; falls back to
@@ -671,6 +689,10 @@ private struct BonesDrawOnOverlay: View {
 
 private struct MetricsSection: View {
     let metrics: PositionMetrics
+    // Subject-minus-person pixel share of the subject mask (Plan Z4) — nil
+    // (displays "—") when there's no subject mask, e.g. positions captured
+    // before Plan W2.
+    let bikeCoverageFraction: Double?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var heroVisible = false
@@ -778,6 +800,11 @@ private struct MetricsSection: View {
                         MetricRow(key: "Wheel check", value: wheelCheck.text)
                     }
                     MetricRow(key: "Foreground pixels", value: "\(metrics.foregroundPixelCount)")
+                    // Diagnostic, not a standing metric (Plan Z4): always
+                    // present, "—" when there's no subject mask, so a
+                    // near-zero reading on a night shot is legible as "the
+                    // lift found no bike" rather than a hidden failure.
+                    MetricRow(key: "Bike coverage", value: AnalysisMath.bikeCoverageDisplay(bikeCoverageFraction))
                     MetricRow(
                         key: "Computed",
                         value: metrics.computedAt.formatted(date: .abbreviated, time: .shortened)

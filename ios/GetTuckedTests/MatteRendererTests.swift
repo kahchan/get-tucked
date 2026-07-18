@@ -244,6 +244,98 @@ final class MatteRendererTests: XCTestCase {
         XCTAssertEqual(Array(rgba[4 ..< 8]), [0, 0, 0, 0])
     }
 
+    // MARK: - bikeCoverageFraction (Plan Z4)
+
+    func testBikeCoverageFractionAllSubjectPixelsAreBikeWhenPersonIsAllBackground() {
+        // 2x1 subject mask, both pixels foreground; person mask all background
+        // -> every subject pixel is subject-minus-person, coverage 100%.
+        let subject: [UInt8] = [255, 255]
+        let person: [UInt8] = [0, 0]
+
+        let fraction = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.bikeCoverageFraction(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 2,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 2,
+                    width: 2, height: 1
+                )
+            }
+        }
+        XCTAssertEqual(fraction ?? -1, 1.0, accuracy: overlayAcc)
+    }
+
+    func testBikeCoverageFractionZeroWhenSubjectExactlyMatchesPerson() {
+        // Subject and person agree everywhere -> subject minus person is
+        // empty, coverage 0%.
+        let subject: [UInt8] = [255, 0]
+        let person: [UInt8] = [255, 0]
+
+        let fraction = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.bikeCoverageFraction(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 2,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 2,
+                    width: 2, height: 1
+                )
+            }
+        }
+        XCTAssertEqual(fraction ?? -1, 0, accuracy: overlayAcc)
+    }
+
+    func testBikeCoverageFractionPartialShare() {
+        // 4x1 subject mask, 3 foreground pixels; person agrees on 1 of them
+        // (rider) leaving 2 as bike/bags -> 2/3 coverage.
+        let subject: [UInt8] = [255, 255, 255, 0]
+        let person: [UInt8] = [255, 0, 0, 0]
+
+        let fraction = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.bikeCoverageFraction(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 4,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 4,
+                    width: 4, height: 1
+                )
+            }
+        }
+        XCTAssertEqual(fraction ?? -1, 2.0 / 3.0, accuracy: overlayAcc)
+    }
+
+    func testBikeCoverageFractionNilWhenSubjectHasNoForegroundPixels() {
+        // No subject foreground at all -> nil ("—"), not a misleading 0%.
+        let subject: [UInt8] = [0, 0]
+        let person: [UInt8] = [255, 255]
+
+        let fraction = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.bikeCoverageFraction(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 2,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 2,
+                    width: 2, height: 1
+                )
+            }
+        }
+        XCTAssertNil(fraction)
+    }
+
+    func testBikeCoverageFractionStridesEachBufferByItsOwnBytesPerRow() {
+        // 2x1, subject has a padding byte (bytesPerRow=3), person doesn't
+        // (bytesPerRow=2) — each buffer must stride independently, mirroring
+        // twoToneOverlayPixels' own padding-safety test.
+        let subject: [UInt8] = [255, 255, 77] // pixel0 fg, pixel1 fg, padding
+        let person: [UInt8] = [255, 0]         // pixel0 fg (rider), pixel1 bg (bike)
+
+        let fraction = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.bikeCoverageFraction(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 3,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 2,
+                    width: 2, height: 1
+                )
+            }
+        }
+        XCTAssertEqual(fraction ?? -1, 0.5, accuracy: overlayAcc)
+    }
+
     // MARK: - resizedMask (Plan W2)
 
     func testResizedMaskReturnsSameInstanceWhenAlreadyTargetSize() {

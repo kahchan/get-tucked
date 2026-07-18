@@ -256,6 +256,19 @@ enum AnalysisMath {
         return "Front wheel reads \(pct)% smaller than its spec size — check your taps and the bike's bar width."
     }
 
+    // MARK: - Bike coverage (Plan Z4) — subject-lift diagnostic
+
+    /// Display copy for the "Bike coverage" diagnostic row —
+    /// `MatteRenderer.bikeCoverageFraction`'s result as a whole percent, or
+    /// "—" when there's no subject mask to measure (old positions, or
+    /// side-on which never has one). Reading ~0% on a night shot where the
+    /// subject lift found no bike is expected and correct (Plan Z8 is the
+    /// separate investigation into why), not a bug this row is meant to hide.
+    static func bikeCoverageDisplay(_ fraction: Double?) -> String {
+        guard let fraction else { return "—" }
+        return "\(Int((fraction * 100).rounded()))%"
+    }
+
     // MARK: - Noise floor
 
     /// Two independent measurements' uncertainties combine in quadrature, not

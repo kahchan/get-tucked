@@ -85,6 +85,56 @@ enum MatteRenderer {
         return out
     }
 
+    /// Pure two-mask pixel pass (Plan Z4): the "Bike coverage" diagnostic's
+    /// source of truth — the fraction of subject-mask foreground pixels
+    /// where the person mask reads background (subject − person, the same
+    /// set op `twoToneOverlayPixels` tints `bikeColor`), i.e. how much of
+    /// what the subject lift is measuring isn't person. nil when the
+    /// subject mask has zero foreground pixels — nothing to take a share
+    /// of, which reads as "—" rather than a misleading 0%. Strides each
+    /// buffer by its own bytesPerRow, same padding-safety reasoning as
+    /// `twoToneOverlayPixels`.
+    static func bikeCoverageFraction(
+        subjectBytes: UnsafePointer<UInt8>, subjectBytesPerRow: Int,
+        personBytes: UnsafePointer<UInt8>, personBytesPerRow: Int,
+        width: Int, height: Int, threshold: UInt8 = 128
+    ) -> Double? {
+        var subjectCount = 0
+        var bikeCount = 0
+        for y in 0 ..< height {
+            let subjectRow = y * subjectBytesPerRow
+            let personRow = y * personBytesPerRow
+            for x in 0 ..< width where subjectBytes[subjectRow + x] >= threshold {
+                subjectCount += 1
+                if personBytes[personRow + x] < threshold {
+                    bikeCount += 1
+                }
+            }
+        }
+        guard subjectCount > 0 else { return nil }
+        return Double(bikeCount) / Double(subjectCount)
+    }
+
+    /// CGImage-level wrapper (Plan Z4) — resamples `personMask` to the
+    /// subject mask's resolution first, same reason `twoToneOverlay` does
+    /// (Vision's person segmentation and the subject lift return different
+    /// pixel dimensions). nil when there's no person mask or the
+    /// resample/decode fails — same degrade posture as the two-tone matte
+    /// itself; the "Bike coverage" row displays "—" via
+    /// `AnalysisMath.bikeCoverageDisplay` in that case.
+    static func bikeCoverageFraction(subjectMask: CGImage, personMask: CGImage?) -> Double? {
+        guard let personMask,
+              let resampledPerson = resizedMask(personMask, toWidth: subjectMask.width, height: subjectMask.height),
+              let subjectData = subjectMask.dataProvider?.data, let subjectBytes = CFDataGetBytePtr(subjectData),
+              let personData = resampledPerson.dataProvider?.data, let personBytes = CFDataGetBytePtr(personData)
+        else { return nil }
+        return bikeCoverageFraction(
+            subjectBytes: subjectBytes, subjectBytesPerRow: subjectMask.bytesPerRow,
+            personBytes: personBytes, personBytesPerRow: resampledPerson.bytesPerRow,
+            width: subjectMask.width, height: subjectMask.height
+        )
+    }
+
     /// Resamples a DeviceGray, alpha-none mask to `width`×`height` — used to
     /// bring the person mask (segmentPerson's model resolution) to the
     /// subject mask's resolution (generateScaledMaskForImage's near-source

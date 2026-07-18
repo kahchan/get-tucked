@@ -18,6 +18,11 @@ struct ComparisonView: View {
     // never blocks the numeric comparison above/below it.
     @State private var overlayLayerA: GhostCompareLayer?
     @State private var overlayLayerB: GhostCompareLayer?
+    // Bike coverage diagnostic (Plan Z4) — subject-minus-person pixel share
+    // of the subject mask, per side; nil when that position has no subject
+    // mask (old positions).
+    @State private var bikeCoverageA: Double?
+    @State private var bikeCoverageB: Double?
     // Collapses the reserved overlay section in the rare case the async
     // build fails despite `overlaySectionExpected` passing.
     @State private var overlayBuildFailed = false
@@ -247,7 +252,8 @@ struct ComparisonView: View {
                         DetailDisclosure(label: "Measurement detail") {
                             ComparisonMeasurementDetail(
                                 metricsA: metricsA, metricsB: metricsB,
-                                includePoseRows: poseDeltaWarning == nil
+                                includePoseRows: poseDeltaWarning == nil,
+                                bikeCoverageA: bikeCoverageA, bikeCoverageB: bikeCoverageB
                             )
                         }
                         .padding(.horizontal, Theme.Space.screenMargin)
@@ -303,11 +309,30 @@ struct ComparisonView: View {
             handlebarTapPoints: positionB.handlebarTapPoints, wheelTapPoints: positionB.wheelTapPoints,
             tintColor: UIColor(Theme.Palette.amb), strokeColor: Theme.Palette.amb
         )
+        async let coverageA = Self.bikeCoverageFraction(
+            subjectMaskData: positionA.subjectMaskData, personMaskData: positionA.maskData
+        )
+        async let coverageB = Self.bikeCoverageFraction(
+            subjectMaskData: positionB.subjectMaskData, personMaskData: positionB.maskData
+        )
         (overlayLayerA, overlayLayerB) = await (a, b)
+        (bikeCoverageA, bikeCoverageB) = await (coverageA, coverageB)
         if overlayLayerA == nil || overlayLayerB == nil {
             overlayBuildFailed = true
         }
         beginDrawInIfNeeded()
+    }
+
+    /// Off-main pixel arithmetic (Plan Z4) — pure mask-vs-mask comparison,
+    /// shared shape with `PositionDetailView`'s own private copy (no common
+    /// SwiftUI-view base to hang a shared helper off).
+    private static func bikeCoverageFraction(subjectMaskData: Data?, personMaskData: Data?) async -> Double? {
+        guard let subjectMaskData else { return nil }
+        return await Task.detached(priority: .userInitiated) { () -> Double? in
+            guard let subjectMask = UIImage(data: subjectMaskData)?.cgImage else { return nil }
+            let personMask = personMaskData.flatMap { UIImage(data: $0)?.cgImage }
+            return MatteRenderer.bikeCoverageFraction(subjectMask: subjectMask, personMask: personMask)
+        }.value
     }
 
     /// R1.3: A draws over `Motion.sweep`, B starts ~0.35s in — overlapping,
@@ -1086,6 +1111,10 @@ private struct ComparisonMeasurementDetail: View {
     let metricsA: PositionMetrics?
     let metricsB: PositionMetrics?
     let includePoseRows: Bool
+    // Subject-minus-person pixel share of the subject mask, per side (Plan
+    // Z4) — nil (displays "—") when that position has no subject mask.
+    let bikeCoverageA: Double?
+    let bikeCoverageB: Double?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1151,6 +1180,15 @@ private struct ComparisonMeasurementDetail: View {
                 key: "Foreground pixels",
                 valA: metricsA.map { "\($0.foregroundPixelCount)" },
                 valB: metricsB.map { "\($0.foregroundPixelCount)" },
+                diff: nil
+            )
+
+            // Diagnostic, not a standing metric (Plan Z4): always present,
+            // "—" per side when that position has no subject mask.
+            DiffRow(
+                key: "Bike coverage",
+                valA: AnalysisMath.bikeCoverageDisplay(bikeCoverageA),
+                valB: AnalysisMath.bikeCoverageDisplay(bikeCoverageB),
                 diff: nil
             )
 

@@ -284,6 +284,28 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(AnalysisMath.tireWidthDisplayValue(fromMm: 45, unit: .mm), 45, accuracy: acc)
     }
 
+    // MARK: - Bike coverage display (Plan Z4)
+
+    func testBikeCoverageDisplayFormatsFractionAsWholePercent() {
+        XCTAssertEqual(AnalysisMath.bikeCoverageDisplay(0.18), "18%")
+    }
+
+    func testBikeCoverageDisplayRoundsToNearestPercent() {
+        XCTAssertEqual(AnalysisMath.bikeCoverageDisplay(0.184), "18%")
+        XCTAssertEqual(AnalysisMath.bikeCoverageDisplay(0.186), "19%")
+    }
+
+    func testBikeCoverageDisplayZeroReadsAsZeroPercent() {
+        // The night-shot case (Plan Z8): the subject lift found no bike —
+        // this must read as an honest 0%, not "—" (that's reserved for "no
+        // subject mask at all").
+        XCTAssertEqual(AnalysisMath.bikeCoverageDisplay(0), "0%")
+    }
+
+    func testBikeCoverageDisplayNilReadsAsDash() {
+        XCTAssertEqual(AnalysisMath.bikeCoverageDisplay(nil), "—")
+    }
+
     // MARK: - Noise floor
 
     func testCombinedNoiseCm2CombinesInQuadrature() {
