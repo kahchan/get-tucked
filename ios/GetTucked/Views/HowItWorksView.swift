@@ -75,6 +75,10 @@ struct HowItWorksView: View {
                             .padding(.horizontal, Theme.Space.screenMargin)
                             .padding(.top, Theme.Space.lg)
 
+                        TimeEstimateNote()
+                            .padding(.horizontal, Theme.Space.screenMargin)
+                            .padding(.top, Theme.Space.lg)
+
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Be informed,")
                                 .font(Theme.heading(30))
@@ -195,6 +199,50 @@ private struct NoiseFloorNote: View {
             Text(
                 "The handlebar ruler sits slightly forward of your torso, so the " +
                 "absolute number reads a touch low — this mostly cancels out when comparing positions."
+            )
+            .font(Theme.mono(10))
+            .foregroundStyle(Theme.Palette.fg2)
+        }
+        .padding(Theme.Space.md)
+        .background(Theme.Palette.bg1)
+        .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+    }
+}
+
+// MARK: - Time estimate note (Plan U)
+
+/// Explains the TIME IMPACT card's "so what" number (ComparisonView) — the
+/// one figure on screen that layers assumptions on top of the raw area
+/// measurement, so it earns its own defensibility section (spec §3).
+private struct TimeEstimateNote: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.sm) {
+            Text("THE TIME ESTIMATE")
+                .font(Theme.mono(9, weight: .bold))
+                .foregroundStyle(Theme.Palette.acc)
+                .kerning(1.2)
+            Text("P = v · (½ · ρ · CdA · v² + Crr · m · g)")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg)
+            Text(
+                "We take your flat-road speed, work out the power it implies for the " +
+                "larger position, then ask how fast that same power pushes the smaller " +
+                "one. The time gap over your distance is the estimate."
+            )
+            .font(Theme.mono(10))
+            .foregroundStyle(Theme.Palette.fg2)
+            Text(
+                "Fixed assumptions: drag coefficient \(EffortModel.assumedCd), rider + " +
+                "bike + kit \(Int(EffortModel.assumedMassKg)) kg, rolling resistance " +
+                "\(String(format: "%.3f", EffortModel.crr)), sea-level air. Flat course, no wind, equal effort."
+            )
+            .font(Theme.mono(10))
+            .foregroundStyle(Theme.Palette.fg2)
+            Text(
+                "Slower riders gain more minutes, not fewer: an area cut buys roughly the " +
+                "same percentage of speed at any pace, and a slower rider spends longer on " +
+                "course for it to add up. Over a fixed distance, aero minutes favour the " +
+                "patient."
             )
             .font(Theme.mono(10))
             .foregroundStyle(Theme.Palette.fg2)
