@@ -354,7 +354,7 @@ struct PositionDetailView: View {
     /// uses) rather than re-deriving it here.
     private var frontalDimensions: [DimensionOverlay.Dimension] {
         [
-            DimensionOverlay.dimension(unitPoints: position.handlebarTapPoints, mm: position.metrics?.handlebarWidthMmUsed),
+            DimensionOverlay.dimension(unitPoints: position.handlebarTapPoints, mm: position.metrics?.handlebarWidthMmUsed, style: .beside),
             DimensionOverlay.dimension(unitPoints: position.wheelTapPoints, mm: position.bike?.wheelDiameterMm),
         ].compactMap { $0 }
     }
@@ -363,7 +363,7 @@ struct PositionDetailView: View {
     /// the wheelbase ruler (sideOnTapPoints) and the bike has a wheelbase on
     /// record.
     private var sideOnDimensions: [DimensionOverlay.Dimension] {
-        [DimensionOverlay.dimension(unitPoints: position.sideOnTapPoints, mm: position.bike?.wheelbaseMm)].compactMap { $0 }
+        [DimensionOverlay.dimension(unitPoints: position.sideOnTapPoints, mm: position.bike?.wheelbaseMm, style: .beside)].compactMap { $0 }
     }
 
     /// Derived fresh from the same stored landmarks every time (Plan P3) —

@@ -1031,7 +1031,7 @@ private struct RevealStep: View {
     /// detail-only (Plan X3).
     private var frontalDimensions: [DimensionOverlay.Dimension] {
         [
-            DimensionOverlay.dimension(points: barTapPoints, mm: barWidthMm),
+            DimensionOverlay.dimension(points: barTapPoints, mm: barWidthMm, style: .beside),
             DimensionOverlay.dimension(points: wheelTapPoints, mm: wheelDiameterMm),
         ].compactMap { $0 }
     }

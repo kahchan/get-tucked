@@ -179,6 +179,60 @@ final class DimensionGeometryTests: XCTestCase {
         XCTAssertLessThanOrEqual(rect.maxY, bounds.height + acc)
     }
 
+    // MARK: - chooseBesideSide / besideBoxOrigin (Plan Z2)
+
+    func testBesideSideNearLeftEdgePicksRight() {
+        let bounds = CGSize(width: 400, height: 600)
+        let from = CGPoint(x: 10, y: 300), to = CGPoint(x: 60, y: 300)
+        let boxSize = CGSize(width: 60, height: 24)
+        let side = DimensionGeometry.chooseBesideSide(from: from, to: to, boxSize: boxSize, bounds: bounds, gap: 8)
+        XCTAssertEqual(side, .right)
+        assertBesideBoxWithinBounds(from: from, to: to, side: side, boxSize: boxSize, bounds: bounds, gap: 8)
+    }
+
+    func testBesideSideNearRightEdgePicksLeft() {
+        let bounds = CGSize(width: 400, height: 600)
+        let from = CGPoint(x: 340, y: 300), to = CGPoint(x: 390, y: 300)
+        let boxSize = CGSize(width: 60, height: 24)
+        let side = DimensionGeometry.chooseBesideSide(from: from, to: to, boxSize: boxSize, bounds: bounds, gap: 8)
+        XCTAssertEqual(side, .left)
+        assertBesideBoxWithinBounds(from: from, to: to, side: side, boxSize: boxSize, bounds: bounds, gap: 8)
+    }
+
+    func testBesideSideAwayFromEdgesPrefersRightTieBreak() {
+        let bounds = CGSize(width: 400, height: 600)
+        let from = CGPoint(x: 150, y: 300), to = CGPoint(x: 250, y: 300)
+        let side = DimensionGeometry.chooseBesideSide(
+            from: from, to: to, boxSize: CGSize(width: 60, height: 24), bounds: bounds, gap: 8
+        )
+        XCTAssertEqual(side, .right)
+    }
+
+    func testBesideBoxOriginIsVerticallyCentredOnTheLine() {
+        let from = CGPoint(x: 100, y: 190), to = CGPoint(x: 200, y: 210)
+        let boxSize = CGSize(width: 60, height: 24)
+        let origin = DimensionGeometry.besideBoxOrigin(from: from, to: to, side: .right, boxSize: boxSize, gap: 8)
+        XCTAssertEqual(origin.y, 200 - boxSize.height / 2, accuracy: acc) // centreY = (190+210)/2 = 200
+        XCTAssertEqual(origin.x, 200 + 8, accuracy: acc) // right of the line's rightmost x
+    }
+
+    func testBesideBoxOriginLeftSitsLeftOfTheLine() {
+        let from = CGPoint(x: 100, y: 200), to = CGPoint(x: 200, y: 200)
+        let boxSize = CGSize(width: 60, height: 24)
+        let origin = DimensionGeometry.besideBoxOrigin(from: from, to: to, side: .left, boxSize: boxSize, gap: 8)
+        XCTAssertEqual(origin.x, 100 - 8 - boxSize.width, accuracy: acc)
+    }
+
+    private func assertBesideBoxWithinBounds(
+        from: CGPoint, to: CGPoint, side: DimensionGeometry.HorizontalSide, boxSize: CGSize, bounds: CGSize, gap: CGFloat
+    ) {
+        let rect = DimensionGeometry.besideBoxRect(from: from, to: to, side: side, boxSize: boxSize, gap: gap)
+        XCTAssertGreaterThanOrEqual(rect.minX, -acc)
+        XCTAssertGreaterThanOrEqual(rect.minY, -acc)
+        XCTAssertLessThanOrEqual(rect.maxX, bounds.width + acc)
+        XCTAssertLessThanOrEqual(rect.maxY, bounds.height + acc)
+    }
+
     // MARK: - calloutLabel / calloutBoxSize
 
     func testCalloutLabelFormatsRoundedMillimetres() {
@@ -210,6 +264,17 @@ final class DimensionGeometryTests: XCTestCase {
         XCTAssertEqual(dim.unitFrom, CGPoint(x: 0.1, y: 0.2))
         XCTAssertEqual(dim.unitTo, CGPoint(x: 0.3, y: 0.4))
         XCTAssertEqual(dim.valueMm, 780, accuracy: acc)
+    }
+
+    func testDimensionDefaultsToLeaderStyleAndAcceptsBeside() {
+        let leader = DimensionOverlay.dimension(unitPoints: [0.1, 0.2, 0.3, 0.4], mm: 780)
+        XCTAssertEqual(leader?.style, .leader)
+        let beside = DimensionOverlay.dimension(unitPoints: [0.1, 0.2, 0.3, 0.4], mm: 780, style: .beside)
+        XCTAssertEqual(beside?.style, .beside)
+        let besideFromPoints = DimensionOverlay.dimension(
+            points: [CGPoint(x: 0.1, y: 0.2), CGPoint(x: 0.3, y: 0.4)], mm: 780, style: .beside
+        )
+        XCTAssertEqual(besideFromPoints?.style, .beside)
     }
 
     func testDimensionFromCGPointsRequiresBothPointsAndMm() {

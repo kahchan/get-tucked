@@ -104,6 +104,39 @@ enum DimensionGeometry {
         return scored.min { $0.1 < $1.1 }!.0
     }
 
+    /// Left or right — the axis `chooseBesideSide`/`chooseVerticalLeaderDirection`
+    /// (Plan Z2/Z5) pick between, distinct from `LeaderDirection`'s free
+    /// 4-way diagonal pick.
+    enum HorizontalSide: CaseIterable, Equatable {
+        case left, right
+    }
+
+    /// The callout box's origin for the "beside the line" placement (Plan
+    /// Z2: bar width, wheelbase) — no leader, vertically centred on the
+    /// line's own extent, `gap` points clear of whichever end is on `side`.
+    static func besideBoxOrigin(from: CGPoint, to: CGPoint, side: HorizontalSide, boxSize: CGSize, gap: CGFloat) -> CGPoint {
+        let centerY = (from.y + to.y) / 2
+        let originY = centerY - boxSize.height / 2
+        switch side {
+        case .right: return CGPoint(x: max(from.x, to.x) + gap, y: originY)
+        case .left: return CGPoint(x: min(from.x, to.x) - gap - boxSize.width, y: originY)
+        }
+    }
+
+    static func besideBoxRect(from: CGPoint, to: CGPoint, side: HorizontalSide, boxSize: CGSize, gap: CGFloat) -> CGRect {
+        CGRect(origin: besideBoxOrigin(from: from, to: to, side: side, boxSize: boxSize, gap: gap), size: boxSize)
+    }
+
+    /// Picks whichever side keeps the "beside the line" box fully inside
+    /// `bounds` (Plan Z2) — mirrors `chooseLeaderDirection`'s overflow-
+    /// minimising logic, constrained to left/right only. Ties (both fit, or
+    /// neither does) prefer `.right`, an arbitrary but stable tie-break.
+    static func chooseBesideSide(from: CGPoint, to: CGPoint, boxSize: CGSize, bounds: CGSize, gap: CGFloat) -> HorizontalSide {
+        let rightOverflow = overflow(besideBoxRect(from: from, to: to, side: .right, boxSize: boxSize, gap: gap), bounds: bounds)
+        let leftOverflow = overflow(besideBoxRect(from: from, to: to, side: .left, boxSize: boxSize, gap: gap), bounds: bounds)
+        return rightOverflow <= leftOverflow ? .right : .left
+    }
+
     /// "780 MM" — the entered/derived spec value, not a live re-measure.
     static func calloutLabel(mm: Double) -> String {
         "\(Int(mm.rounded())) MM"
@@ -130,10 +163,20 @@ enum DimensionGeometry {
 /// `SkeletonTimeline.jointOpacity` smoothstep the skeleton's joints use, so
 /// the box reads as *caused by* the line finishing (§13's causality beat).
 struct DimensionOverlay: View {
+    /// Which callout placement a `Dimension` uses (Plan Z2): `.leader` is
+    /// the original 45°-leader-to-a-box treatment (wheel diameter — mid-
+    /// wheel rarely has side room); `.beside` sits the box directly beside
+    /// the line, whichever side has room, no leader (bar width, wheelbase).
+    enum CalloutStyle: Equatable {
+        case leader
+        case beside
+    }
+
     struct Dimension: Equatable {
         let unitFrom: CGPoint
         let unitTo: CGPoint
         let valueMm: Double
+        var style: CalloutStyle = .leader
     }
 
     let dimensions: [Dimension]
@@ -146,6 +189,7 @@ struct DimensionOverlay: View {
 
     private static let tickLength: CGFloat = 6
     private static let leaderRun: CGFloat = 36
+    private static let besideGap: CGFloat = 8
     private static let fontSize: CGFloat = 9
     private static let boxPadding: CGFloat = 4
     // Same ratio SkeletonOverlay's joints use (Motion.fast / a Motion.base
@@ -175,50 +219,92 @@ struct DimensionOverlay: View {
     private func dimensionView(_ dimension: Dimension, size: CGSize) -> some View {
         let from = DimensionGeometry.point(forTopLeftUnit: dimension.unitFrom, in: size)
         let to = DimensionGeometry.point(forTopLeftUnit: dimension.unitTo, in: size)
-        let mid = DimensionGeometry.midpoint(from, to)
         let label = DimensionGeometry.calloutLabel(mm: dimension.valueMm)
         let boxSize = DimensionGeometry.calloutBoxSize(label: label, fontSize: Self.fontSize, padding: Self.boxPadding)
-        let direction = DimensionGeometry.chooseLeaderDirection(from: mid, boxSize: boxSize, bounds: size, runLength: Self.leaderRun)
-        let leaderEnd = DimensionGeometry.leaderEnd(from: mid, direction: direction, runLength: Self.leaderRun)
-        let boxOrigin = DimensionGeometry.boxOrigin(leaderEnd: leaderEnd, direction: direction, boxSize: boxSize)
-        let boxCenter = CGPoint(x: boxOrigin.x + boxSize.width / 2, y: boxOrigin.y + boxSize.height / 2)
         let fromTick = DimensionGeometry.tickEndpoints(at: from, lineFrom: from, lineTo: to, length: Self.tickLength)
         let toTick = DimensionGeometry.tickEndpoints(at: to, lineFrom: from, lineTo: to, length: Self.tickLength)
 
         ZStack {
-            Path { path in
-                path.move(to: from)
-                path.addLine(to: to)
-            }
-            .trim(from: 0, to: trim)
-            .stroke(Theme.Palette.amb, style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
+            dottedLine(from: from, to: to)
+            endTicks(fromTick: fromTick, toTick: toTick)
 
-            // The start tick is already "there" the instant the line begins
-            // (trim 0 already touches it); the end tick pops as the line
-            // reaches it, same tail window as the leader/box.
-            if trim > 0 {
-                tickPath(fromTick).stroke(Theme.Palette.amb, lineWidth: 1)
-            }
-            if popOpacity > 0 {
-                tickPath(toTick).stroke(Theme.Palette.amb, lineWidth: 1).opacity(popOpacity)
-
-                Path { path in
-                    path.move(to: mid)
-                    path.addLine(to: leaderEnd)
-                }
-                .stroke(Theme.Palette.amb, lineWidth: 1)
-                .opacity(popOpacity)
-
-                Text(label)
-                    .font(Theme.mono(Self.fontSize, weight: .bold))
-                    .foregroundStyle(Theme.Palette.amb)
-                    .frame(width: boxSize.width, height: boxSize.height)
-                    .background(Theme.Palette.bg0.opacity(0.72))
-                    .overlay(Rectangle().stroke(Theme.Palette.amb, lineWidth: 1))
-                    .position(boxCenter)
-                    .opacity(popOpacity)
+            switch dimension.style {
+            case .leader:
+                leaderCallout(from: from, to: to, label: label, boxSize: boxSize, bounds: size)
+            case .beside:
+                besideCallout(from: from, to: to, label: label, boxSize: boxSize, bounds: size)
             }
         }
+    }
+
+    /// The original Plan X placement: a 45° leader off the line's midpoint
+    /// to a callout box, whichever diagonal keeps the box in bounds.
+    @ViewBuilder
+    private func leaderCallout(from: CGPoint, to: CGPoint, label: String, boxSize: CGSize, bounds: CGSize) -> some View {
+        let mid = DimensionGeometry.midpoint(from, to)
+        let direction = DimensionGeometry.chooseLeaderDirection(from: mid, boxSize: boxSize, bounds: bounds, runLength: Self.leaderRun)
+        let leaderEnd = DimensionGeometry.leaderEnd(from: mid, direction: direction, runLength: Self.leaderRun)
+        let boxOrigin = DimensionGeometry.boxOrigin(leaderEnd: leaderEnd, direction: direction, boxSize: boxSize)
+        let boxCenter = CGPoint(x: boxOrigin.x + boxSize.width / 2, y: boxOrigin.y + boxSize.height / 2)
+
+        if popOpacity > 0 {
+            Path { path in
+                path.move(to: mid)
+                path.addLine(to: leaderEnd)
+            }
+            .stroke(Theme.Palette.amb, lineWidth: 1)
+            .opacity(popOpacity)
+
+            calloutBox(label: label, boxSize: boxSize, center: boxCenter)
+        }
+    }
+
+    /// Plan Z2's placement for bar width / wheelbase: no leader, the box
+    /// sits directly beside the line's own extent, whichever side has room.
+    @ViewBuilder
+    private func besideCallout(from: CGPoint, to: CGPoint, label: String, boxSize: CGSize, bounds: CGSize) -> some View {
+        let side = DimensionGeometry.chooseBesideSide(from: from, to: to, boxSize: boxSize, bounds: bounds, gap: Self.besideGap)
+        let boxOrigin = DimensionGeometry.besideBoxOrigin(from: from, to: to, side: side, boxSize: boxSize, gap: Self.besideGap)
+        let boxCenter = CGPoint(x: boxOrigin.x + boxSize.width / 2, y: boxOrigin.y + boxSize.height / 2)
+
+        if popOpacity > 0 {
+            calloutBox(label: label, boxSize: boxSize, center: boxCenter)
+        }
+    }
+
+    @ViewBuilder
+    private func dottedLine(from: CGPoint, to: CGPoint) -> some View {
+        Path { path in
+            path.move(to: from)
+            path.addLine(to: to)
+        }
+        .trim(from: 0, to: trim)
+        .stroke(Theme.Palette.amb, style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
+    }
+
+    /// The start tick is already "there" the instant the line begins (trim 0
+    /// already touches it); the end tick pops as the line reaches it, same
+    /// tail window as the leader/box.
+    @ViewBuilder
+    private func endTicks(fromTick: DimensionGeometry.TickEndpoints, toTick: DimensionGeometry.TickEndpoints) -> some View {
+        if trim > 0 {
+            tickPath(fromTick).stroke(Theme.Palette.amb, lineWidth: 1)
+        }
+        if popOpacity > 0 {
+            tickPath(toTick).stroke(Theme.Palette.amb, lineWidth: 1).opacity(popOpacity)
+        }
+    }
+
+    @ViewBuilder
+    private func calloutBox(label: String, boxSize: CGSize, center: CGPoint) -> some View {
+        Text(label)
+            .font(Theme.mono(Self.fontSize, weight: .bold))
+            .foregroundStyle(Theme.Palette.amb)
+            .frame(width: boxSize.width, height: boxSize.height)
+            .background(Theme.Palette.bg0.opacity(0.72))
+            .overlay(Rectangle().stroke(Theme.Palette.amb, lineWidth: 1))
+            .position(center)
+            .opacity(popOpacity)
     }
 
     private func tickPath(_ endpoints: DimensionGeometry.TickEndpoints) -> Path {
@@ -238,20 +324,21 @@ extension DimensionOverlay {
     /// — nil unless *both* the points and the mm value are present, per
     /// Plan X's no-partial-annotation rule (never a line with no number, or
     /// a number with no line).
-    static func dimension(unitPoints: [Double]?, mm: Double?) -> Dimension? {
+    static func dimension(unitPoints: [Double]?, mm: Double?, style: CalloutStyle = .leader) -> Dimension? {
         guard let unitPoints, unitPoints.count == 4, let mm else { return nil }
         return Dimension(
             unitFrom: CGPoint(x: unitPoints[0], y: unitPoints[1]),
             unitTo: CGPoint(x: unitPoints[2], y: unitPoints[3]),
-            valueMm: mm
+            valueMm: mm,
+            style: style
         )
     }
 
     /// From a live two-point `[CGPoint]` (CaptureView's in-flight tap state,
     /// before it's flattened for storage). Same degrade rule.
-    static func dimension(points: [CGPoint], mm: Double?) -> Dimension? {
+    static func dimension(points: [CGPoint], mm: Double?, style: CalloutStyle = .leader) -> Dimension? {
         guard points.count == 2, let mm else { return nil }
-        return Dimension(unitFrom: points[0], unitTo: points[1], valueMm: mm)
+        return Dimension(unitFrom: points[0], unitTo: points[1], valueMm: mm, style: style)
     }
 }
 
