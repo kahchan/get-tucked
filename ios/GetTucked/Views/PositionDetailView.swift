@@ -11,6 +11,7 @@ struct PositionDetailView: View {
     @Binding var path: [AppScreen]
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Bike.createdAt, order: .forward) private var allBikes: [Bike]
     #if canImport(UIKit)
     @State private var headOnImage: UIImage?
     @State private var sideOnImage: UIImage?
@@ -18,6 +19,7 @@ struct PositionDetailView: View {
     @State private var sideOnMaskOverlay: UIImage?
     #endif
     @State private var showingSideOn = false
+    @State private var showingWrongBikeSheet = false
     // Remembered per photo side for the session (Plan O5) — not persisted,
     // so a revisit always starts back on PHOTO like it does today.
     @State private var frontalPhotoSegment: PhotoSegment = .photo
@@ -177,6 +179,18 @@ struct PositionDetailView: View {
                                 .padding(.horizontal, Theme.Space.screenMargin)
                         }
 
+                        // Explicit and discoverable (Kah's stated
+                        // preference) — a ghost-link row, not buried in a
+                        // menu, same visual weight as HowItWorksLink (Plan
+                        // Y2). Only shown when there's actually another bike
+                        // to swap to.
+                        if BikeSwap.isAvailable(otherBikesCount: otherBikes.count) {
+                            HeaderLink("WRONG BIKE?") { showingWrongBikeSheet = true }
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.horizontal, Theme.Space.screenMargin)
+                                .padding(.vertical, Theme.Space.md)
+                        }
+
                         if let packing = position.packingList, !packing.isEmpty {
                             SectionDivider()
                             VStack(alignment: .leading, spacing: Theme.Space.xs) {
@@ -229,6 +243,17 @@ struct PositionDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .sheet(isPresented: $showingWrongBikeSheet) {
+            WrongBikeSheet(
+                position: position,
+                otherBikes: otherBikes,
+                imageAspect: CGSize(width: headOnAspectRatio, height: 1)
+            )
+        }
+    }
+
+    private var otherBikes: [Bike] {
+        BikeSwap.otherBikes(allBikes: allBikes, excluding: position.bike)
     }
 
     private var photoPlaceholder: some View {

@@ -125,4 +125,17 @@ final class Bike {
     static func isValidInput(nickname: String, handlebarWidthText: String) -> Bool {
         !nickname.trimmingCharacters(in: .whitespaces).isEmpty && (Double(handlebarWidthText) ?? 0) > 0
     }
+
+    /// "640 mm bars · 1010 mm wheelbase · 622 mm wheel" — the hard points
+    /// that become a position's new ruler on a swap (Plan Y2), so the
+    /// picker's row shows the numbers the choice is actually made against
+    /// rather than just a nickname. Wheelbase/wheel segments are omitted
+    /// when not on record, same degrade-gracefully posture as everywhere
+    /// else optional hard points are displayed.
+    var hardPointsSummary: String {
+        var parts = ["\(Int(handlebarWidthMm)) mm bars"]
+        if let wheelbaseMm { parts.append("\(Int(wheelbaseMm)) mm wheelbase") }
+        if let wheelDiameterMm { parts.append("\(Int(wheelDiameterMm)) mm wheel") }
+        return parts.joined(separator: " · ")
+    }
 }
