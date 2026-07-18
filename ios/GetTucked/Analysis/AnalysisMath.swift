@@ -66,6 +66,42 @@ enum AnalysisMath {
         return abs(maskAspect - sourceAspect) / sourceAspect <= tolerance
     }
 
+    // MARK: - Subject-mask instance selection (Plan W2)
+
+    /// Overlap area (unit²) between two Vision-normalised boxes — 0 for
+    /// non-intersecting or degenerate boxes.
+    static func overlapArea(_ a: CGRect, _ b: CGRect) -> CGFloat {
+        let intersection = a.intersection(b)
+        return intersection.isNull ? 0 : intersection.width * intersection.height
+    }
+
+    /// Picks the foreground instance most likely to *be* the rider: the one
+    /// whose box overlaps `riderBox` (from `VNDetectHumanRectanglesRequest`,
+    /// or a frame-centre fallback) the most. nil when `instanceBoxes` is empty.
+    static func riderInstance(instanceBoxes: [Int: CGRect], riderBox: CGRect) -> Int? {
+        instanceBoxes.max { overlapArea($0.value, riderBox) < overlapArea($1.value, riderBox) }?.key
+    }
+
+    /// The rider instance plus whatever else is spatially connected to it —
+    /// the bike/bags the rider is on (Plan A1's proposed production
+    /// pipeline): any other instance box that intersects the rider's box
+    /// expanded by `margin` on each side. A margin, not exact adjacency,
+    /// since a bike frame/wheel often doesn't touch the rider's silhouette
+    /// bounding box exactly. Disconnected clutter (a coat on the wall, a
+    /// leaning spare wheel, a car behind the rider) stays excluded, unlike a
+    /// blanket union of every instance.
+    static func connectedInstances(
+        riderInstance: Int, instanceBoxes: [Int: CGRect], margin: CGFloat = 0.06
+    ) -> IndexSet {
+        guard let riderBox = instanceBoxes[riderInstance] else { return IndexSet() }
+        let expandedRiderBox = riderBox.insetBy(dx: -margin, dy: -margin)
+        var selected = IndexSet([riderInstance])
+        for (index, box) in instanceBoxes where index != riderInstance && expandedRiderBox.intersects(box) {
+            selected.insert(index)
+        }
+        return selected
+    }
+
     // MARK: - Area
 
     /// Frontal area in cm² from a foreground pixel count and the mask-space scale.

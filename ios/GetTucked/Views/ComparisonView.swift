@@ -269,8 +269,8 @@ struct ComparisonView: View {
     /// answer on the first frame, so the section's space can be reserved
     /// before the async build finishes.
     private var overlaySectionExpected: Bool {
-        positionA.maskData != nil && positionA.metrics != nil && positionA.handlebarTapPoints?.count == 4
-            && positionB.maskData != nil && positionB.metrics != nil && positionB.handlebarTapPoints?.count == 4
+        (positionA.subjectMaskData ?? positionA.maskData) != nil && positionA.metrics != nil && positionA.handlebarTapPoints?.count == 4
+            && (positionB.subjectMaskData ?? positionB.maskData) != nil && positionB.metrics != nil && positionB.handlebarTapPoints?.count == 4
     }
 
     private var showOutlineBinding: Binding<Int> {
@@ -288,14 +288,17 @@ struct ComparisonView: View {
     /// actor first (models aren't safe to touch off it), then hand only
     /// plain values into the detached work.
     private func loadOverlayLayers() async {
+        // Traces whichever mask actually drove each position's area (Plan
+        // W2 audit) — subjectMaskData once adopted, falling back to the
+        // person-only maskData for positions captured before W2.
         async let a = buildGhostCompareLayer(
-            maskData: positionA.maskData, photosData: positionA.photosData,
+            maskData: positionA.subjectMaskData ?? positionA.maskData, photosData: positionA.photosData,
             frontalAreaCm2: positionA.metrics?.frontalAreaCm2,
             handlebarTapPoints: positionA.handlebarTapPoints, wheelTapPoints: positionA.wheelTapPoints,
             tintColor: UIColor(Theme.Palette.acc), strokeColor: Theme.Palette.acc
         )
         async let b = buildGhostCompareLayer(
-            maskData: positionB.maskData, photosData: positionB.photosData,
+            maskData: positionB.subjectMaskData ?? positionB.maskData, photosData: positionB.photosData,
             frontalAreaCm2: positionB.metrics?.frontalAreaCm2,
             handlebarTapPoints: positionB.handlebarTapPoints, wheelTapPoints: positionB.wheelTapPoints,
             tintColor: UIColor(Theme.Palette.amb), strokeColor: Theme.Palette.amb

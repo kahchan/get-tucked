@@ -578,4 +578,48 @@ final class AnalysisMathTests: XCTestCase {
         )
         XCTAssertEqual(fit.anchorScreenPoint, CGPoint(x: 200, y: 400))
     }
+
+    // MARK: - Subject-mask instance selection (Plan W2)
+
+    func testOverlapAreaOfIntersectingBoxes() {
+        let a = CGRect(x: 0, y: 0, width: 0.5, height: 0.5)
+        let b = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+        XCTAssertEqual(AnalysisMath.overlapArea(a, b), 0.0625, accuracy: acc) // 0.25 x 0.25
+    }
+
+    func testOverlapAreaOfNonIntersectingBoxesIsZero() {
+        let a = CGRect(x: 0, y: 0, width: 0.2, height: 0.2)
+        let b = CGRect(x: 0.8, y: 0.8, width: 0.2, height: 0.2)
+        XCTAssertEqual(AnalysisMath.overlapArea(a, b), 0)
+    }
+
+    func testRiderInstancePicksBoxWithMostOverlap() {
+        let riderBox = CGRect(x: 0.3, y: 0.3, width: 0.3, height: 0.4)
+        let boxes: [Int: CGRect] = [
+            1: CGRect(x: 0.3, y: 0.3, width: 0.3, height: 0.4), // exact match — most overlap
+            2: CGRect(x: 0.0, y: 0.0, width: 0.1, height: 0.1), // far away, no overlap
+        ]
+        XCTAssertEqual(AnalysisMath.riderInstance(instanceBoxes: boxes, riderBox: riderBox), 1)
+    }
+
+    func testRiderInstanceEmptyBoxesReturnsNil() {
+        XCTAssertNil(AnalysisMath.riderInstance(instanceBoxes: [:], riderBox: .zero))
+    }
+
+    func testConnectedInstancesIncludesRiderAndTouchingBoxesOnly() {
+        let boxes: [Int: CGRect] = [
+            1: CGRect(x: 0.3, y: 0.3, width: 0.2, height: 0.4), // rider
+            2: CGRect(x: 0.49, y: 0.3, width: 0.1, height: 0.1), // just touches rider's expanded box
+            3: CGRect(x: 0.9, y: 0.9, width: 0.05, height: 0.05), // far away — disconnected clutter
+        ]
+        let selected = AnalysisMath.connectedInstances(riderInstance: 1, instanceBoxes: boxes, margin: 0.06)
+        XCTAssertTrue(selected.contains(1))
+        XCTAssertTrue(selected.contains(2))
+        XCTAssertFalse(selected.contains(3))
+    }
+
+    func testConnectedInstancesUnknownRiderInstanceReturnsEmpty() {
+        let boxes: [Int: CGRect] = [1: CGRect(x: 0, y: 0, width: 0.2, height: 0.2)]
+        XCTAssertTrue(AnalysisMath.connectedInstances(riderInstance: 99, instanceBoxes: boxes).isEmpty)
+    }
 }

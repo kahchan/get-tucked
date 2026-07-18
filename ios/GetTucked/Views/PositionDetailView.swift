@@ -335,6 +335,7 @@ struct PositionDetailView: View {
         let sideOnData = position.sideOnPhotoData
         let sideOnIdentifier = position.sideOnPhotoIdentifier
         let maskData = position.maskData
+        let subjectMaskData = position.subjectMaskData
         let sideOnMaskData = position.sideOnMaskData
 
         // Independent work — run concurrently so a revisit never waits
@@ -351,7 +352,7 @@ struct PositionDetailView: View {
             sideOnImage = decodedSideOn
         }
 
-        async let maskTask = buildMaskOverlay(maskData: maskData, photo: decodedHeadOn)
+        async let maskTask = buildMaskOverlay(maskData: maskData, subjectMaskData: subjectMaskData, photo: decodedHeadOn)
         async let sideOnMaskTask = buildMaskOverlay(maskData: sideOnMaskData, photo: decodedSideOn)
         let (overlay, sideOnOverlay) = await (maskTask, sideOnMaskTask)
         withAnimation(Theme.Motion.entrance()) {
@@ -377,11 +378,25 @@ struct PositionDetailView: View {
     /// Skips silently — no toggle offered — when there's no stored mask or
     /// when the mask and photo disagree on aspect ratio (Plan I5): a
     /// mismatched composite would tint the wrong region rather than hug the
-    /// rider.
-    private func buildMaskOverlay(maskData: Data?, photo: UIImage?) async -> UIImage? {
-        guard let maskData, let cgPhoto = photo?.cgImage else { return nil }
+    /// rider. `subjectMaskData` (Plan W2, frontal only) two-tones the
+    /// overlay — rider acid-yellow, bike/bags amber — when present and its
+    /// aspect matches the photo; nil (old positions, or side-on which has no
+    /// subject mask at all) renders single-tone exactly as before.
+    private func buildMaskOverlay(maskData: Data?, subjectMaskData: Data? = nil, photo: UIImage?) async -> UIImage? {
+        guard let cgPhoto = photo?.cgImage else { return nil }
         return await Task.detached(priority: .userInitiated) { () -> UIImage? in
-            guard let mask = UIImage(data: maskData), let cgMask = mask.cgImage else { return nil }
+            if let subjectMaskData, let subjectMask = UIImage(data: subjectMaskData)?.cgImage,
+               AnalysisMath.maskMatchesSourceAspect(
+                   maskWidth: subjectMask.width, maskHeight: subjectMask.height,
+                   sourceWidth: cgPhoto.width, sourceHeight: cgPhoto.height
+               ) {
+                let personMask = maskData.flatMap { UIImage(data: $0)?.cgImage }
+                return MatteRenderer.twoToneOverlay(
+                    subjectMask: subjectMask, personMask: personMask,
+                    riderColor: UIColor(Theme.Palette.acc), bikeColor: UIColor(Theme.Palette.amb), alpha: 0.5
+                )
+            }
+            guard let maskData, let mask = UIImage(data: maskData), let cgMask = mask.cgImage else { return nil }
             guard AnalysisMath.maskMatchesSourceAspect(
                 maskWidth: cgMask.width, maskHeight: cgMask.height,
                 sourceWidth: cgPhoto.width, sourceHeight: cgPhoto.height

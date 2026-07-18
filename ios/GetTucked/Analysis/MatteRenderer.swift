@@ -52,6 +52,112 @@ enum MatteRenderer {
         return nil
     }
 
+    /// Pure two-mask pass (Plan W2): per pixel, `subjectBytes` foreground
+    /// wins the pixel — tinted `riderColor` where `personBytes` also reads
+    /// foreground at that pixel (subject ∩ person = rider), `bikeColor`
+    /// otherwise (subject − person = bike/bags/wheels). Both buffers must
+    /// already be the same `width`/`height` — `twoToneOverlay` below handles
+    /// resampling the person mask to the subject mask's resolution before
+    /// calling this. Strides each buffer by its own `bytesPerRow`, same
+    /// padding-safety reasoning as `overlayPixels`.
+    static func twoToneOverlayPixels(
+        subjectBytes: UnsafePointer<UInt8>, subjectBytesPerRow: Int,
+        personBytes: UnsafePointer<UInt8>, personBytesPerRow: Int,
+        width: Int, height: Int,
+        riderColor: (r: UInt8, g: UInt8, b: UInt8, a: UInt8),
+        bikeColor: (r: UInt8, g: UInt8, b: UInt8, a: UInt8),
+        threshold: UInt8 = 128
+    ) -> [UInt8] {
+        var out = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0 ..< height {
+            let subjectRow = y * subjectBytesPerRow
+            let personRow = y * personBytesPerRow
+            for x in 0 ..< width where subjectBytes[subjectRow + x] >= threshold {
+                let isRider = personBytes[personRow + x] >= threshold
+                let color = isRider ? riderColor : bikeColor
+                let offset = (y * width + x) * 4
+                out[offset] = color.r
+                out[offset + 1] = color.g
+                out[offset + 2] = color.b
+                out[offset + 3] = color.a
+            }
+        }
+        return out
+    }
+
+    /// Resamples a DeviceGray, alpha-none mask to `width`×`height` — used to
+    /// bring the person mask (segmentPerson's model resolution) to the
+    /// subject mask's resolution (generateScaledMaskForImage's near-source
+    /// resolution) before the per-pixel set-ops in `twoToneOverlayPixels`,
+    /// which require both buffers to share dimensions. Returns the input
+    /// unchanged when it's already the target size.
+    static func resizedMask(_ mask: CGImage, toWidth width: Int, height: Int) -> CGImage? {
+        guard mask.width != width || mask.height != height else { return mask }
+        guard let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(mask, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()
+    }
+
+    /// Two-tone composite (Plan W2): rider pixels (subject ∩ person) tint
+    /// `riderColor`, bike/bags pixels (subject − person) tint `bikeColor`.
+    /// `personMask` nil, or a decode/resample failure, degrades to a
+    /// single-tone `subjectMask` overlay in `riderColor` — old positions
+    /// (no stored subject mask at all) never reach this function; they go
+    /// straight to `tintedOverlay` at the call site instead.
+    static func twoToneOverlay(
+        subjectMask: CGImage, personMask: CGImage?, riderColor: UIColor, bikeColor: UIColor, alpha: CGFloat
+    ) -> UIImage? {
+        guard let personMask,
+              let resampledPerson = resizedMask(personMask, toWidth: subjectMask.width, height: subjectMask.height),
+              let subjectData = subjectMask.dataProvider?.data, let subjectBytes = CFDataGetBytePtr(subjectData),
+              let personData = resampledPerson.dataProvider?.data, let personBytes = CFDataGetBytePtr(personData)
+        else {
+            return tintedOverlay(mask: subjectMask, color: riderColor, alpha: alpha)
+        }
+
+        let width = subjectMask.width
+        let height = subjectMask.height
+
+        var riderR: CGFloat = 0, riderG: CGFloat = 0, riderB: CGFloat = 0
+        riderColor.getRed(&riderR, green: &riderG, blue: &riderB, alpha: nil)
+        var bikeR: CGFloat = 0, bikeG: CGFloat = 0, bikeB: CGFloat = 0
+        bikeColor.getRed(&bikeR, green: &bikeG, blue: &bikeB, alpha: nil)
+        let alphaByte = UInt8((alpha * 255).rounded())
+        let riderPremultiplied = (
+            r: UInt8((riderR * alpha * 255).rounded()), g: UInt8((riderG * alpha * 255).rounded()),
+            b: UInt8((riderB * alpha * 255).rounded()), a: alphaByte
+        )
+        let bikePremultiplied = (
+            r: UInt8((bikeR * alpha * 255).rounded()), g: UInt8((bikeG * alpha * 255).rounded()),
+            b: UInt8((bikeB * alpha * 255).rounded()), a: alphaByte
+        )
+
+        let rgba = twoToneOverlayPixels(
+            subjectBytes: subjectBytes, subjectBytesPerRow: subjectMask.bytesPerRow,
+            personBytes: personBytes, personBytesPerRow: resampledPerson.bytesPerRow,
+            width: width, height: height,
+            riderColor: riderPremultiplied, bikeColor: bikePremultiplied
+        )
+
+        guard let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+
+        rgba.withUnsafeBytes { ptr in
+            context.data?.copyMemory(from: ptr.baseAddress!, byteCount: rgba.count)
+        }
+
+        guard let cgImage = context.makeImage() else { return nil }
+        return UIImage(cgImage: cgImage)
+    }
+
     static func tintedOverlay(mask: CGImage, color: UIColor, alpha: CGFloat) -> UIImage? {
         guard let data = mask.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
         let width = mask.width

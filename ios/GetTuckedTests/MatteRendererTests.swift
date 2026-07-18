@@ -161,4 +161,102 @@ final class MatteRendererTests: XCTestCase {
         }
         XCTAssertNil(unitY)
     }
+
+    // MARK: - twoToneOverlayPixels (Plan W2)
+
+    func testTwoToneRiderPixelWhereSubjectAndPersonAgree() {
+        // Single pixel: both subject and person read foreground → rider tint.
+        let subject: [UInt8] = [255]
+        let person: [UInt8] = [255]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(128))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(128))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [rider.r, rider.g, rider.b, rider.a])
+    }
+
+    func testTwoToneBikePixelWhereSubjectForegroundButPersonBackground() {
+        // Subject foreground, person background → bike/bags tint (subject − person).
+        let subject: [UInt8] = [255]
+        let person: [UInt8] = [0]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(128))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(128))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [bike.r, bike.g, bike.b, bike.a])
+    }
+
+    func testTwoToneBackgroundPixelStaysTransparentRegardlessOfPerson() {
+        // Subject background → fully transparent no matter what person says.
+        let subject: [UInt8] = [0]
+        let person: [UInt8] = [255]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(128))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(128))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [0, 0, 0, 0])
+    }
+
+    func testTwoToneStridesEachBufferByItsOwnBytesPerRow() {
+        // 2x1, subject has a padding byte (bytesPerRow=3), person doesn't
+        // (bytesPerRow=2) — each buffer must stride independently.
+        let subject: [UInt8] = [255, 0, 77]   // pixel0 fg, pixel1 bg, padding
+        let person: [UInt8] = [255, 255]       // pixel0 fg, pixel1 fg
+        let rider = (r: UInt8(1), g: UInt8(2), b: UInt8(3), a: UInt8(4))
+        let bike = (r: UInt8(9), g: UInt8(9), b: UInt8(9), a: UInt8(9))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 3,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 2,
+                    width: 2, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        // Pixel 0: subject fg, person fg -> rider.
+        XCTAssertEqual(Array(rgba[0 ..< 4]), [rider.r, rider.g, rider.b, rider.a])
+        // Pixel 1: subject bg -> transparent, regardless of person/padding.
+        XCTAssertEqual(Array(rgba[4 ..< 8]), [0, 0, 0, 0])
+    }
+
+    // MARK: - resizedMask (Plan W2)
+
+    func testResizedMaskReturnsSameInstanceWhenAlreadyTargetSize() {
+        let mask = makeSquareMask()
+        let resized = MatteRenderer.resizedMask(mask, toWidth: mask.width, height: mask.height)
+        XCTAssertEqual(resized?.width, mask.width)
+        XCTAssertEqual(resized?.height, mask.height)
+    }
+
+    func testResizedMaskProducesRequestedDimensions() {
+        let mask = makeSquareMask()
+        let resized = MatteRenderer.resizedMask(mask, toWidth: 6, height: 6)
+        XCTAssertEqual(resized?.width, 6)
+        XCTAssertEqual(resized?.height, 6)
+    }
 }

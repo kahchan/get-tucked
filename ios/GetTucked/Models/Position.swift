@@ -14,10 +14,22 @@ final class Position {
     // since PhotoRef has no identity outside its Position.
     var photosData: Data?
 
-    // Raw segmentation mask (grayscale PNG) that produced frontalAreaCm2 —
-    // stored untinted so a future accent/opacity change never leaves old
-    // positions with a stale baked-in tint.
+    // Raw person-segmentation mask (grayscale PNG) — stored untinted so a
+    // future accent/opacity change never leaves old positions with a stale
+    // baked-in tint. Pre-Plan-W this drove frontalAreaCm2 directly; now it's
+    // the colour-splitter for the two-tone matte (rider = subjectMaskData ∩
+    // maskData) and the area/outline fallback when subjectMaskData is nil
+    // (old positions, or a capture where subject-lifting failed).
     var maskData: Data?
+
+    // Subject-lift matte (Plan W2, SchemaV7) — rider+bike+bags as one
+    // instance-connected union (VNGenerateForegroundInstanceMaskRequest),
+    // downscaled PNG like maskData. Drives frontalAreaCm2 and the ghost/
+    // outline consumers when present; nil for positions captured before
+    // Plan W2 (subject-lifting unavailable then) or when subject-lifting
+    // failed on this capture — both degrade to maskData/person-only exactly
+    // as before, single-tone, numbers unchanged.
+    var subjectMaskData: Data?
 
     // Side-on segmentation mask (Plan O), untinted grayscale PNG — mirrors
     // maskData's storage and tint-at-display-time rationale. Presentational

@@ -375,12 +375,25 @@ struct CaptureView: View {
 
     /// Off-main so RevealStep's scan wipe (N2) never blocks on pixel work —
     /// the mask tint composite is pure CPU work with no main-actor requirement.
+    /// Two-tone (Plan W2) when subject-lifting succeeded on this capture —
+    /// rider acid-yellow, bike/bags amber; single-tone acid-yellow fallback
+    /// otherwise, matching pre-W2 exactly.
     private func buildRevealMaskOverlay(for result: AnalysisResult) {
-        guard let cgMask = result.maskImage.cgImage else { return }
+        guard let personMask = result.maskImage.cgImage else { return }
+        let subjectMask = result.subjectMaskImage?.cgImage
         let overlayBinding = $revealMaskOverlay
-        let tintColor = UIColor(Theme.Palette.acc)
+        let riderColor = UIColor(Theme.Palette.acc)
+        let bikeColor = UIColor(Theme.Palette.amb)
         Task.detached(priority: .userInitiated) {
-            let overlay = MatteRenderer.tintedOverlay(mask: cgMask, color: tintColor, alpha: 0.5)
+            let overlay: UIImage?
+            if let subjectMask {
+                overlay = MatteRenderer.twoToneOverlay(
+                    subjectMask: subjectMask, personMask: personMask,
+                    riderColor: riderColor, bikeColor: bikeColor, alpha: 0.5
+                )
+            } else {
+                overlay = MatteRenderer.tintedOverlay(mask: personMask, color: riderColor, alpha: 0.5)
+            }
             await MainActor.run {
                 overlayBinding.wrappedValue = overlay
             }
@@ -394,7 +407,10 @@ struct CaptureView: View {
     /// presentational "never blocking" pattern as the side-on matte.
     private func buildGhosts() {
         guard let reference = referencePosition else { return }
-        let headOnMaskData = reference.maskData
+        // Ghost outline traces whichever mask actually drove the reference's
+        // area (Plan W2 audit) — subjectMaskData once adopted, falling back
+        // to the person-only maskData for positions captured before W2.
+        let headOnMaskData = reference.subjectMaskData ?? reference.maskData
         let headOnPhotoData = reference.photosData
         let headOnSkeleton = reference.metrics?.headOnSkeletonPoints
             .flatMap {
@@ -515,6 +531,12 @@ struct CaptureView: View {
         position.photosData = selectedImage?.compressedForStorage()
         if let cgMask = result.maskImage.cgImage {
             position.maskData = MatteRenderer.downscaledMaskPNGData(mask: cgMask)
+        }
+        // Plan W2 — nil when subject-lifting failed on this capture; the
+        // two-tone renderers and the area/outline consumers all fall back
+        // to maskData/person-only in that case, same as an old position.
+        if let cgSubjectMask = result.subjectMaskImage?.cgImage {
+            position.subjectMaskData = MatteRenderer.downscaledMaskPNGData(mask: cgSubjectMask)
         }
         position.handlebarTapPoints = [
             tapPoints[0].x, tapPoints[0].y,

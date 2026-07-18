@@ -28,7 +28,16 @@ struct AnalysisResult {
     let frontalAreaUncertaintyCm2: Double
     let pixelsPerCm: Double
     let foregroundPixelCount: Int
+    /// The person-only segmentation mask (unchanged meaning from pre-Plan-W:
+    /// what `Position.maskData` stores). Post-W2 this is the colour-splitter
+    /// for the two-tone matte, and the area/outline fallback whenever
+    /// `subjectMaskImage` is nil.
     let maskImage: UIImage
+    /// The subject-lift (rider+bike+bags) mask (Plan W2) — nil when
+    /// subject-lifting failed on this capture, which never blocks: `analyse`
+    /// falls back to `maskImage`/person-only for `frontalAreaCm2` and every
+    /// other consumer exactly as it did before this field existed.
+    let subjectMaskImage: UIImage?
     let headOnPose: HeadOnPoseMetrics?
     /// Set when the computed shoulder width is outside a plausible human
     /// range — usually a mis-tapped scale reference, not an unusual rider.
@@ -141,12 +150,21 @@ struct AnalysisEngine {
         try await validatePerson(cgImage: cgImage, imageSize: imageSize)
 
         let mask = try await segmentPerson(cgImage: cgImage)
-        let foregroundCount = countForegroundPixels(mask: mask)
+        // Plan W2: subject-lifting is best-effort — nil (never throws) on
+        // any failure, in which case area/rendering fall back to the
+        // person-only mask exactly as they did before this existed.
+        let subjectMask = await segmentSubject(cgImage: cgImage)
+
+        // Area drives off the subject mask (rider+bike+bags — what the wind
+        // actually sees, spec §2) when available, else the person mask —
+        // same fallback shape as every other optional enhancement here.
+        let areaMask = subjectMask ?? mask
+        let foregroundCount = countForegroundPixels(mask: areaMask)
 
         // §2.2 fix: Vision mask resolution ≠ source resolution in general.
         // Rescale pixelsPerCm into mask space so area and scale share pixel units.
         let maskPixelsPerCm = AnalysisMath.maskPixelsPerCm(
-            sourcePixelsPerCm: pixelsPerCm, maskWidth: mask.width, sourceWidth: cgImage.width
+            sourcePixelsPerCm: pixelsPerCm, maskWidth: areaMask.width, sourceWidth: cgImage.width
         )
         let areaCm2 = AnalysisMath.frontalAreaCm2(
             foregroundPixelCount: foregroundCount, maskPixelsPerCm: maskPixelsPerCm
@@ -158,11 +176,12 @@ struct AnalysisEngine {
         // trustworthy than usual. Widen the uncertainty honestly rather than
         // silently proceeding as if nothing were wrong (spec §3).
         let aspectMatches = AnalysisMath.maskMatchesSourceAspect(
-            maskWidth: mask.width, maskHeight: mask.height,
+            maskWidth: areaMask.width, maskHeight: areaMask.height,
             sourceWidth: cgImage.width, sourceHeight: cgImage.height
         )
         if !aspectMatches { uncertainty *= 2 }
         let maskUI = UIImage(cgImage: mask)
+        let subjectMaskUI = subjectMask.map(UIImage.init(cgImage:))
 
         let headOnPose = try? await estimateHeadOnPose(cgImage: cgImage, pixelsPerCm: pixelsPerCm)
 
@@ -174,6 +193,7 @@ struct AnalysisEngine {
             pixelsPerCm: pixelsPerCm,
             foregroundPixelCount: foregroundCount,
             maskImage: maskUI,
+            subjectMaskImage: subjectMaskUI,
             headOnPose: headOnPose,
             scaleWarning: scaleWarning,
             wheelCheckDisagreementFraction: wheelCheckDisagreementFraction
@@ -298,6 +318,97 @@ struct AnalysisEngine {
             throw AnalysisError.segmentationFailed
         }
         return image
+    }
+
+    /// Subject-lift matte (Plan W2): the foreground-instance ("subject
+    /// lifting") request's rider-connected union — rider+bike+bags, not
+    /// `segmentPerson`'s person-only silhouette. Best-effort: returns nil
+    /// (never throws) on any failure, since this is an area/rendering
+    /// enhancement, not a hard requirement — `analyse` falls back to the
+    /// person mask exactly like pre-W2 when this comes back nil. Deliberately
+    /// the rider-anchored connected union (Plan A1), not a blanket union of
+    /// every instance — a disconnected car/coat/spare-wheel in frame must
+    /// stay excluded.
+    private static func segmentSubject(cgImage: CGImage) async -> CGImage? {
+        let instanceRequest = VNGenerateForegroundInstanceMaskRequest()
+        let rectRequest = VNDetectHumanRectanglesRequest()
+        rectRequest.upperBodyOnly = false
+        let handler = VNImageRequestHandler(cgImage: cgImage)
+        do {
+            try handler.perform([instanceRequest, rectRequest])
+        } catch {
+            return nil
+        }
+        guard let result = instanceRequest.results?.first, !result.allInstances.isEmpty else { return nil }
+        guard let instanceBoxes = instanceBoundingBoxes(mask: result.instanceMask), !instanceBoxes.isEmpty else {
+            return nil
+        }
+
+        // Rider anchor: the largest detected human rectangle, or frame-centre
+        // if Vision found none (e.g. a badly occluded shot) — both boxes are
+        // in Vision's normalised bottom-left-origin convention.
+        let riderBox: CGRect
+        if let rects = rectRequest.results,
+           let largest = rects.max(by: { $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height }) {
+            riderBox = largest.boundingBox
+        } else {
+            riderBox = CGRect(x: 0.35, y: 0.25, width: 0.3, height: 0.5)
+        }
+
+        guard let riderInstance = AnalysisMath.riderInstance(instanceBoxes: instanceBoxes, riderBox: riderBox) else {
+            return nil
+        }
+        let selected = AnalysisMath.connectedInstances(riderInstance: riderInstance, instanceBoxes: instanceBoxes)
+
+        guard let buffer = try? result.generateScaledMaskForImage(forInstances: selected, from: handler) else {
+            return nil
+        }
+        return try? cgImageFromPixelBuffer(buffer, sourceSize: CGSize(width: cgImage.width, height: cgImage.height))
+    }
+
+    /// Scans the (low-res) per-instance mask once and returns each instance's
+    /// bounding box, converted to Vision's normalised bottom-left-origin
+    /// convention so it's directly comparable to
+    /// `VNDetectedObjectObservation.boundingBox`.
+    private static func instanceBoundingBoxes(mask: CVPixelBuffer) -> [Int: CGRect]? {
+        CVPixelBufferLockBaseAddress(mask, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(mask, .readOnly) }
+        let w = CVPixelBufferGetWidth(mask)
+        let h = CVPixelBufferGetHeight(mask)
+        let rowBytes = CVPixelBufferGetBytesPerRow(mask)
+        guard let base = CVPixelBufferGetBaseAddress(mask) else { return nil }
+        let floats = base.assumingMemoryBound(to: Float32.self)
+        let floatsPerRow = rowBytes / MemoryLayout<Float32>.size
+
+        var minX: [Int: Int] = [:], maxX: [Int: Int] = [:], minY: [Int: Int] = [:], maxY: [Int: Int] = [:]
+        for y in 0 ..< h {
+            let row = y * floatsPerRow
+            for x in 0 ..< w {
+                let value = Int(floats[row + x].rounded())
+                guard value != 0 else { continue }
+                minX[value] = min(minX[value] ?? x, x)
+                maxX[value] = max(maxX[value] ?? x, x)
+                minY[value] = min(minY[value] ?? y, y)
+                maxY[value] = max(maxY[value] ?? y, y)
+            }
+        }
+        guard !minX.isEmpty else { return nil }
+
+        var boxes: [Int: CGRect] = [:]
+        for (instance, x0) in minX {
+            guard let x1 = maxX[instance], let y0 = minY[instance], let y1 = maxY[instance] else { continue }
+            let xFrac0 = CGFloat(x0) / CGFloat(w)
+            let xFrac1 = CGFloat(x1 + 1) / CGFloat(w)
+            // y0/y1 are top-down row indices; flip to bottom-left-origin
+            // fractional coords to match Vision's boundingBox convention.
+            let yTopFrac0 = CGFloat(y0) / CGFloat(h)
+            let yTopFrac1 = CGFloat(y1 + 1) / CGFloat(h)
+            boxes[instance] = CGRect(
+                x: xFrac0, y: 1 - yTopFrac1,
+                width: xFrac1 - xFrac0, height: yTopFrac1 - yTopFrac0
+            )
+        }
+        return boxes
     }
 
     // MARK: - Pixel count
