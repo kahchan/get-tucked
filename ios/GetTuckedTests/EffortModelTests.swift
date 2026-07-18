@@ -131,4 +131,24 @@ final class EffortModelTests: XCTestCase {
         XCTAssertGreaterThan(delta, 1)
         XCTAssertLessThan(delta, 30)
     }
+
+    // MARK: - Speed relationship (Plan U)
+
+    /// Counterintuitive but correct (checked by hand, Plan U): over a FIXED
+    /// distance, a faster reference speed yields a SMALLER time saving — the
+    /// fractional speed gain from an area cut is ~speed-independent while
+    /// time-on-course falls with speed. Over fixed *time* the fast rider gains
+    /// more distance; that's not what this model displays.
+    func testTimeDeltaShrinksAsReferenceSpeedRises() {
+        func delta(atKmh kmh: Double) -> Double {
+            EffortModel.timeDeltaMinutes(
+                areaACm2: 4000, areaBCm2: 3800, speedMS: kmh / 3.6,
+                massKg: EffortModel.assumedMassKg, distanceM: 100_000
+            )
+        }
+        XCTAssertGreaterThan(delta(atKmh: 20), delta(atKmh: 30))
+        XCTAssertGreaterThan(delta(atKmh: 30), delta(atKmh: 40))
+        // Hand-checked point: ~3.0 min at 30 km/h for a 5% cut over 100 km.
+        XCTAssertEqual(delta(atKmh: 30), 3.05, accuracy: 0.15)
+    }
 }
