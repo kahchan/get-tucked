@@ -165,9 +165,17 @@ final class AnalysisMathTests: XCTestCase {
     }
 
     func testRulerDisagreementFractionDetectsMismatch() {
-        // Wheel reads 18% higher than the bar-derived scale.
+        // Wheel reads 18% higher than the bar-derived scale — positive
+        // (oversized, Plan Z3's signed convention).
         let fraction = AnalysisMath.rulerDisagreementFraction(barPixelsPerCm: 10, wheelPixelsPerCm: 11.8)
         XCTAssertEqual(fraction, 0.18, accuracy: 1e-9)
+    }
+
+    func testRulerDisagreementFractionNegativeWhenWheelMeasuresSmaller() {
+        // Wheel reads 12% lower than the bar-derived scale — negative
+        // (undersized, Plan Z3's signed convention).
+        let fraction = AnalysisMath.rulerDisagreementFraction(barPixelsPerCm: 10, wheelPixelsPerCm: 8.8)
+        XCTAssertEqual(fraction, -0.12, accuracy: 1e-9)
     }
 
     func testWheelCheckDisplayAgreesWithinThreshold() {
@@ -186,6 +194,40 @@ final class AnalysisMathTests: XCTestCase {
         let result = AnalysisMath.wheelCheckDisplay(0.18)
         XCTAssertEqual(result.text, "disagrees 18%")
         XCTAssertTrue(result.isWarning)
+    }
+
+    func testWheelCheckDisplayHandlesNegativeDisagreement() {
+        // Signed (Plan Z3) — the displayed percentage is always unsigned.
+        let result = AnalysisMath.wheelCheckDisplay(-0.18)
+        XCTAssertEqual(result.text, "disagrees 18%")
+        XCTAssertTrue(result.isWarning)
+    }
+
+    // MARK: - wheelCheckWarning (Plan Z3)
+
+    func testWheelCheckWarningNilWhenAgrees() {
+        XCTAssertNil(AnalysisMath.wheelCheckWarning(0.03))
+        XCTAssertNil(AnalysisMath.wheelCheckWarning(-0.03))
+    }
+
+    func testWheelCheckWarningNilAtThresholdBoundary() {
+        XCTAssertNil(AnalysisMath.wheelCheckWarning(AnalysisMath.wheelCheckDisagreementThreshold))
+    }
+
+    func testWheelCheckWarningNamesPerspectiveWhenOversized() {
+        let warning = AnalysisMath.wheelCheckWarning(0.26)
+        XCTAssertEqual(
+            warning,
+            "Front wheel reads 26% larger than its spec size — usually the camera was too close (the wheel sits forward of the bars). Area may read high; try standing back and zooming."
+        )
+    }
+
+    func testWheelCheckWarningKeepsTapsFramingWhenUndersized() {
+        let warning = AnalysisMath.wheelCheckWarning(-0.18)
+        XCTAssertEqual(
+            warning,
+            "Front wheel reads 18% smaller than its spec size — check your taps and the bike's bar width."
+        )
     }
 
     func testTireWidthMmPassesThroughForMmUnit() {
@@ -685,8 +727,9 @@ final class AnalysisMathTests: XCTestCase {
         )
         let result = AnalysisMath.rescaledMetrics(input)
         // wheelPixels = hypot(0, 0.356*1000) = 356; wheelPixelsPerCm = 356/80 = 4.45
-        // barPixelsPerCm (new) = 8; disagreement = |4.45 - 8| / 8 = 0.44375
-        XCTAssertEqual(result.wheelCheckDisagreementFraction ?? -1, 0.44375, accuracy: 1e-6)
+        // barPixelsPerCm (new) = 8; disagreement = (4.45 - 8) / 8 = -0.44375
+        // (signed, Plan Z3 — the wheel measures SMALLER than the bar scale here).
+        XCTAssertEqual(result.wheelCheckDisagreementFraction ?? 1, -0.44375, accuracy: 1e-6)
 
         // Same value derived independently via the plain functions, as a
         // belt-and-braces check that the recompute really does reuse them.
@@ -695,7 +738,7 @@ final class AnalysisMathTests: XCTestCase {
             imageSize: CGSize(width: 1000, height: 1000), wheelDiameterMm: 800
         )
         let expected = AnalysisMath.rulerDisagreementFraction(barPixelsPerCm: 8, wheelPixelsPerCm: expectedWheelPpc)
-        XCTAssertEqual(result.wheelCheckDisagreementFraction ?? -1, expected, accuracy: 1e-9)
+        XCTAssertEqual(result.wheelCheckDisagreementFraction ?? 1, expected, accuracy: 1e-9)
     }
 
     func testRescaledMetricsWheelCheckNilWhenNewBikeHasNoWheelData() {

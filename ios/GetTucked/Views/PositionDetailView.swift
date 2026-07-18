@@ -502,6 +502,12 @@ private struct MetricsSection: View {
         metrics.wheelCheckDisagreementFraction.map(AnalysisMath.wheelCheckDisplay)
     }
 
+    /// The direction-aware warning sentence (Plan Z3) — nil when the check
+    /// passes or was never done.
+    private var wheelCheckWarning: String? {
+        metrics.wheelCheckDisagreementFraction.flatMap(AnalysisMath.wheelCheckWarning)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
@@ -545,8 +551,8 @@ private struct MetricsSection: View {
                         .foregroundStyle(Theme.Palette.amb)
                         .padding(.top, Theme.Space.xs)
                 }
-                if let wheelCheck, wheelCheck.isWarning {
-                    Text("Wheel check \(wheelCheck.text) — check your taps and the bike's bar width.")
+                if let wheelCheckWarning {
+                    Text(wheelCheckWarning)
                         .font(Theme.mono(11))
                         .foregroundStyle(Theme.Palette.amb)
                         .padding(.top, Theme.Space.xs)

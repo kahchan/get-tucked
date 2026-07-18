@@ -192,20 +192,48 @@ enum AnalysisMath {
 
     /// Relative disagreement between the two independent scale estimates,
     /// expressed against the bar ruler (the ruler that stays authoritative —
-    /// spec §3 forbids silent replacement).
+    /// spec §3 forbids silent replacement). SIGNED (Plan Z3): positive means
+    /// the wheel-tap ruler reads a *larger* scale than the bar ruler —
+    /// equivalently, converting the wheel's tapped pixel span through the
+    /// bar's scale yields a wheel diameter LARGER than its spec size (the
+    /// common close-shot case, where the front wheel sits forward of the
+    /// bar's own plane and reads oversized in perspective); negative means
+    /// smaller/undersized.
     static func rulerDisagreementFraction(barPixelsPerCm: Double, wheelPixelsPerCm: Double) -> Double {
-        abs(wheelPixelsPerCm - barPixelsPerCm) / barPixelsPerCm
+        (wheelPixelsPerCm - barPixelsPerCm) / barPixelsPerCm
     }
 
     /// Display copy for the wheel-check MetricRow — "agrees ±3%" or the
     /// amber "disagrees 18%" — shared by the reveal and detail screens so
     /// the two never drift (mirrors `shoulderWidthWarning`'s pattern).
+    /// `disagreementFraction` is signed (Plan Z3); the percentage always
+    /// displays unsigned.
     static func wheelCheckDisplay(_ disagreementFraction: Double) -> (text: String, isWarning: Bool) {
-        let pct = Int((disagreementFraction * 100).rounded())
-        if disagreementFraction <= wheelCheckDisagreementThreshold {
+        let pct = Int((abs(disagreementFraction) * 100).rounded())
+        if abs(disagreementFraction) <= wheelCheckDisagreementThreshold {
             return ("agrees ±\(pct)%", false)
         }
         return ("disagrees \(pct)%", true)
+    }
+
+    /// Direction-aware advisory sentence for a failing wheel check (Plan
+    /// Z3) — the one place this copy lives; PositionDetailView and
+    /// ComparisonView both call it rather than composing their own
+    /// sentence, so the two can never drift. nil when the check passes
+    /// (mirrors `shoulderWidthWarning`'s nil-is-pass shape). Oversized
+    /// (measured > spec, `disagreementFraction > 0`) is the common
+    /// close-shot case — the wheel sits forward of the bar's own plane, so
+    /// perspective alone explains the mismatch without any bad taps.
+    /// Undersized keeps a taps/bar-width framing — genuinely the likelier
+    /// cause in that direction (a wheel reading smaller than spec isn't
+    /// what "camera too close" produces).
+    static func wheelCheckWarning(_ disagreementFraction: Double) -> String? {
+        guard wheelCheckDisplay(disagreementFraction).isWarning else { return nil }
+        let pct = Int((abs(disagreementFraction) * 100).rounded())
+        if disagreementFraction > 0 {
+            return "Front wheel reads \(pct)% larger than its spec size — usually the camera was too close (the wheel sits forward of the bars). Area may read high; try standing back and zooming."
+        }
+        return "Front wheel reads \(pct)% smaller than its spec size — check your taps and the bike's bar width."
     }
 
     // MARK: - Noise floor

@@ -103,10 +103,10 @@ struct ComparisonView: View {
     // measurement-detail disclosure (ComparisonMeasurementDetail).
 
     private func wheelCheckAdvisory(_ metrics: PositionMetrics?, side: String) -> String? {
-        guard let fraction = metrics?.wheelCheckDisagreementFraction else { return nil }
-        let check = AnalysisMath.wheelCheckDisplay(fraction)
-        guard check.isWarning else { return nil }
-        return "\(side) — wheel check \(check.text)."
+        guard let fraction = metrics?.wheelCheckDisagreementFraction,
+              let warning = AnalysisMath.wheelCheckWarning(fraction)
+        else { return nil }
+        return "\(side) — \(warning)"
     }
 
     private func shoulderWidthAdvisory(_ metrics: PositionMetrics?, side: String) -> String? {

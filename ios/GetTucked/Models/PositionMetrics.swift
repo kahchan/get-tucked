@@ -20,9 +20,13 @@ final class PositionMetrics {
     var handlebarWidthMmUsed: Double?
 
     // Wheel-ruler verification (Plan K) — nil unless the optional wheel taps
-    // were completed. Stores the raw disagreement fraction, not a formatted
-    // string, so the agree/disagree copy recomputes at display time (same
-    // pattern as shoulderWidthWarning).
+    // were completed. SIGNED (Plan Z3): positive when the wheel-tap ruler
+    // reads a larger scale than the bar ruler (wheel measures larger than
+    // its spec diameter — usually a too-close shot), negative when
+    // smaller. Stores the raw fraction, not a formatted string, so the
+    // agree/disagree text and the oversized/undersized direction both
+    // recompute at display time (same pattern as shoulderWidthWarning) via
+    // AnalysisMath.wheelCheckDisplay / .wheelCheckWarning.
     var wheelCheckDisagreementFraction: Double?
 
     // Side-on pose (populated after Phase 2.5 side-on capture + analysis)
