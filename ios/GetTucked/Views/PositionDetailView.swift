@@ -297,7 +297,8 @@ struct PositionDetailView: View {
         return SkeletonOverlay.frontal(
             shoulders: shoulders,
             arms: position.metrics?.headOnArmPoints,
-            body: position.metrics?.headOnBodyPoints
+            hips: position.metrics?.headOnHipPoints,
+            knees: position.metrics?.headOnKneePoints
         )
     }
 

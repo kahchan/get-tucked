@@ -56,11 +56,17 @@ struct HeadOnPoseMetrics {
     /// nil unless all four clear the confidence floor, since a one-armed
     /// skeleton reads as broken (arms are symmetric-or-nothing).
     let armPoints: [CGPoint]?
-    /// Hip/knee landmarks — [leftHip, rightHip, leftKnee, rightKnee].
-    /// Presentational body-shape richness (Plan V), not a measurement input:
-    /// nil unless all four clear the confidence floor, all-or-nothing like
-    /// `armPoints`.
-    let bodyPoints: [CGPoint]?
+    /// Hip landmarks — [leftHip, rightHip]. Presentational body-shape
+    /// richness (Plan V/W4), not a measurement input: nil unless both clear
+    /// the confidence floor, all-or-nothing like `armPoints`. Independent of
+    /// `kneePoints` — a frontal shot with the knees occluded by bars/frame
+    /// must not also lose the torso (Plan W4: the old all-or-nothing
+    /// hips+knees gate meant one weak knee killed the torso too).
+    let hipPoints: [CGPoint]?
+    /// Knee landmarks — [leftKnee, rightKnee]. Only meaningful when
+    /// `hipPoints` is also present (upper legs can't attach to nothing);
+    /// nil unless both clear the confidence floor.
+    let kneePoints: [CGPoint]?
 }
 
 /// Pose metrics computable from the side-on photo (Phase 2.5).
@@ -338,12 +344,14 @@ struct AnalysisEngine {
             pixelsPerCm: pixelsPerCm
         )
 
+        let hips = hipPoints(from: observation)
         return HeadOnPoseMetrics(
             shoulderWidthCm: shoulderWidthCm,
             leftShoulder: leftShoulder.location,
             rightShoulder: rightShoulder.location,
             armPoints: armPoints(from: observation),
-            bodyPoints: bodyPoints(from: observation)
+            hipPoints: hips,
+            kneePoints: kneePoints(from: observation, hipsPresent: hips != nil)
         )
     }
 
@@ -362,10 +370,27 @@ struct AnalysisEngine {
         return points
     }
 
-    /// Never throws — mirrors `armPoints(from:)` exactly: body-shape
-    /// richness (Plan V), not a measurement input, all-or-nothing.
-    private static func bodyPoints(from observation: VNHumanBodyPoseObservation) -> [CGPoint]? {
-        let joints: [VNHumanBodyPoseObservation.JointName] = [.leftHip, .rightHip, .leftKnee, .rightKnee]
+    /// Never throws — body-shape richness (Plan V), not a measurement input,
+    /// all-or-nothing for the pair. Split from knees (Plan W4): a frontal
+    /// shot with bars/frame occluding the knees must still grow the torso.
+    private static func hipPoints(from observation: VNHumanBodyPoseObservation) -> [CGPoint]? {
+        let joints: [VNHumanBodyPoseObservation.JointName] = [.leftHip, .rightHip]
+        var points: [CGPoint] = []
+        for joint in joints {
+            guard let point = try? observation.recognizedPoint(joint), point.confidence > 0.5 else {
+                return nil
+            }
+            points.append(point.location)
+        }
+        return points
+    }
+
+    /// Never throws, same all-or-nothing pattern as `hipPoints(from:)` —
+    /// but only meaningful once hips are already present, since the upper
+    /// legs this feeds have nothing to attach to otherwise.
+    private static func kneePoints(from observation: VNHumanBodyPoseObservation, hipsPresent: Bool) -> [CGPoint]? {
+        guard hipsPresent else { return nil }
+        let joints: [VNHumanBodyPoseObservation.JointName] = [.leftKnee, .rightKnee]
         var points: [CGPoint] = []
         for joint in joints {
             guard let point = try? observation.recognizedPoint(joint), point.confidence > 0.5 else {

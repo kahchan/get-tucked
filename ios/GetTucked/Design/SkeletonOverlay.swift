@@ -204,19 +204,25 @@ struct SkeletonOverlay: View {
 extension SkeletonOverlay {
     /// Frontal: shoulder bar (`.measured`, always) plus both arm chains
     /// (`.context`) when `arms` is present — upper arms share window 1,
-    /// forearms window 2, so the two sides draw in parallel. `body`
-    /// (`.detail`) adds torso sides + pelvis bar to window 1 and upper legs
-    /// to window 2, sharing the arm windows deliberately — the cascade gets
+    /// forearms window 2, so the two sides draw in parallel. `hips`
+    /// (`.detail`) adds torso sides + pelvis bar to window 1; `knees`
+    /// (`.detail`) adds upper legs to window 2 but only when `hips` is also
+    /// present — upper legs can't attach to nothing (Plan W4: hips and knees
+    /// gate independently, unlike the old all-or-nothing `body`, so a
+    /// frontal shot with knees occluded by bars/frame still grows the
+    /// torso). Sharing the arm windows deliberately — the cascade gets
     /// denser, not longer (Plan V2); `windowCount` stays 3 either way.
     /// `shoulders` is `[leftShoulderX, leftShoulderY, rightShoulderX,
     /// rightShoulderY]`; `arms` is `[leftElbowX, leftElbowY, leftWristX,
     /// leftWristY, rightElbowX, rightElbowY, rightWristX, rightWristY]`
     /// (matching `PositionMetrics.headOnSkeletonPoints`/`headOnArmPoints`);
-    /// `body` is `[leftHipX, leftHipY, rightHipX, rightHipY, leftKneeX,
-    /// leftKneeY, rightKneeX, rightKneeY]` (matching `headOnBodyPoints`).
-    /// Returns nil on malformed counts — no partial skeletons; a nil `arms`
-    /// or `body` simply omits that tier.
-    static func frontal(shoulders: [Double], arms: [Double]?, body: [Double]? = nil) -> SkeletonOverlay? {
+    /// `hips` is `[leftHipX, leftHipY, rightHipX, rightHipY]` (matching
+    /// `headOnHipPoints`); `knees` is `[leftKneeX, leftKneeY, rightKneeX,
+    /// rightKneeY]` (matching `headOnKneePoints`). Returns nil on malformed
+    /// counts — no partial skeletons; a nil `arms` or `hips` simply omits
+    /// that tier, and `knees` is silently ignored (not validated) when
+    /// `hips` is nil.
+    static func frontal(shoulders: [Double], arms: [Double]?, hips: [Double]? = nil, knees: [Double]? = nil) -> SkeletonOverlay? {
         guard let shoulderPoints = points(from: shoulders), shoulderPoints.count == 2 else { return nil }
 
         var joints = shoulderPoints
@@ -234,22 +240,29 @@ extension SkeletonOverlay {
             ])
         }
 
-        if let body {
-            guard let bodyPoints = points(from: body), bodyPoints.count == 4 else { return nil }
+        if let hips {
+            guard let hipPoints = points(from: hips), hipPoints.count == 2 else { return nil }
             // Indices shift depending on whether arms were appended — compute
             // from joints.count rather than hardcoding.
             let leftHip = joints.count
             let rightHip = joints.count + 1
-            let leftKnee = joints.count + 2
-            let rightKnee = joints.count + 3
-            joints.append(contentsOf: bodyPoints)
+            joints.append(contentsOf: hipPoints)
             bones.append(contentsOf: [
                 Bone(from: 0, to: leftHip, tier: .detail, window: 1), // left torso side
                 Bone(from: 1, to: rightHip, tier: .detail, window: 1), // right torso side
                 Bone(from: leftHip, to: rightHip, tier: .detail, window: 1), // pelvis bar
-                Bone(from: leftHip, to: leftKnee, tier: .detail, window: 2), // left upper leg
-                Bone(from: rightHip, to: rightKnee, tier: .detail, window: 2), // right upper leg
             ])
+
+            if let knees {
+                guard let kneePoints = points(from: knees), kneePoints.count == 2 else { return nil }
+                let leftKnee = joints.count
+                let rightKnee = joints.count + 1
+                joints.append(contentsOf: kneePoints)
+                bones.append(contentsOf: [
+                    Bone(from: leftHip, to: leftKnee, tier: .detail, window: 2), // left upper leg
+                    Bone(from: rightHip, to: rightKnee, tier: .detail, window: 2), // right upper leg
+                ])
+            }
         }
 
         return SkeletonOverlay(joints: joints, bones: bones)
@@ -335,7 +348,8 @@ private struct SkeletonRevealModifier: ViewModifier {
             guard var overlay = SkeletonOverlay.frontal(
                 shoulders: [0.35, 0.65, 0.65, 0.65],
                 arms: [0.28, 0.45, 0.22, 0.25, 0.72, 0.45, 0.78, 0.25],
-                body: [0.38, 0.4, 0.62, 0.4, 0.3, 0.15, 0.7, 0.15]
+                hips: [0.38, 0.4, 0.62, 0.4],
+                knees: [0.3, 0.15, 0.7, 0.15]
             ) else { return nil }
             overlay.progress = progress
             return overlay

@@ -401,7 +401,8 @@ struct CaptureView: View {
                 SkeletonOverlay.frontal(
                     shoulders: $0,
                     arms: reference.metrics?.headOnArmPoints,
-                    body: reference.metrics?.headOnBodyPoints
+                    hips: reference.metrics?.headOnHipPoints,
+                    knees: reference.metrics?.headOnKneePoints
                 )
             }
         let sideOnMaskData = reference.sideOnMaskData
@@ -547,8 +548,11 @@ struct CaptureView: View {
             if let arms = headOnPose.armPoints {
                 metrics.headOnArmPoints = arms.flatMap { [$0.x, $0.y] }
             }
-            if let body = headOnPose.bodyPoints {
-                metrics.headOnBodyPoints = body.flatMap { [$0.x, $0.y] }
+            if let hips = headOnPose.hipPoints {
+                metrics.headOnHipPoints = hips.flatMap { [$0.x, $0.y] }
+            }
+            if let knees = headOnPose.kneePoints {
+                metrics.headOnKneePoints = knees.flatMap { [$0.x, $0.y] }
             }
         }
         if let pose = pendingSideOnPose {
@@ -960,14 +964,16 @@ private struct RevealStep: View {
     private var frontalSkeletonOverlay: SkeletonOverlay? {
         guard let headOnPose = result.headOnPose else { return nil }
         let arms = headOnPose.armPoints.map { $0.flatMap { [Double($0.x), Double($0.y)] } }
-        let body = headOnPose.bodyPoints.map { $0.flatMap { [Double($0.x), Double($0.y)] } }
+        let hips = headOnPose.hipPoints.map { $0.flatMap { [Double($0.x), Double($0.y)] } }
+        let knees = headOnPose.kneePoints.map { $0.flatMap { [Double($0.x), Double($0.y)] } }
         guard var overlay = SkeletonOverlay.frontal(
             shoulders: [
                 headOnPose.leftShoulder.x, headOnPose.leftShoulder.y,
                 headOnPose.rightShoulder.x, headOnPose.rightShoulder.y,
             ],
             arms: arms,
-            body: body
+            hips: hips,
+            knees: knees
         ) else { return nil }
         overlay.progress = skeletonProgress
         return overlay

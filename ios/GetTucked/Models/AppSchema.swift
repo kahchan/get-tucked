@@ -10,8 +10,8 @@ enum AppSchema {
 }
 
 enum AppMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self] }
-    static var stages: [MigrationStage] { [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self] }
+    static var stages: [MigrationStage] { [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7] }
 
     // All V2 additions are optional properties, so SwiftData can infer the
     // mapping without a custom stage.
@@ -30,6 +30,14 @@ enum AppMigrationPlan: SchemaMigrationPlan {
     // Same reasoning again: the V6 additions (headOnBodyPoints,
     // sideOnArmPoints, sideOnAnklePoint) are optional.
     static let migrateV5toV6 = MigrationStage.lightweight(fromVersion: SchemaV5.self, toVersion: SchemaV6.self)
+
+    // Plan W: headOnBodyPoints (dropped, replaced by headOnHipPoints /
+    // headOnKneePoints — W4) and Position.subjectMaskData (added — W2) land
+    // together under one SchemaV7 bump rather than two separate versions
+    // (Kah's call: they ship in the same push). A dropped optional column
+    // plus new optional additions both qualify for a lightweight stage —
+    // no data to hand-migrate either way.
+    static let migrateV6toV7 = MigrationStage.lightweight(fromVersion: SchemaV6.self, toVersion: SchemaV7.self)
 }
 
 // The pre-Plan-O shape, frozen here as the migration's "before" snapshot —
@@ -533,10 +541,117 @@ extension SchemaV5 {
     }
 }
 
-// The current shape (Plan V: tertiary bone tier joints) — the live
-// top-level classes, which the rest of the app builds against directly.
+// The pre-Plan-W shape (Plan V: tertiary bone tier joints), frozen here as
+// the V6→V7 migration's "before" snapshot — same reasoning as SchemaV1-V5
+// above.
 enum SchemaV6: VersionedSchema {
     static var versionIdentifier = Schema.Version(6, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [SchemaV6.Bike.self, SchemaV6.Position.self, SchemaV6.PositionMetrics.self]
+    }
+}
+
+extension SchemaV6 {
+    @Model
+    final class Bike {
+        var id: UUID
+        var nickname: String
+        var handlebarWidthMm: Double
+        var bikeType: BikeType
+        var barType: BarType?
+        var rimStandard: RimStandard?
+        var tireWidthMm: Double?
+        var wheelbaseMm: Double?
+        var notes: String?
+        var createdAt: Date
+
+        @Relationship(deleteRule: .cascade, inverse: \Position.bike)
+        var positions: [Position]
+
+        init(nickname: String, handlebarWidthMm: Double, bikeType: BikeType = .road) {
+            self.id = UUID()
+            self.nickname = nickname
+            self.handlebarWidthMm = handlebarWidthMm
+            self.bikeType = bikeType
+            self.createdAt = Date()
+            self.positions = []
+        }
+    }
+
+    @Model
+    final class Position {
+        var id: UUID
+        var capturedAt: Date
+        var label: String
+        var packingList: String?
+        var bike: Bike?
+        var photosData: Data?
+        var maskData: Data?
+        var sideOnMaskData: Data?
+        var headOnPhotoIdentifier: String?
+        var sideOnPhotoIdentifier: String?
+        var sideOnPhotoData: Data?
+        var handlebarTapPoints: [Double]?
+        var sideOnTapPoints: [Double]?
+        var wheelTapPoints: [Double]?
+
+        @Relationship(deleteRule: .cascade)
+        var metrics: PositionMetrics?
+
+        var isBaseline: Bool
+
+        init(label: String, bike: Bike?) {
+            self.id = UUID()
+            self.capturedAt = Date()
+            self.label = label
+            self.bike = bike
+            self.isBaseline = false
+        }
+    }
+
+    @Model
+    final class PositionMetrics {
+        var frontalAreaCm2: Double
+        var frontalAreaUncertainty: Double
+        var pixelsPerCm: Double
+        var foregroundPixelCount: Int
+        var computedAt: Date
+        var pipelineVersion: String
+        var shoulderWidthCm: Double?
+        var handlebarWidthMmUsed: Double?
+        var wheelCheckDisagreementFraction: Double?
+        var torsoAngleDeg: Double?
+        var hipAngleDeg: Double?
+        var headDropCm: Double?
+        var headOnSkeletonPoints: [Double]?
+        var headOnArmPoints: [Double]?
+        var sideOnSkeletonPoints: [Double]?
+        var sideOnPixelsPerCm: Double?
+        var headOnBodyPoints: [Double]?
+        var sideOnArmPoints: [Double]?
+        var sideOnAnklePoint: [Double]?
+
+        init(
+            frontalAreaCm2: Double,
+            frontalAreaUncertainty: Double,
+            pixelsPerCm: Double,
+            foregroundPixelCount: Int
+        ) {
+            self.frontalAreaCm2 = frontalAreaCm2
+            self.frontalAreaUncertainty = frontalAreaUncertainty
+            self.pixelsPerCm = pixelsPerCm
+            self.foregroundPixelCount = foregroundPixelCount
+            self.computedAt = Date()
+            self.pipelineVersion = "2.0"
+        }
+    }
+}
+
+// The current shape (Plan W: independent hip/knee bone gating, subject-mask
+// two-tone matte) — the live top-level classes, which the rest of the app
+// builds against directly.
+enum SchemaV7: VersionedSchema {
+    static var versionIdentifier = Schema.Version(7, 0, 0)
     static var models: [any PersistentModel.Type] {
         AppSchema.models
     }

@@ -55,9 +55,14 @@ final class PositionMetrics {
     // measurement input; same flattened Vision-normalised convention as the
     // fields above. Nil degrades gracefully, same as nil arms today.
     //
-    // headOnBodyPoints: [leftHipX, leftHipY, rightHipX, rightHipY,
-    //                    leftKneeX, leftKneeY, rightKneeX, rightKneeY]
-    var headOnBodyPoints: [Double]?
+    // Split into independent hip/knee fields (Plan W4, SchemaV7) — the old
+    // combined headOnBodyPoints required all four joints, so one knee
+    // occluded by bars/frame on a frontal shot killed the torso too.
+    // headOnHipPoints: [leftHipX, leftHipY, rightHipX, rightHipY]
+    var headOnHipPoints: [Double]?
+    // headOnKneePoints: [leftKneeX, leftKneeY, rightKneeX, rightKneeY] —
+    // only meaningful when headOnHipPoints is also present.
+    var headOnKneePoints: [Double]?
     // sideOnArmPoints: [elbowX, elbowY, wristX, wristY] — same detected side
     // as sideOnSkeletonPoints
     var sideOnArmPoints: [Double]?
