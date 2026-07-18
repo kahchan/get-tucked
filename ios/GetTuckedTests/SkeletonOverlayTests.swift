@@ -138,6 +138,44 @@ final class SkeletonOverlayTests: XCTestCase {
         XCTAssertNil(SkeletonOverlay.frontal(shoulders: [0.35, 0.65, 0.65, 0.65], arms: [0.1, 0.2, 0.3]))
     }
 
+    // MARK: - SkeletonOverlay.frontal: body (Plan V2)
+
+    func testFrontalWithBodyAddsTorsoAndUpperLegsDenserNotLonger() {
+        let arms: [Double] = [0.28, 0.45, 0.22, 0.25, 0.72, 0.45, 0.78, 0.25]
+        let body: [Double] = [0.38, 0.4, 0.62, 0.4, 0.3, 0.15, 0.7, 0.15]
+        guard let armsOnly = SkeletonOverlay.frontal(shoulders: [0.35, 0.65, 0.65, 0.65], arms: arms) else {
+            return XCTFail("expected a non-nil overlay")
+        }
+        guard let overlay = SkeletonOverlay.frontal(shoulders: [0.35, 0.65, 0.65, 0.65], arms: arms, body: body) else {
+            return XCTFail("expected a non-nil overlay")
+        }
+        XCTAssertEqual(overlay.joints.count, 10) // 2 shoulders + 4 arm joints + 4 body joints
+        let detailBones = overlay.bones.filter { $0.tier == .detail }
+        XCTAssertEqual(detailBones.count, 5) // 2 torso sides + pelvis bar + 2 upper legs
+        XCTAssertEqual(Set(detailBones.map(\.window)), [1, 2], "detail bones share the arm windows, no new windows")
+        XCTAssertEqual((overlay.bones.map(\.window).max() ?? 0) + 1, 3, "windowCount stays 3")
+        // "Denser not longer" (Plan V2): sharing windows must not change the
+        // cascade's total duration.
+        XCTAssertEqual(overlay.totalDrawDuration, armsOnly.totalDrawDuration, accuracy: acc)
+    }
+
+    func testFrontalWithMalformedBodyReturnsNil() {
+        XCTAssertNil(SkeletonOverlay.frontal(shoulders: [0.35, 0.65, 0.65, 0.65], arms: nil, body: [0.1, 0.2, 0.3]))
+    }
+
+    func testFrontalWithBodyButNoArmsShiftsJointIndices() {
+        let body: [Double] = [0.38, 0.4, 0.62, 0.4, 0.3, 0.15, 0.7, 0.15]
+        guard let overlay = SkeletonOverlay.frontal(shoulders: [0.35, 0.65, 0.65, 0.65], arms: nil, body: body) else {
+            return XCTFail("expected a non-nil overlay")
+        }
+        XCTAssertEqual(overlay.joints.count, 6) // 2 shoulders + 4 body joints (no arms)
+        // Body indices should shift down to 2-5 (hip/knee joints right after
+        // the shoulders) rather than assuming arm joints were appended.
+        XCTAssertEqual(overlay.joints[2], CGPoint(x: 0.38, y: 0.4))
+        let torsoSideBone = overlay.bones.first { $0.tier == .detail && $0.from == 0 }
+        XCTAssertEqual(torsoSideBone?.to, 2)
+    }
+
     // MARK: - SkeletonOverlay.sideOn
 
     func testSideOnMalformedCountReturnsNil() {
@@ -152,5 +190,56 @@ final class SkeletonOverlayTests: XCTestCase {
         XCTAssertEqual(overlay.bones.count, 3)
         XCTAssertTrue(overlay.bones.allSatisfy { $0.tier == .measured })
         XCTAssertEqual(Set(overlay.bones.map(\.window)), [0, 1, 2], "side-on bones draw one at a time, no parallel windows")
+    }
+
+    // MARK: - SkeletonOverlay.sideOn: arm + ankle (Plan V3)
+
+    func testSideOnWithArmAndAnkleAddsContextAndDetailBonesDenserNotLonger() {
+        let points: [Double] = [0.55, 0.55, 0.5, 0.35, 0.45, 0.15, 0.58, 0.62]
+        guard let baseline = SkeletonOverlay.sideOn(points: points) else {
+            return XCTFail("expected a non-nil overlay")
+        }
+        guard let overlay = SkeletonOverlay.sideOn(points: points, arm: [0.62, 0.42, 0.68, 0.35], ankle: [0.43, 0.03]) else {
+            return XCTFail("expected a non-nil overlay")
+        }
+        XCTAssertEqual(overlay.joints.count, 7) // 4 base + 2 arm + 1 ankle
+        let armBones = overlay.bones.filter { $0.tier == .context }
+        XCTAssertEqual(armBones.count, 2)
+        XCTAssertEqual(Set(armBones.map(\.window)), [1, 2])
+        let shankBone = overlay.bones.first { $0.tier == .detail }
+        XCTAssertNotNil(shankBone)
+        XCTAssertEqual(shankBone?.window, 2)
+        XCTAssertEqual(shankBone?.from, 2, "shank grows from the knee joint")
+        XCTAssertEqual((overlay.bones.map(\.window).max() ?? 0) + 1, 3, "windowCount stays 3")
+        XCTAssertEqual(overlay.totalDrawDuration, baseline.totalDrawDuration, accuracy: acc)
+    }
+
+    func testSideOnWithOnlyAnkleAddsShankWithNoArmBones() {
+        let points: [Double] = [0.55, 0.55, 0.5, 0.35, 0.45, 0.15, 0.58, 0.62]
+        guard let overlay = SkeletonOverlay.sideOn(points: points, ankle: [0.43, 0.03]) else {
+            return XCTFail("expected a non-nil overlay")
+        }
+        XCTAssertEqual(overlay.joints.count, 5) // 4 base + 1 ankle, no arm joints
+        XCTAssertTrue(overlay.bones.filter { $0.tier == .context }.isEmpty)
+        let shankBone = overlay.bones.first { $0.tier == .detail }
+        XCTAssertEqual(shankBone?.from, 2)
+        XCTAssertEqual(shankBone?.to, 4, "ankle joint appended right after the base 4 joints")
+    }
+
+    func testSideOnMalformedArmOrAnkleReturnsNil() {
+        let points: [Double] = [0.55, 0.55, 0.5, 0.35, 0.45, 0.15, 0.58, 0.62]
+        XCTAssertNil(SkeletonOverlay.sideOn(points: points, arm: [0.1, 0.2, 0.3]))
+        XCTAssertNil(SkeletonOverlay.sideOn(points: points, ankle: [0.1, 0.2, 0.3]))
+    }
+
+    // MARK: - Tier rendering constants (Plan V1)
+
+    func testDetailTierRenderingConstants() {
+        XCTAssertEqual(SkeletonOverlay.Tier.detail.lineWidth, 1)
+        XCTAssertEqual(SkeletonOverlay.Tier.detail.jointSize, 6)
+        XCTAssertEqual(SkeletonOverlay.Tier.measured.lineWidth, 2)
+        XCTAssertEqual(SkeletonOverlay.Tier.context.lineWidth, 2)
+        XCTAssertEqual(SkeletonOverlay.Tier.measured.jointSize, 8)
+        XCTAssertEqual(SkeletonOverlay.Tier.context.jointSize, 8)
     }
 }
