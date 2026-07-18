@@ -255,7 +255,7 @@ struct CaptureView: View {
                     .transition(.opacity)
             case .reveal:
                 if let result = pendingResult, let photo = selectedImage {
-                    RevealStep(result: result, photo: photo, maskOverlay: revealMaskOverlay, sideOnPose: pendingSideOnPose, hasSideOnRuler: sideOnPixelsPerCmValue != nil, barWidthMm: selectedBike?.handlebarWidthMm, path: $path, onContinue: {
+                    RevealStep(result: result, photo: photo, maskOverlay: revealMaskOverlay, sideOnPose: pendingSideOnPose, hasSideOnRuler: sideOnPixelsPerCmValue != nil, barWidthMm: selectedBike?.handlebarWidthMm, barTapPoints: tapPoints, wheelTapPoints: wheelTapPoints, wheelDiameterMm: selectedBike?.wheelDiameterMm, path: $path, onContinue: {
                         step = .namePosition
                     }, onRetake: {
                         resetForNewCapture()
@@ -750,6 +750,13 @@ private struct RevealStep: View {
     // defensible enough to show (spec §3).
     let hasSideOnRuler: Bool
     let barWidthMm: Double?
+    // The measured hard points, drawn (Plan X) — the same live tap state
+    // CaptureView collected during calibration, in unit coords. wheelTapPoints
+    // is empty unless the optional wheel check was done; wheelDiameterMm
+    // mirrors barWidthMm's role for that dimension.
+    let barTapPoints: [CGPoint]
+    let wheelTapPoints: [CGPoint]
+    let wheelDiameterMm: Double?
     @Binding var path: [AppScreen]
     let onContinue: () -> Void
     let onRetake: () -> Void
@@ -772,6 +779,11 @@ private struct RevealStep: View {
     // once the sweep completes and finishes well before the number roll.
     @State private var skeletonProgress: Double = 0
     @State private var skeletonVisible = false
+    // Dimension draw-on (Plan X3) — one quiet tertiary beat that starts once
+    // the skeleton's own draw-in completes, so the box reads as caused by
+    // it rather than competing with it.
+    @State private var dimensionProgress: Double = 0
+    @State private var dimensionsVisible = false
 
     init(
         result: AnalysisResult,
@@ -780,6 +792,9 @@ private struct RevealStep: View {
         sideOnPose: SideOnPoseMetrics?,
         hasSideOnRuler: Bool,
         barWidthMm: Double?,
+        barTapPoints: [CGPoint],
+        wheelTapPoints: [CGPoint],
+        wheelDiameterMm: Double?,
         path: Binding<[AppScreen]>,
         onContinue: @escaping () -> Void,
         onRetake: @escaping () -> Void
@@ -790,6 +805,9 @@ private struct RevealStep: View {
         self.sideOnPose = sideOnPose
         self.hasSideOnRuler = hasSideOnRuler
         self.barWidthMm = barWidthMm
+        self.barTapPoints = barTapPoints
+        self.wheelTapPoints = wheelTapPoints
+        self.wheelDiameterMm = wheelDiameterMm
         self._path = path
         self.onContinue = onContinue
         self.onRetake = onRetake
@@ -824,6 +842,11 @@ private struct RevealStep: View {
                                     frontalSkeletonOverlay
                                         .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
                                         .skeletonReveal(visible: skeletonVisible)
+                                }
+                                if revealSegment == .bones, !frontalDimensions.isEmpty {
+                                    DimensionOverlay(dimensions: frontalDimensions, progress: dimensionProgress)
+                                        .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
+                                        .skeletonReveal(visible: dimensionsVisible)
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -1001,15 +1024,29 @@ private struct RevealStep: View {
         return overlay
     }
 
+    /// Bar width always (when calibrated); wheel diameter only when the
+    /// optional wheel check was done — each degrades independently via
+    /// `DimensionOverlay.dimension(points:mm:)`. No side-on dimension here:
+    /// RevealStep never renders a side-on photo, so wheelbase stays
+    /// detail-only (Plan X3).
+    private var frontalDimensions: [DimensionOverlay.Dimension] {
+        [
+            DimensionOverlay.dimension(points: barTapPoints, mm: barWidthMm),
+            DimensionOverlay.dimension(points: wheelTapPoints, mm: wheelDiameterMm),
+        ].compactMap { $0 }
+    }
+
     private func beginCeremony() {
         guard !hasStartedCeremony else { return }
         hasStartedCeremony = true
         skeletonVisible = true
+        dimensionsVisible = true
 
         if reduceMotion {
             sweepProgress = 1
             sweepStarted = true
             skeletonProgress = 1
+            dimensionProgress = 1
             withAnimation(Theme.Motion.entrance()) {
                 labelVisible = true
                 uncertaintyVisible = true
@@ -1056,9 +1093,27 @@ private struct RevealStep: View {
     /// finishes well before the 0.8s number roll it runs alongside — it must
     /// never delay or upstage the roll, which stays the one wow moment.
     private func startSkeletonDrawOn() {
-        guard !reduceMotion, let frontalSkeletonOverlay else { return }
+        guard !reduceMotion, let frontalSkeletonOverlay else {
+            startDimensionDrawOn()
+            return
+        }
         withAnimation(Theme.Motion.travel(frontalSkeletonOverlay.totalDrawDuration)) {
             skeletonProgress = 1
+        } completion: {
+            startDimensionDrawOn()
+        }
+    }
+
+    /// The tertiary beat (Plan X3): starts only once the skeleton's own
+    /// draw-in has fully completed, so the dimensions read as a quieter
+    /// layer on top of it rather than competing for attention.
+    private func startDimensionDrawOn() {
+        guard !reduceMotion, !frontalDimensions.isEmpty else {
+            dimensionProgress = 1
+            return
+        }
+        withAnimation(Theme.Motion.travel(Theme.Motion.base)) {
+            dimensionProgress = 1
         }
     }
 
@@ -1069,6 +1124,8 @@ private struct RevealStep: View {
         sweepProgress = 1
         skeletonProgress = 1
         skeletonVisible = true
+        dimensionProgress = 1
+        dimensionsVisible = true
         labelVisible = true
         uncertaintyVisible = true
         rowsVisible = true
