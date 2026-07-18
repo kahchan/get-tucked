@@ -1388,8 +1388,14 @@ private struct TapCalibrationStep: View {
     private let maxZoom: CGFloat = 8
     // Movement past this (points) reclassifies a placement as a pan — matches
     // the pan gesture's `minimumDistance` so tap-to-place and drag-to-pan share
-    // one boundary (skill §10 cancel-by-dragging-away).
-    private let panThreshold: CGFloat = 10
+    // one boundary (skill §10 cancel-by-dragging-away). Raised from 10 to 30
+    // (Plan W5) so a pinch's incidental centroid drift (`DragGesture` picks
+    // this up too, since pan and pinch run `.simultaneously`) mostly stays
+    // under it and never registers as a deliberate pan, while a real
+    // two-finger pan — which moves much further — still does. The
+    // `clampedPanOffset` commit in `backgroundGesture` is the hard guarantee
+    // against drift either way.
+    private let panThreshold: CGFloat = 30
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1403,12 +1409,19 @@ private struct TapCalibrationStep: View {
                 // §2.1 fix: compute the actual displayed image rect (aspect-fit)
                 // so taps are measured against the image, not the letterbox container.
                 let imageRect = CalibrationTransform.aspectFitRect(imageSize: image.size, in: proxy.size)
+                // Clamp the live composition too (Plan W5), not just the
+                // committed value at gesture end — otherwise a pinch mid-flight
+                // can transiently show a gap even though it snaps back on release.
+                let liveZoom = zoomScale * pinchDelta
+                let livePan = CalibrationTransform.clampedPanOffset(
+                    CGSize(width: panOffset.width + panDelta.width, height: panOffset.height + panDelta.height),
+                    zoomScale: liveZoom, imageRect: imageRect, containerSize: proxy.size
+                )
                 let viewport = CalibrationTransform.Viewport(
                     containerSize: proxy.size,
                     imageRect: imageRect,
-                    zoomScale: zoomScale * pinchDelta,
-                    panOffset: CGSize(width: panOffset.width + panDelta.width,
-                                       height: panOffset.height + panDelta.height)
+                    zoomScale: liveZoom,
+                    panOffset: livePan
                 )
                 ZStack {
                     // Visual-only layer: the scale/offset here is a rendering
@@ -1683,20 +1696,32 @@ private struct TapCalibrationStep: View {
             }
     }
 
-    /// Pinch-to-zoom + pan on the image itself. A small `minimumDistance` on
-    /// the pan drag lets a plain tap (placing a point via `placementGesture`)
-    /// stay below the pan threshold and commit as a placement.
+    /// Pinch-to-zoom + pan on the image itself. `panThreshold` as the pan
+    /// drag's `minimumDistance` lets a plain tap (placing a point via
+    /// `placementGesture`) stay below it and commit as a placement — see
+    /// that constant's doc for why it was raised from 10 (Plan W5). The
+    /// `clampedPanOffset` commit below is the hard guarantee against drift
+    /// either way.
     private func backgroundGesture(viewport: CalibrationTransform.Viewport) -> some Gesture {
         let magnify = MagnificationGesture()
             .updating($pinchDelta) { value, state, _ in state = value }
             .onEnded { value in
-                zoomScale = min(maxZoom, max(minZoom, zoomScale * value))
+                let newZoom = min(maxZoom, max(minZoom, zoomScale * value))
+                zoomScale = newZoom
+                panOffset = CalibrationTransform.clampedPanOffset(
+                    panOffset, zoomScale: newZoom, imageRect: viewport.imageRect, containerSize: viewport.containerSize
+                )
             }
-        let pan = DragGesture(minimumDistance: 10)
+        let pan = DragGesture(minimumDistance: panThreshold)
             .updating($panDelta) { value, state, _ in state = value.translation }
             .onEnded { value in
-                panOffset.width += value.translation.width
-                panOffset.height += value.translation.height
+                let newOffset = CGSize(
+                    width: panOffset.width + value.translation.width,
+                    height: panOffset.height + value.translation.height
+                )
+                panOffset = CalibrationTransform.clampedPanOffset(
+                    newOffset, zoomScale: zoomScale, imageRect: viewport.imageRect, containerSize: viewport.containerSize
+                )
             }
         return magnify.simultaneously(with: pan)
     }

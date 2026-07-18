@@ -66,4 +66,40 @@ enum CalibrationTransform {
             return CGRect(x: (container.width - w) / 2, y: 0, width: w, height: container.height)
         }
     }
+
+    /// Clamps `panOffset` so the zoomed image can never expose a letterbox
+    /// gap it didn't already have at 1x (Plan W5): a physical two-finger
+    /// pinch always carries some incidental centroid translation, which
+    /// `DragGesture` picks up and deposits into `panOffset` — with nothing
+    /// clamping it, repeated zoom/adjust cycles accumulate visible drift.
+    /// Per axis: if the zoomed image is at least as large as the container,
+    /// bound the offset so neither edge retreats past the container's edge;
+    /// if it's still smaller than the container in that axis (e.g. the
+    /// letterboxed axis at zoomScale close to 1x), no pan can close that gap
+    /// — pin to zero (centred), which is also exactly what this reduces to
+    /// at zoomScale == 1 on the fitted axis.
+    static func clampedPanOffset(
+        _ panOffset: CGSize, zoomScale: CGFloat, imageRect: CGRect, containerSize: CGSize
+    ) -> CGSize {
+        func clampedAxis(pan: CGFloat, imageMin: CGFloat, imageLength: CGFloat, anchor: CGFloat, containerLength: CGFloat) -> CGFloat {
+            let scaledMin = anchor + (imageMin - anchor) * zoomScale
+            let scaledLength = imageLength * zoomScale
+            guard scaledLength >= containerLength else { return 0 }
+            let maxPan = -scaledMin
+            let minPan = containerLength - scaledMin - scaledLength
+            return min(maxPan, max(minPan, pan))
+        }
+
+        let anchor = CGPoint(x: containerSize.width / 2, y: containerSize.height / 2)
+        return CGSize(
+            width: clampedAxis(
+                pan: panOffset.width, imageMin: imageRect.minX, imageLength: imageRect.width,
+                anchor: anchor.x, containerLength: containerSize.width
+            ),
+            height: clampedAxis(
+                pan: panOffset.height, imageMin: imageRect.minY, imageLength: imageRect.height,
+                anchor: anchor.y, containerLength: containerSize.height
+            )
+        )
+    }
 }

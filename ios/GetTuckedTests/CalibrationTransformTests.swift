@@ -69,4 +69,73 @@ final class CalibrationTransformTests: XCTestCase {
         XCTAssertEqual(screen.x, viewport.containerSize.width / 2, accuracy: acc)
         XCTAssertEqual(screen.y, viewport.containerSize.height / 2, accuracy: acc)
     }
+
+    // MARK: - clampedPanOffset (Plan W5)
+
+    private let containerSize = CGSize(width: 400, height: 800)
+    private var imageRect: CGRect {
+        // Same fixture as makeViewport: 1200x1600 image in a 400x800
+        // container — fits full width, letterboxed top/bottom.
+        CalibrationTransform.aspectFitRect(imageSize: CGSize(width: 1200, height: 1600), in: containerSize)
+    }
+
+    func testClampedPanOffsetAt1xPinsToZeroEvenWithNonZeroInput() {
+        let clamped = CalibrationTransform.clampedPanOffset(
+            CGSize(width: 40, height: -25), zoomScale: 1, imageRect: imageRect, containerSize: containerSize
+        )
+        XCTAssertEqual(clamped, .zero)
+    }
+
+    func testClampedPanOffsetZeroInputStaysZeroAtAnyZoom() {
+        let clamped = CalibrationTransform.clampedPanOffset(
+            .zero, zoomScale: 4, imageRect: imageRect, containerSize: containerSize
+        )
+        XCTAssertEqual(clamped, .zero)
+    }
+
+    func testClampedPanOffsetWithinBoundsPassesThroughUnchanged() {
+        // At 2x zoom the fitted (width) axis's scaled length is 800 vs a
+        // 400-wide container, so up to ±200 of pan on that axis keeps the
+        // image covering the container.
+        let small = CGSize(width: 50, height: 10)
+        let clamped = CalibrationTransform.clampedPanOffset(
+            small, zoomScale: 2, imageRect: imageRect, containerSize: containerSize
+        )
+        XCTAssertEqual(clamped.width, small.width, accuracy: acc)
+    }
+
+    func testClampedPanOffsetZoomedInImageCannotExposeAGap() {
+        // A huge requested pan on a zoomed-in image must be pulled back to
+        // the bound where the image edge still lines up with the container
+        // edge — never further, which would open a letterbox gap that
+        // didn't exist at 1x.
+        let huge = CGSize(width: 10_000, height: 10_000)
+        let clamped = CalibrationTransform.clampedPanOffset(
+            huge, zoomScale: 3, imageRect: imageRect, containerSize: containerSize
+        )
+        let viewport = CalibrationTransform.Viewport(
+            containerSize: containerSize, imageRect: imageRect, zoomScale: 3, panOffset: clamped
+        )
+        // The image's scaled top-left corner (unit 0,1 in Vision terms is
+        // screen-space top-left here) must not sit to the right of/below the
+        // container origin, and its bottom-right must not sit inside the
+        // container — i.e. the scaled+panned rect still covers [0,container].
+        let scaledMinX = viewport.anchor.x + (imageRect.minX - viewport.anchor.x) * 3 + clamped.width
+        let scaledMinY = viewport.anchor.y + (imageRect.minY - viewport.anchor.y) * 3 + clamped.height
+        XCTAssertLessThanOrEqual(scaledMinX, 0 + acc)
+        XCTAssertLessThanOrEqual(scaledMinY, 0 + acc)
+        let scaledMaxX = scaledMinX + imageRect.width * 3
+        let scaledMaxY = scaledMinY + imageRect.height * 3
+        XCTAssertGreaterThanOrEqual(scaledMaxX, containerSize.width - acc)
+        XCTAssertGreaterThanOrEqual(scaledMaxY, containerSize.height - acc)
+    }
+
+    func testClampedPanOffsetNegativeHugeAlsoBounded() {
+        let huge = CGSize(width: -10_000, height: -10_000)
+        let clamped = CalibrationTransform.clampedPanOffset(
+            huge, zoomScale: 3, imageRect: imageRect, containerSize: containerSize
+        )
+        XCTAssertGreaterThan(clamped.width, -10_000)
+        XCTAssertGreaterThan(clamped.height, -10_000)
+    }
 }
