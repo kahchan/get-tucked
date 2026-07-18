@@ -122,8 +122,8 @@ struct PositionDetailView: View {
                                     .aspectRatio(sideOnAspectRatio, contentMode: .fit)
                                     .skeletonReveal(visible: sideOnPhotoSegment == .bones)
                             }
-                            if showingSideOn, !sideOnDimensions.isEmpty {
-                                DimensionOverlay(dimensions: sideOnDimensions)
+                            if showingSideOn, !sideOnDimensions.isEmpty || !sideOnSpannedDimensions.isEmpty {
+                                DimensionOverlay(dimensions: sideOnDimensions, spannedDimensions: sideOnSpannedDimensions)
                                     .aspectRatio(sideOnAspectRatio, contentMode: .fit)
                                     .skeletonReveal(visible: sideOnPhotoSegment == .bones)
                             }
@@ -364,6 +364,40 @@ struct PositionDetailView: View {
     /// record.
     private var sideOnDimensions: [DimensionOverlay.Dimension] {
         [DimensionOverlay.dimension(unitPoints: position.sideOnTapPoints, mm: position.bike?.wheelbaseMm, style: .beside)].compactMap { $0 }
+    }
+
+    /// Wheel-height dimensions on both side-on wheels (Plan Z5) — degrades
+    /// unless a real wheelbase ruler was used (`sideOnPixelsPerCm != nil`,
+    /// the same gate `headDropCm` uses — spec §3), the bike has a wheel
+    /// diameter on record, and the axle taps are present. `sideOnTapPoints`
+    /// is `[frontX, frontY, rearX, rearY]` (Position's own storage
+    /// convention — front axle, rear axle). Both wheels share the bike's
+    /// one spec diameter; only which axle and which outward side differ.
+    private var sideOnSpannedDimensions: [DimensionOverlay.SpannedDimension] {
+        guard position.metrics?.sideOnPixelsPerCm != nil,
+              let wheelDiameterMm = position.bike?.wheelDiameterMm,
+              let wheelbaseMm = position.bike?.wheelbaseMm,
+              let taps = position.sideOnTapPoints, taps.count == 4
+        else { return [] }
+        let front = CGPoint(x: taps[0], y: taps[1])
+        let rear = CGPoint(x: taps[2], y: taps[3])
+        let spanUnitY = AnalysisMath.wheelSpanUnitY(
+            axleFront: front, axleRear: rear,
+            imageAspect: Double(sideOnAspectRatio), wheelbaseMm: wheelbaseMm, wheelDiameterMm: wheelDiameterMm
+        )
+        guard spanUnitY > 0 else { return [] }
+        return [
+            DimensionOverlay.SpannedDimension(
+                axleUnit: front, spanUnitY: spanUnitY,
+                outward: DimensionGeometry.outwardSide(thisAxleX: front.x, otherAxleX: rear.x),
+                valueMm: wheelDiameterMm
+            ),
+            DimensionOverlay.SpannedDimension(
+                axleUnit: rear, spanUnitY: spanUnitY,
+                outward: DimensionGeometry.outwardSide(thisAxleX: rear.x, otherAxleX: front.x),
+                valueMm: wheelDiameterMm
+            ),
+        ]
     }
 
     /// Derived fresh from the same stored landmarks every time (Plan P3) —

@@ -170,6 +170,60 @@ final class DimensionGeometryTests: XCTestCase {
         XCTAssertEqual(direction, .downRight)
     }
 
+    // MARK: - outwardSide / chooseVerticalLeaderDirection / spanEndpoints (Plan Z5)
+
+    func testOutwardSideIsAwayFromTheOtherAxle() {
+        XCTAssertEqual(DimensionGeometry.outwardSide(thisAxleX: 300, otherAxleX: 100), .right)
+        XCTAssertEqual(DimensionGeometry.outwardSide(thisAxleX: 100, otherAxleX: 300), .left)
+    }
+
+    func testOutwardSideTiesToRight() {
+        XCTAssertEqual(DimensionGeometry.outwardSide(thisAxleX: 200, otherAxleX: 200), .right)
+    }
+
+    func testChooseVerticalLeaderDirectionRespectsOutwardSide() {
+        let bounds = CGSize(width: 400, height: 600)
+        let point = CGPoint(x: 200, y: 300)
+        let boxSize = CGSize(width: 40, height: 20)
+        let right = DimensionGeometry.chooseVerticalLeaderDirection(from: point, outward: .right, boxSize: boxSize, bounds: bounds, runLength: 36)
+        XCTAssertTrue(right == .downRight || right == .upRight, "outward .right must never pick a left-pointing diagonal")
+        let left = DimensionGeometry.chooseVerticalLeaderDirection(from: point, outward: .left, boxSize: boxSize, bounds: bounds, runLength: 36)
+        XCTAssertTrue(left == .downLeft || left == .upLeft, "outward .left must never pick a right-pointing diagonal")
+    }
+
+    func testChooseVerticalLeaderDirectionNearTopPicksDown() {
+        let bounds = CGSize(width: 400, height: 600)
+        let point = CGPoint(x: 200, y: 5)
+        let boxSize = CGSize(width: 40, height: 20)
+        let direction = DimensionGeometry.chooseVerticalLeaderDirection(from: point, outward: .right, boxSize: boxSize, bounds: bounds, runLength: 36)
+        XCTAssertEqual(direction, .downRight)
+        assertSpanBoxWithinBounds(axle: point, direction: direction, boxSize: boxSize, bounds: bounds, runLength: 36)
+    }
+
+    func testChooseVerticalLeaderDirectionNearBottomPicksUp() {
+        let bounds = CGSize(width: 400, height: 600)
+        let point = CGPoint(x: 200, y: 595)
+        let boxSize = CGSize(width: 40, height: 20)
+        let direction = DimensionGeometry.chooseVerticalLeaderDirection(from: point, outward: .left, boxSize: boxSize, bounds: bounds, runLength: 36)
+        XCTAssertEqual(direction, .upLeft)
+        assertSpanBoxWithinBounds(axle: point, direction: direction, boxSize: boxSize, bounds: bounds, runLength: 36)
+    }
+
+    func testSpanEndpointsCentredOnAxleWithCorrectLength() {
+        let (top, bottom) = DimensionGeometry.spanEndpoints(axle: CGPoint(x: 100, y: 200), spanPx: 50)
+        XCTAssertEqual(top, CGPoint(x: 100, y: 175))
+        XCTAssertEqual(bottom, CGPoint(x: 100, y: 225))
+    }
+
+    private func assertSpanBoxWithinBounds(axle: CGPoint, direction: DimensionGeometry.LeaderDirection, boxSize: CGSize, bounds: CGSize, runLength: CGFloat) {
+        let end = DimensionGeometry.leaderEnd(from: axle, direction: direction, runLength: runLength)
+        let rect = DimensionGeometry.boxRect(leaderEnd: end, direction: direction, boxSize: boxSize)
+        XCTAssertGreaterThanOrEqual(rect.minX, -acc)
+        XCTAssertGreaterThanOrEqual(rect.minY, -acc)
+        XCTAssertLessThanOrEqual(rect.maxX, bounds.width + acc)
+        XCTAssertLessThanOrEqual(rect.maxY, bounds.height + acc)
+    }
+
     private func assertBoxWithinBounds(point: CGPoint, direction: DimensionGeometry.LeaderDirection, boxSize: CGSize, bounds: CGSize, runLength: CGFloat) {
         let end = DimensionGeometry.leaderEnd(from: point, direction: direction, runLength: runLength)
         let rect = DimensionGeometry.boxRect(leaderEnd: end, direction: direction, boxSize: boxSize)

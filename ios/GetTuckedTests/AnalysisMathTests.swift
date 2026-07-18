@@ -44,6 +44,41 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(ppc, expected, accuracy: acc)
     }
 
+    // MARK: - wheelSpanUnitY (Plan Z5)
+
+    func testWheelSpanUnitYWorkedExample() {
+        // Axles purely horizontal (dy=0), unit dx=0.5, square image (aspect
+        // 1) → wheelbase unit length 0.5. wheelDiameter/wheelbase = 700/1000
+        // = 0.7 → span = 0.35.
+        let span = AnalysisMath.wheelSpanUnitY(
+            axleFront: CGPoint(x: 0.7, y: 0.8), axleRear: CGPoint(x: 0.2, y: 0.8),
+            imageAspect: 1, wheelbaseMm: 1000, wheelDiameterMm: 700
+        )
+        XCTAssertEqual(span, 0.35, accuracy: 1e-9)
+    }
+
+    func testWheelSpanUnitYScalesWithAspectOnTheXAxisOnly() {
+        // Same unit dx but a 2:1 aspect image → dx contributes twice as much
+        // physical (pixel) distance, so the resulting span (also expressed
+        // against height) doubles.
+        let square = AnalysisMath.wheelSpanUnitY(
+            axleFront: CGPoint(x: 0.7, y: 0.5), axleRear: CGPoint(x: 0.2, y: 0.5),
+            imageAspect: 1, wheelbaseMm: 1000, wheelDiameterMm: 700
+        )
+        let wide = AnalysisMath.wheelSpanUnitY(
+            axleFront: CGPoint(x: 0.7, y: 0.5), axleRear: CGPoint(x: 0.2, y: 0.5),
+            imageAspect: 2, wheelbaseMm: 1000, wheelDiameterMm: 700
+        )
+        XCTAssertEqual(wide, square * 2, accuracy: 1e-9)
+    }
+
+    func testWheelSpanUnitYZeroWheelbaseReturnsZero() {
+        XCTAssertEqual(
+            AnalysisMath.wheelSpanUnitY(axleFront: .zero, axleRear: .zero, imageAspect: 1, wheelbaseMm: 0, wheelDiameterMm: 700),
+            0, accuracy: acc
+        )
+    }
+
     func testMaskPixelsPerCmDownscale() {
         // Mask is half the source width → scale halves.
         let ppc = AnalysisMath.maskPixelsPerCm(sourcePixelsPerCm: 10, maskWidth: 500, sourceWidth: 1000)

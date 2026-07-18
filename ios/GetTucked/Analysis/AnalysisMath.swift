@@ -34,6 +34,26 @@ enum AnalysisMath {
         )
     }
 
+    /// The side-on wheel-height dimension's full vertical span, as a
+    /// fraction of the image height (Plan Z5) — derived purely from the
+    /// wheelbase ruler's own geometry (axle taps + the bike's wheelbase and
+    /// wheel-diameter specs), no absolute pixel dimensions needed:
+    /// `sideOnPixelsPerCm` is pixels-per-cm in the *source* image's own
+    /// resolution, and that resolution cancels out of the
+    /// wheelDiameterMm/wheelbaseMm ratio the same way any scale-free ratio
+    /// cancels — only the image's aspect ratio (not its absolute pixel
+    /// count) survives into the unit-space result. `axleFront`/`axleRear`
+    /// are top-left unit coords (Plan Z1); `imageAspect` is width/height.
+    static func wheelSpanUnitY(
+        axleFront: CGPoint, axleRear: CGPoint, imageAspect: Double, wheelbaseMm: Double, wheelDiameterMm: Double
+    ) -> Double {
+        guard wheelbaseMm > 0 else { return 0 }
+        let dx = Double(axleRear.x - axleFront.x) * imageAspect
+        let dy = Double(axleRear.y - axleFront.y)
+        let wheelbaseUnitLength = (dx * dx + dy * dy).squareRoot()
+        return wheelDiameterMm / wheelbaseMm * wheelbaseUnitLength
+    }
+
     /// The segmentation mask resolution differs from the source in general.
     /// Rescale source pixels/cm into mask pixel space so area and scale share units.
     static func maskPixelsPerCm(sourcePixelsPerCm: Double, maskWidth: Int, sourceWidth: Int) -> Double {

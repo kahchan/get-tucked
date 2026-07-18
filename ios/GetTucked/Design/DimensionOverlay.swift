@@ -137,6 +137,38 @@ enum DimensionGeometry {
         return rightOverflow <= leftOverflow ? .right : .left
     }
 
+    /// Which horizontal side is "outward" for one wheel, given both axle
+    /// x-positions (Plan Z5) — the side further from the OTHER axle, so the
+    /// front wheel's leader points away from the rear (and vice versa),
+    /// regardless of which way the bike faces in the photo.
+    static func outwardSide(thisAxleX: CGFloat, otherAxleX: CGFloat) -> HorizontalSide {
+        thisAxleX >= otherAxleX ? .right : .left
+    }
+
+    /// The two directions consistent with a fixed horizontal side (Plan
+    /// Z5) — unlike `chooseLeaderDirection`'s free 4-way pick, the side-on
+    /// wheel-height leader's horizontal sign is dictated by which wheel it
+    /// is (front points forward, rear points rearward), so only up/down is
+    /// free to pick, whichever keeps the box in bounds.
+    static func chooseVerticalLeaderDirection(
+        from point: CGPoint, outward: HorizontalSide, boxSize: CGSize, bounds: CGSize, runLength: CGFloat
+    ) -> LeaderDirection {
+        let candidates: [LeaderDirection] = outward == .right ? [.downRight, .upRight] : [.downLeft, .upLeft]
+        let scored = candidates.map { direction -> (LeaderDirection, CGFloat) in
+            let end = leaderEnd(from: point, direction: direction, runLength: runLength)
+            let rect = boxRect(leaderEnd: end, direction: direction, boxSize: boxSize)
+            return (direction, overflow(rect, bounds: bounds))
+        }
+        return scored.min { $0.1 < $1.1 }!.0
+    }
+
+    /// The wheel-height span's top/bottom endpoints (Plan Z5) — centred on
+    /// `axle`, `spanPx` apart.
+    static func spanEndpoints(axle: CGPoint, spanPx: CGFloat) -> (top: CGPoint, bottom: CGPoint) {
+        let half = spanPx / 2
+        return (CGPoint(x: axle.x, y: axle.y - half), CGPoint(x: axle.x, y: axle.y + half))
+    }
+
     /// "780 MM" — the entered/derived spec value, not a live re-measure.
     static func calloutLabel(mm: Double) -> String {
         "\(Int(mm.rounded())) MM"
@@ -179,11 +211,29 @@ struct DimensionOverlay: View {
         var style: CalloutStyle = .leader
     }
 
+    /// A wheel-height dimension (Plan Z5) — distinct from `Dimension`
+    /// because it isn't tap-to-tap: it's a vertical span of known length
+    /// centred on ONE tap (the axle), with a leader whose horizontal side
+    /// is fixed per-wheel rather than room-picked.
+    struct SpannedDimension: Equatable {
+        /// Top-left unit coords (Plan Z1) — the axle tap, the span's centre.
+        let axleUnit: CGPoint
+        /// Full span, as a fraction of the image height — resolution-
+        /// independent (`AnalysisMath.wheelSpanUnitY`).
+        let spanUnitY: Double
+        /// The wheel's own outward side — fixed, not room-picked, so the
+        /// front and rear boxes always land on opposite ends and never
+        /// collide with the bike between them.
+        let outward: DimensionGeometry.HorizontalSide
+        let valueMm: Double
+    }
+
     let dimensions: [Dimension]
     /// 0→1 draw progress; 1 = fully drawn (the no-draw-on default, same as
     /// `SkeletonOverlay.progress`, for BONES-toggle call sites that don't
     /// want a ceremony).
     var progress: Double = 1
+    var spannedDimensions: [SpannedDimension] = []
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -210,6 +260,9 @@ struct DimensionOverlay: View {
                 ForEach(dimensions.indices, id: \.self) { index in
                     dimensionView(dimensions[index], size: size)
                 }
+                ForEach(spannedDimensions.indices, id: \.self) { index in
+                    spannedDimensionView(spannedDimensions[index], size: size)
+                }
             }
         }
         .allowsHitTesting(false)
@@ -233,6 +286,43 @@ struct DimensionOverlay: View {
                 leaderCallout(from: from, to: to, label: label, boxSize: boxSize, bounds: size)
             case .beside:
                 besideCallout(from: from, to: to, label: label, boxSize: boxSize, bounds: size)
+            }
+        }
+    }
+
+    /// The side-on wheel-height span (Plan Z5): a vertical line centred on
+    /// the axle tap, drawn top→bottom (Plan Z7's "grows from the top"
+    /// beat), with a fixed-outward-side 45° leader off the axle — the box
+    /// pops on completion exactly like the tap-to-tap case.
+    @ViewBuilder
+    private func spannedDimensionView(_ dimension: SpannedDimension, size: CGSize) -> some View {
+        let axle = DimensionGeometry.point(forTopLeftUnit: dimension.axleUnit, in: size)
+        let spanPx = dimension.spanUnitY * size.height
+        let (top, bottom) = DimensionGeometry.spanEndpoints(axle: axle, spanPx: spanPx)
+        let label = DimensionGeometry.calloutLabel(mm: dimension.valueMm)
+        let boxSize = DimensionGeometry.calloutBoxSize(label: label, fontSize: Self.fontSize, padding: Self.boxPadding)
+        let direction = DimensionGeometry.chooseVerticalLeaderDirection(
+            from: axle, outward: dimension.outward, boxSize: boxSize, bounds: size, runLength: Self.leaderRun
+        )
+        let leaderEnd = DimensionGeometry.leaderEnd(from: axle, direction: direction, runLength: Self.leaderRun)
+        let boxOrigin = DimensionGeometry.boxOrigin(leaderEnd: leaderEnd, direction: direction, boxSize: boxSize)
+        let boxCenter = CGPoint(x: boxOrigin.x + boxSize.width / 2, y: boxOrigin.y + boxSize.height / 2)
+        let topTick = DimensionGeometry.tickEndpoints(at: top, lineFrom: top, lineTo: bottom, length: Self.tickLength)
+        let bottomTick = DimensionGeometry.tickEndpoints(at: bottom, lineFrom: top, lineTo: bottom, length: Self.tickLength)
+
+        ZStack {
+            dottedLine(from: top, to: bottom)
+            endTicks(fromTick: topTick, toTick: bottomTick)
+
+            if popOpacity > 0 {
+                Path { path in
+                    path.move(to: axle)
+                    path.addLine(to: leaderEnd)
+                }
+                .stroke(Theme.Palette.amb, lineWidth: 1)
+                .opacity(popOpacity)
+
+                calloutBox(label: label, boxSize: boxSize, center: boxCenter)
             }
         }
     }
