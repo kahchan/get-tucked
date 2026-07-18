@@ -56,6 +56,11 @@ struct HeadOnPoseMetrics {
     /// nil unless all four clear the confidence floor, since a one-armed
     /// skeleton reads as broken (arms are symmetric-or-nothing).
     let armPoints: [CGPoint]?
+    /// Hip/knee landmarks — [leftHip, rightHip, leftKnee, rightKnee].
+    /// Presentational body-shape richness (Plan V), not a measurement input:
+    /// nil unless all four clear the confidence floor, all-or-nothing like
+    /// `armPoints`.
+    let bodyPoints: [CGPoint]?
 }
 
 /// Pose metrics computable from the side-on photo (Phase 2.5).
@@ -72,6 +77,14 @@ struct SideOnPoseMetrics {
     let hip: CGPoint
     let knee: CGPoint
     let ear: CGPoint
+    /// Elbow/wrist landmarks, same detected side as `shoulder`/`hip`/etc —
+    /// [elbow, wrist]. Presentational context (Plan V), all-or-nothing;
+    /// independent of `anklePoint` (cranks/chainrings occlude ankles often,
+    /// and a missing ankle must not cost the arm chain, or vice versa).
+    let armPoints: [CGPoint]?
+    /// Ankle landmark, same detected side. Presentational body-shape
+    /// richness (Plan V); independent of `armPoints`.
+    let anklePoint: CGPoint?
 }
 
 /// Side-on pose bundled with its segmentation matte (Plan O). Segmentation
@@ -329,7 +342,8 @@ struct AnalysisEngine {
             shoulderWidthCm: shoulderWidthCm,
             leftShoulder: leftShoulder.location,
             rightShoulder: rightShoulder.location,
-            armPoints: armPoints(from: observation)
+            armPoints: armPoints(from: observation),
+            bodyPoints: bodyPoints(from: observation)
         )
     }
 
@@ -338,6 +352,20 @@ struct AnalysisEngine {
     /// just omits the whole set rather than failing head-on analysis.
     private static func armPoints(from observation: VNHumanBodyPoseObservation) -> [CGPoint]? {
         let joints: [VNHumanBodyPoseObservation.JointName] = [.leftElbow, .leftWrist, .rightElbow, .rightWrist]
+        var points: [CGPoint] = []
+        for joint in joints {
+            guard let point = try? observation.recognizedPoint(joint), point.confidence > 0.5 else {
+                return nil
+            }
+            points.append(point.location)
+        }
+        return points
+    }
+
+    /// Never throws — mirrors `armPoints(from:)` exactly: body-shape
+    /// richness (Plan V), not a measurement input, all-or-nothing.
+    private static func bodyPoints(from observation: VNHumanBodyPoseObservation) -> [CGPoint]? {
+        let joints: [VNHumanBodyPoseObservation.JointName] = [.leftHip, .rightHip, .leftKnee, .rightKnee]
         var points: [CGPoint] = []
         for joint in joints {
             guard let point = try? observation.recognizedPoint(joint), point.confidence > 0.5 else {
@@ -369,15 +397,16 @@ struct AnalysisEngine {
         // right, rather than hardcoding left and silently failing whenever
         // the rider faces the other way. Torso/hip angle and head drop are
         // symmetric quantities — either side yields an equivalent measurement.
-        guard let side = sideOnJoints(from: observation, side: .left)
+        guard let matched = sideOnJoints(from: observation, side: .left)
             ?? sideOnJoints(from: observation, side: .right)
         else {
             throw AnalysisError.poseNotDetected
         }
-        let shoulder = side.shoulder
-        let hip = side.hip
-        let knee = side.knee
-        let ear = side.ear
+        let side = matched.side
+        let shoulder = matched.shoulder
+        let hip = matched.hip
+        let knee = matched.knee
+        let ear = matched.ear
 
         let torsoAngleDeg = AnalysisMath.torsoAngleDeg(
             shoulder: shoulder, hip: hip
@@ -397,7 +426,9 @@ struct AnalysisEngine {
             shoulder: shoulder,
             hip: hip,
             knee: knee,
-            ear: ear
+            ear: ear,
+            armPoints: sideOnArmPoints(from: observation, side: side),
+            anklePoint: sideOnAnklePoint(from: observation, side: side)
         )
     }
 
@@ -411,17 +442,56 @@ struct AnalysisEngine {
             case .right: (.rightShoulder, .rightHip, .rightKnee, .rightEar)
             }
         }
+
+        var armJoints: (elbow: VNHumanBodyPoseObservation.JointName, wrist: VNHumanBodyPoseObservation.JointName) {
+            switch self {
+            case .left: (.leftElbow, .leftWrist)
+            case .right: (.rightElbow, .rightWrist)
+            }
+        }
+
+        var ankleJoint: VNHumanBodyPoseObservation.JointName {
+            switch self {
+            case .left: .leftAnkle
+            case .right: .rightAnkle
+            }
+        }
     }
 
     private static func sideOnJoints(
         from observation: VNHumanBodyPoseObservation, side: BodySide
-    ) -> (shoulder: CGPoint, hip: CGPoint, knee: CGPoint, ear: CGPoint)? {
+    ) -> (side: BodySide, shoulder: CGPoint, hip: CGPoint, knee: CGPoint, ear: CGPoint)? {
         let joints = side.joints
         guard let shoulder = try? observation.recognizedPoint(joints.shoulder), shoulder.confidence > 0.5,
               let hip = try? observation.recognizedPoint(joints.hip), hip.confidence > 0.5,
               let knee = try? observation.recognizedPoint(joints.knee), knee.confidence > 0.5,
               let ear = try? observation.recognizedPoint(joints.ear), ear.confidence > 0.5
         else { return nil }
-        return (shoulder.location, hip.location, knee.location, ear.location)
+        return (side, shoulder.location, hip.location, knee.location, ear.location)
+    }
+
+    /// Never throws — the reach line to the bars is presentational context
+    /// (Plan V), not a measurement input: all-or-nothing (elbow+wrist
+    /// together), independent of the ankle (see `sideOnAnklePoint`).
+    private static func sideOnArmPoints(
+        from observation: VNHumanBodyPoseObservation, side: BodySide
+    ) -> [CGPoint]? {
+        let joints = side.armJoints
+        guard let elbow = try? observation.recognizedPoint(joints.elbow), elbow.confidence > 0.5,
+              let wrist = try? observation.recognizedPoint(joints.wrist), wrist.confidence > 0.5
+        else { return nil }
+        return [elbow.location, wrist.location]
+    }
+
+    /// Never throws — cranks/chainrings occlude ankles often, so a missing
+    /// ankle must not cost the arm chain (Plan V); independent of
+    /// `sideOnArmPoints`.
+    private static func sideOnAnklePoint(
+        from observation: VNHumanBodyPoseObservation, side: BodySide
+    ) -> CGPoint? {
+        guard let ankle = try? observation.recognizedPoint(side.ankleJoint), ankle.confidence > 0.5 else {
+            return nil
+        }
+        return ankle.location
     }
 }

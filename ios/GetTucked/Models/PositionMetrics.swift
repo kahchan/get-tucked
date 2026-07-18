@@ -51,6 +51,19 @@ final class PositionMetrics {
     // sideOnSkeletonPoints: [shoulderX, shoulderY, hipX, hipY, kneeX, kneeY, earX, earY]
     var sideOnSkeletonPoints: [Double]?
 
+    // Tertiary bone tier (Plan V) — pure body-shape richness, never a
+    // measurement input; same flattened Vision-normalised convention as the
+    // fields above. Nil degrades gracefully, same as nil arms today.
+    //
+    // headOnBodyPoints: [leftHipX, leftHipY, rightHipX, rightHipY,
+    //                    leftKneeX, leftKneeY, rightKneeX, rightKneeY]
+    var headOnBodyPoints: [Double]?
+    // sideOnArmPoints: [elbowX, elbowY, wristX, wristY] — same detected side
+    // as sideOnSkeletonPoints
+    var sideOnArmPoints: [Double]?
+    // sideOnAnklePoint: [ankleX, ankleY]
+    var sideOnAnklePoint: [Double]?
+
     // Side-on scale, from a wheelbase tap-calibration (Plan P1.5) — nil when
     // no ruler was used, in which case headDropCm above (if present) still
     // borrows the frontal pixelsPerCm and stays hidden from display (spec §3:

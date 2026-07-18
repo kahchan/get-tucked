@@ -397,10 +397,23 @@ struct CaptureView: View {
         let headOnMaskData = reference.maskData
         let headOnPhotoData = reference.photosData
         let headOnSkeleton = reference.metrics?.headOnSkeletonPoints
-            .flatMap { SkeletonOverlay.frontal(shoulders: $0, arms: reference.metrics?.headOnArmPoints) }
+            .flatMap {
+                SkeletonOverlay.frontal(
+                    shoulders: $0,
+                    arms: reference.metrics?.headOnArmPoints,
+                    body: reference.metrics?.headOnBodyPoints
+                )
+            }
         let sideOnMaskData = reference.sideOnMaskData
         let sideOnPhotoData = reference.sideOnPhotoData
-        let sideOnSkeleton = reference.metrics?.sideOnSkeletonPoints.flatMap { SkeletonOverlay.sideOn(points: $0) }
+        let sideOnSkeleton = reference.metrics?.sideOnSkeletonPoints
+            .flatMap {
+                SkeletonOverlay.sideOn(
+                    points: $0,
+                    arm: reference.metrics?.sideOnArmPoints,
+                    ankle: reference.metrics?.sideOnAnklePoint
+                )
+            }
 
         Task.detached(priority: .userInitiated) {
             let headOn = Self.buildGhost(maskData: headOnMaskData, photoData: headOnPhotoData, skeleton: headOnSkeleton)
@@ -534,6 +547,9 @@ struct CaptureView: View {
             if let arms = headOnPose.armPoints {
                 metrics.headOnArmPoints = arms.flatMap { [$0.x, $0.y] }
             }
+            if let body = headOnPose.bodyPoints {
+                metrics.headOnBodyPoints = body.flatMap { [$0.x, $0.y] }
+            }
         }
         if let pose = pendingSideOnPose {
             metrics.torsoAngleDeg = pose.torsoAngleDeg
@@ -545,6 +561,12 @@ struct CaptureView: View {
                 pose.knee.x, pose.knee.y,
                 pose.ear.x, pose.ear.y,
             ]
+            if let arm = pose.armPoints {
+                metrics.sideOnArmPoints = arm.flatMap { [$0.x, $0.y] }
+            }
+            if let ankle = pose.anklePoint {
+                metrics.sideOnAnklePoint = [ankle.x, ankle.y]
+            }
         }
         // Wheelbase ruler (Plan P1.5) — nil unless the rider confirmed one,
         // in which case headDropCm above was computed from it (runSideOnAnalysis).
@@ -938,12 +960,14 @@ private struct RevealStep: View {
     private var frontalSkeletonOverlay: SkeletonOverlay? {
         guard let headOnPose = result.headOnPose else { return nil }
         let arms = headOnPose.armPoints.map { $0.flatMap { [Double($0.x), Double($0.y)] } }
+        let body = headOnPose.bodyPoints.map { $0.flatMap { [Double($0.x), Double($0.y)] } }
         guard var overlay = SkeletonOverlay.frontal(
             shoulders: [
                 headOnPose.leftShoulder.x, headOnPose.leftShoulder.y,
                 headOnPose.rightShoulder.x, headOnPose.rightShoulder.y,
             ],
-            arms: arms
+            arms: arms,
+            body: body
         ) else { return nil }
         overlay.progress = skeletonProgress
         return overlay

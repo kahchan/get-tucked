@@ -294,12 +294,20 @@ struct PositionDetailView: View {
     /// Motion.fast opacity fade instead.
     private var frontalSkeletonOverlay: SkeletonOverlay? {
         guard let shoulders = position.metrics?.headOnSkeletonPoints else { return nil }
-        return SkeletonOverlay.frontal(shoulders: shoulders, arms: position.metrics?.headOnArmPoints)
+        return SkeletonOverlay.frontal(
+            shoulders: shoulders,
+            arms: position.metrics?.headOnArmPoints,
+            body: position.metrics?.headOnBodyPoints
+        )
     }
 
     private var sideOnSkeletonOverlay: SkeletonOverlay? {
         guard let points = position.metrics?.sideOnSkeletonPoints else { return nil }
-        return SkeletonOverlay.sideOn(points: points)
+        return SkeletonOverlay.sideOn(
+            points: points,
+            arm: position.metrics?.sideOnArmPoints,
+            ankle: position.metrics?.sideOnAnklePoint
+        )
     }
 
     /// Derived fresh from the same stored landmarks every time (Plan P3) —
