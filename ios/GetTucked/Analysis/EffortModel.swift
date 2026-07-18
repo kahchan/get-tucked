@@ -28,6 +28,11 @@ enum EffortModel {
     /// a fitted constant. The *ratio* between the two CdA values is what
     /// drives the result; this scales the aero share of total power.
     static let assumedCd = 0.7
+    /// Rider + bike + kit mass (kg), fixed (Plan U — was a user input; mass
+    /// only enters the rolling-resistance term, and across 60–120 kg it
+    /// moves the time delta ~±4%, inside the ±3% area-noise band already
+    /// shown — so it's a stated assumption, not something worth asking for.
+    static let assumedMassKg = 80.0
 
     /// Power (W) to hold `speedMS` against combined aero + rolling drag —
     /// the closed-form half of the model (step 1).

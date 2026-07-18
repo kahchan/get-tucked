@@ -704,7 +704,7 @@ private struct TimeImpactSection: View {
     let areaB: Double
     let isDistinguishable: Bool
 
-    private enum Field: Hashable { case speed, mass, distance }
+    private enum Field: Hashable { case speed, distance }
 
     private enum DistancePreset: Double, CaseIterable {
         case c100 = 100, c200 = 200, c400 = 400, c1000 = 1000
@@ -718,19 +718,17 @@ private struct TimeImpactSection: View {
     // screen immediately, with `inputsConfirmed` below tracking whether it's
     // still running on that guess or on the rider's own numbers.
     @AppStorage("effortSpeedKmh") private var persistedSpeedKmh: Double = 30
-    @AppStorage("effortMassKg") private var persistedMassKg: Double = 80
-    // True once the rider has actually committed a value to either field —
-    // distinct from the values themselves, since a rider could deliberately
-    // enter exactly the default and that's still a confirmed number, not a
-    // guess. Drives the "using defaults, edit below" call-out in the
-    // estimate sentence.
+    // True once the rider has actually committed a value to the speed field —
+    // distinct from the value itself, since a rider could deliberately enter
+    // exactly the default and that's still a confirmed number, not a guess.
+    // Drives the "using defaults, edit below" call-out in the estimate
+    // sentence.
     @AppStorage("effortInputsConfirmed") private var inputsConfirmed = false
 
-    // Live-typed text, committed to the @AppStorage values above on blur
+    // Live-typed text, committed to the @AppStorage value above on blur
     // (this app's numeric-field convention) rather than on every keystroke.
     @State private var speedText = ""
-    @State private var massText = ""
-    @State private var selectedPreset: DistancePreset? = .c200
+    @State private var selectedPreset: DistancePreset? = .c100
     @State private var customDistanceText = ""
     @FocusState private var focusedField: Field?
 
@@ -767,12 +765,10 @@ private struct TimeImpactSection: View {
         .padding(.bottom, Theme.Space.lg)
         .onAppear {
             speedText = String(Int(persistedSpeedKmh))
-            massText = String(Int(persistedMassKg))
         }
         .onChange(of: focusedField) { oldValue, _ in
             switch oldValue {
             case .speed: commitSpeed()
-            case .mass: commitMass()
             case .distance, nil: break
             }
         }
@@ -780,7 +776,7 @@ private struct TimeImpactSection: View {
 
     // MARK: - Output
 
-    private typealias OutputBand = (winnerLabel: String, lowMinutes: Double, highMinutes: Double, speedKmh: Double, massKg: Double)
+    private typealias OutputBand = (winnerLabel: String, lowMinutes: Double, highMinutes: Double, speedKmh: Double)
 
     @ViewBuilder
     private func outputCard(_ band: OutputBand) -> some View {
@@ -801,11 +797,11 @@ private struct TimeImpactSection: View {
                     .foregroundStyle(Theme.Palette.fg)
             }
             if !inputsConfirmed {
-                Text("Using default numbers — edit speed and weight below for yours.")
+                Text("Using a default speed — edit below for yours.")
                     .font(Theme.mono(11, weight: .bold))
                     .foregroundStyle(Theme.Palette.amb)
             }
-            Text("Estimate — assumes equal effort, equal drag coefficient, flat course, no wind. A rear-mounted bag can change drag through wake effects this model doesn't capture.")
+            Text("Estimate — assumes equal effort, equal drag coefficient, an \(Int(EffortModel.assumedMassKg)) kg rider+bike+kit, flat course, no wind. A rear-mounted bag can change drag through wake effects this model doesn't capture.")
                 .font(Theme.mono(10))
                 .foregroundStyle(Theme.Palette.fg3)
         }
@@ -819,21 +815,21 @@ private struct TimeImpactSection: View {
     /// never be mistaken for a personalised one.
     private func sentence(_ band: OutputBand) -> String {
         if inputsConfirmed {
-            return "At your usual effort, position \(band.winnerLabel) is \(formattedRange(band)) faster over \(distanceLabel)."
+            return "At \(Int(band.speedKmh)) km/h, position \(band.winnerLabel) is \(formattedRange(band)) faster over \(distanceLabel)."
         }
-        return "At an assumed \(Int(band.speedKmh)) km/h and \(Int(band.massKg)) kg, position \(band.winnerLabel) would be \(formattedRange(band)) faster over \(distanceLabel)."
+        return "At an assumed \(Int(band.speedKmh)) km/h, position \(band.winnerLabel) would be \(formattedRange(band)) faster over \(distanceLabel)."
     }
 
     /// nil when any input is missing/out of range (Plan S2 edge cases) —
     /// no output card at all in that case, just the bare fields.
     private var outputBand: OutputBand? {
         guard let distanceKm, distanceKm > 0,
-              let speedKmh = Double(speedText), (10...60).contains(speedKmh),
-              let massKg = Double(massText), (40...150).contains(massKg)
+              let speedKmh = Double(speedText), (10...60).contains(speedKmh)
         else { return nil }
 
         let speedMS = speedKmh / 3.6
         let distanceM = distanceKm * 1000
+        let massKg = EffortModel.assumedMassKg
         let point = EffortModel.timeDeltaMinutes(
             areaACm2: areaA, areaBCm2: areaB, speedMS: speedMS, massKg: massKg, distanceM: distanceM
         )
@@ -841,14 +837,14 @@ private struct TimeImpactSection: View {
             areaACm2: areaA, areaBCm2: areaB, speedMS: speedMS, massKg: massKg, distanceM: distanceM
         )
 
-        if band.low >= 0 { return ("B", band.low, band.high, speedKmh, massKg) }
-        if band.high <= 0 { return ("A", -band.high, -band.low, speedKmh, massKg) }
+        if band.low >= 0 { return ("B", band.low, band.high, speedKmh) }
+        if band.high <= 0 { return ("A", -band.high, -band.low, speedKmh) }
         // Band spans zero (S2 §4): the delta cleared the *area* noise floor
         // but the independently-perturbed time band still straddles it —
         // show the honest zero-anchored range rather than clamping the low
         // end away from zero. Direction follows the point estimate's sign.
         let magnitude = max(abs(band.low), abs(band.high))
-        return (point >= 0 ? "B" : "A", 0, magnitude, speedKmh, massKg)
+        return (point >= 0 ? "B" : "A", 0, magnitude, speedKmh)
     }
 
     private func formattedRange(_ band: OutputBand) -> String {
@@ -875,12 +871,12 @@ private struct TimeImpactSection: View {
     // MARK: - Inputs
 
     private var inputs: some View {
-        // Two distinct field groups (distance / rider params), each with a
-        // tight `sm` internal rhythm, separated by a larger `md` gap so the
-        // DISTANCE selector doesn't crowd the SPEED/WEIGHT row — the same
+        // Two distinct field groups (distance / speed), each with a tight
+        // `sm` internal rhythm, separated by a larger `md` gap so the
+        // DISTANCE selector doesn't crowd the SPEED field — the same
         // group-binding contrast the rest of the app uses (a flat `sm`
         // throughout made the two groups read as one block). The helper text
-        // lives inside the second group so it binds to the fields it
+        // lives inside the second group so it binds to the field it
         // describes rather than floating equidistant between the two.
         VStack(alignment: .leading, spacing: Theme.Space.md) {
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
@@ -893,17 +889,10 @@ private struct TimeImpactSection: View {
             }
 
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
-                HStack(spacing: Theme.Space.md) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        FieldLabel("FLAT-ROAD SPEED (KM/H)")
-                        MonoField(placeholder: "30", text: $speedText, numericOnly: true)
-                            .focused($focusedField, equals: .speed)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        FieldLabel("RIDER + BIKE + KIT (KG)")
-                        MonoField(placeholder: "80", text: $massText, numericOnly: true)
-                            .focused($focusedField, equals: .mass)
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    FieldLabel("FLAT-ROAD SPEED (KM/H)")
+                    MonoField(placeholder: "30", text: $speedText, numericOnly: true)
+                        .focused($focusedField, equals: .speed)
                 }
                 Text("The speed you'd hold on a flat, calm road — not a ridden average (that bundles hills, stops and wind).")
                     .font(Theme.mono(10))
@@ -931,12 +920,6 @@ private struct TimeImpactSection: View {
     private func commitSpeed() {
         guard let value = Double(speedText), (10...60).contains(value) else { return }
         persistedSpeedKmh = value
-        inputsConfirmed = true
-    }
-
-    private func commitMass() {
-        guard let value = Double(massText), (40...150).contains(value) else { return }
-        persistedMassKg = value
         inputsConfirmed = true
     }
 }
