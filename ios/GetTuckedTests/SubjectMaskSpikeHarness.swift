@@ -66,6 +66,15 @@ final class SubjectMaskSpikeHarness: XCTestCase {
             let personMask = try? runPersonSegmentation(cgImage: cgImage)
             let subjectMask = try? runForegroundInstanceMask(cgImage: cgImage)
 
+            // swiftlint:disable:next no_direct_standard_out_logs
+            print(String(format: "W1 %@: personMask=%@ subjectMask=%@ | person>30=%.1f%% >128=%.1f%% peak=%d | subject>30=%.1f%% >128=%.1f%% peak=%d",
+                         file.lastPathComponent,
+                         personMask != nil ? "yes" : "NIL", subjectMask != nil ? "yes" : "NIL",
+                         foregroundFraction(personMask, threshold: 30) * 100,
+                         foregroundFraction(personMask, threshold: 128) * 100, maxValue(personMask),
+                         foregroundFraction(subjectMask, threshold: 30) * 100,
+                         foregroundFraction(subjectMask, threshold: 128) * 100, maxValue(subjectMask)))
+
             let outputURL = outputDir.appendingPathComponent("\(file.deletingPathExtension().lastPathComponent)-compare.png")
             if writeSideBySide(original: image, personMask: personMask, subjectMask: subjectMask, to: outputURL) {
                 written += 1
@@ -75,6 +84,32 @@ final class SubjectMaskSpikeHarness: XCTestCase {
         XCTAssertGreaterThan(written, 0, "found fixture files but none decoded/segmented/wrote successfully")
         // swiftlint:disable:next no_direct_standard_out_logs
         print("W1 spike: wrote \(written) side-by-side comparison(s) to \(outputDir.path)")
+    }
+
+    /// Fraction of the mask that is foreground (value > 127), as a share of
+    /// that mask's own pixel count — the two requests output different
+    /// resolutions, so raw counts aren't comparable but fractions are.
+    private func foregroundFraction(_ image: CGImage?, threshold: UInt8) -> Double {
+        guard let image, let data = image.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return 0 }
+        let width = image.width, height = image.height, bytesPerRow = image.bytesPerRow
+        guard width > 0, height > 0 else { return 0 }
+        var count = 0
+        for y in 0 ..< height {
+            let row = y * bytesPerRow
+            for x in 0 ..< width where bytes[row + x] >= threshold { count += 1 }
+        }
+        return Double(count) / Double(width * height)
+    }
+
+    private func maxValue(_ image: CGImage?) -> Int {
+        guard let image, let data = image.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return -1 }
+        let width = image.width, height = image.height, bytesPerRow = image.bytesPerRow
+        var peak: UInt8 = 0
+        for y in 0 ..< height {
+            let row = y * bytesPerRow
+            for x in 0 ..< width where bytes[row + x] > peak { peak = bytes[row + x] }
+        }
+        return Int(peak)
     }
 
     // MARK: - The two requests under comparison
