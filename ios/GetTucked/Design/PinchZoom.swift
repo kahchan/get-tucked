@@ -24,6 +24,25 @@ enum PinchPhysics {
         guard abs(distance) > 0.001 else { return 0 }
         return Double(gestureVelocity) / distance
     }
+
+    /// The pan offset that keeps the content point under `focal` pinned to the
+    /// same screen spot as scale goes `scale0 → newScale` (Plan AA) — this is
+    /// what makes a pinch zoom toward the fingers instead of ballooning from
+    /// the frame centre. `focal`, `offset0`, and the result are all vectors
+    /// relative to the container centre (the anchor `scaleEffect` uses).
+    ///
+    /// Screen position of a content point q (relative to centre, at scale 1)
+    /// is `offset + scale·q`. The focal content point is fixed at
+    /// `q = (focal − offset0) / scale0`, so to keep it under `focal` after
+    /// scaling: `offset1 = focal − newScale·q`.
+    static func focalOffset(scale0: CGFloat, offset0: CGSize, newScale: CGFloat, focal: CGSize) -> CGSize {
+        guard scale0 > 0 else { return offset0 }
+        let ratio = newScale / scale0
+        return CGSize(
+            width: focal.width - ratio * (focal.width - offset0.width),
+            height: focal.height - ratio * (focal.height - offset0.height)
+        )
+    }
 }
 
 /// Pinch-to-zoom + pan-once-zoomed for analysis images (Kah, on-device
@@ -51,8 +70,17 @@ private struct PinchZoomModifier: ViewModifier {
 
     @State private var zoomScale: CGFloat = 1
     @State private var panOffset: CGSize = .zero
-    @GestureState private var pinchDelta: CGFloat = 1
-    @GestureState private var panDelta: CGSize = .zero
+    // Per-gesture baselines, captured on the first change of a pinch/pan and
+    // cleared on end (Plan AA). Continuous @State commits — NOT a GestureState
+    // multiplier — because a multiplier that resets to 1 on release while the
+    // committed scale animates up from its old value is exactly what made the
+    // release visibly jump (the old model's flaw).
+    @State private var pinchBaseScale: CGFloat?
+    @State private var pinchBaseOffset: CGSize = .zero
+    // The pinch focal point, relative to the container centre — the content
+    // point here stays under the fingers as the scale changes.
+    @State private var pinchFocal: CGSize = .zero
+    @State private var panBaseOffset: CGSize?
     // Read passively via a `.background` GeometryReader (below) rather than
     // wrapping `content` in a GeometryReader directly — a GeometryReader has
     // no intrinsic size of its own, so using it as the primary container
@@ -67,6 +95,7 @@ private struct PinchZoomModifier: ViewModifier {
     // damped even when seeded with velocity — a fast flick settles quickly
     // but never overshoots past the target.
     private let springResponse: Double = 0.35
+    private let doubleTapZoom: CGFloat = 2.5
 
     func body(content: Content) -> some View {
         content
@@ -77,113 +106,161 @@ private struct PinchZoomModifier: ViewModifier {
                         .onChange(of: proxy.size) { _, newSize in containerSize = newSize }
                 }
             )
-            .scaleEffect(zoomScale * pinchDelta)
-            .offset(x: panOffset.width + panDelta.width, y: panOffset.height + panDelta.height)
+            .scaleEffect(zoomScale)
+            .offset(x: panOffset.width, y: panOffset.height)
             .clipped()
             .contentShape(Rectangle())
-            .gesture(
-                MagnifyGesture()
-                    .updating($pinchDelta) { value, state, _ in
-                        onGestureBegan()
-                        state = resistedZoomDelta(for: value.magnification)
+            .gesture(magnifyGesture)
+            .highPriorityGesture(panGesture, including: isZoomed ? .all : .none)
+            .gesture(doubleTapGesture)
+    }
+
+    // MARK: - Pinch (focal-anchored, continuous commit)
+
+    private var magnifyGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                onGestureBegan()
+                if pinchBaseScale == nil {
+                    pinchBaseScale = zoomScale
+                    pinchBaseOffset = panOffset
+                    pinchFocal = CGSize(
+                        width: (value.startAnchor.x - 0.5) * containerSize.width,
+                        height: (value.startAnchor.y - 0.5) * containerSize.height
+                    )
+                }
+                let base = pinchBaseScale ?? zoomScale
+                let resisted = resistedZoom(base * value.magnification)
+                zoomScale = resisted
+                let solved = PinchPhysics.focalOffset(
+                    scale0: base, offset0: pinchBaseOffset, newScale: resisted, focal: pinchFocal
+                )
+                panOffset = clampedOffset(solved, zoom: resisted, containerSize: containerSize)
+            }
+            .onEnded { value in
+                let base = pinchBaseScale ?? zoomScale
+                pinchBaseScale = nil
+                let raw = base * value.magnification
+                let target = min(maxZoom, max(1, raw))
+                let solved = PinchPhysics.focalOffset(
+                    scale0: base, offset0: pinchBaseOffset, newScale: target, focal: pinchFocal
+                )
+                let targetOffset = clampedOffset(solved, zoom: target, containerSize: containerSize)
+                // In-bounds: the finger already placed the image here (the live
+                // commit above), so settle instantly — animating from a
+                // baseline is what used to make release jump. Only a
+                // rubber-banded overshoot springs back, seeded with velocity.
+                if raw >= 1, raw <= maxZoom {
+                    zoomScale = target
+                    panOffset = targetOffset
+                } else {
+                    let seed = PinchPhysics.normalizedVelocity(
+                        gestureVelocity: value.velocity, current: raw, target: target
+                    )
+                    withAnimation(.interpolatingSpring(duration: springResponse, bounce: 0, initialVelocity: seed)) {
+                        zoomScale = target
+                        panOffset = targetOffset
                     }
-                    .onEnded { value in
-                        let rawZoom = zoomScale * value.magnification
-                        let newZoom = min(maxZoom, max(1, rawZoom))
-                        let newPan = clampedOffset(panOffset, zoom: newZoom, containerSize: containerSize)
-                        let overshoot = rawZoom - newZoom
-                        guard overshoot != 0 else {
-                            withAnimation(Theme.Motion.interactive(springResponse)) {
-                                zoomScale = newZoom
-                                panOffset = newPan
-                            }
-                            return
-                        }
-                        // Snapping back from a rubber-banded pinch — seed
-                        // with the gesture's own velocity so release
-                        // doesn't visibly seam (skill §5).
-                        let seed = PinchPhysics.normalizedVelocity(
-                            gestureVelocity: value.velocity, current: rawZoom, target: newZoom
-                        )
-                        withAnimation(.interpolatingSpring(duration: springResponse, bounce: 0, initialVelocity: seed)) {
-                            zoomScale = newZoom
-                            panOffset = newPan
-                        }
-                    }
-            )
-            .highPriorityGesture(
-                DragGesture()
-                    .updating($panDelta) { value, state, _ in
-                        onGestureBegan()
-                        state = resistedPanDelta(for: value.translation)
-                    }
-                    .onEnded { value in
-                        let rawOffset = CGSize(
-                            width: panOffset.width + value.translation.width,
-                            height: panOffset.height + value.translation.height
-                        )
-                        let newOffset = clampedOffset(rawOffset, zoom: zoomScale, containerSize: containerSize)
-                        let overshootWidth = rawOffset.width - newOffset.width
-                        let overshootHeight = rawOffset.height - newOffset.height
-                        guard overshootWidth != 0 || overshootHeight != 0 else {
-                            withAnimation(Theme.Motion.interactive(springResponse)) {
-                                panOffset = newOffset
-                            }
-                            return
-                        }
-                        // One shared curve for both axes (they always settle
-                        // together); the seed comes from whichever axis
-                        // overshot more — the dominant direction of the flick.
-                        let velocity = value.velocity
-                        let seed: Double = abs(overshootWidth) >= abs(overshootHeight)
-                            ? PinchPhysics.normalizedVelocity(
-                                gestureVelocity: velocity.width, current: rawOffset.width, target: newOffset.width
-                              )
-                            : PinchPhysics.normalizedVelocity(
-                                gestureVelocity: velocity.height, current: rawOffset.height, target: newOffset.height
-                              )
-                        withAnimation(.interpolatingSpring(duration: springResponse, bounce: 0, initialVelocity: seed)) {
-                            panOffset = newOffset
-                        }
-                    },
-                including: isZoomed ? .all : .none
-            )
-            .onTapGesture(count: 2) {
-                withAnimation(Theme.Motion.interactive(springResponse)) {
-                    zoomScale = 1
-                    panOffset = .zero
                 }
             }
     }
 
+    // MARK: - Pan (continuous commit, only once zoomed)
+
+    private var panGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                onGestureBegan()
+                if panBaseOffset == nil { panBaseOffset = panOffset }
+                let base = panBaseOffset ?? panOffset
+                let candidate = CGSize(
+                    width: base.width + value.translation.width,
+                    height: base.height + value.translation.height
+                )
+                panOffset = resistedPan(candidate)
+            }
+            .onEnded { value in
+                let base = panBaseOffset ?? panOffset
+                panBaseOffset = nil
+                let raw = CGSize(
+                    width: base.width + value.translation.width,
+                    height: base.height + value.translation.height
+                )
+                let clamped = clampedOffset(raw, zoom: zoomScale, containerSize: containerSize)
+                let overshootWidth = raw.width - clamped.width
+                let overshootHeight = raw.height - clamped.height
+                if overshootWidth == 0, overshootHeight == 0 {
+                    panOffset = clamped
+                } else {
+                    // One shared curve for both axes (they always settle
+                    // together); the seed comes from whichever axis overshot
+                    // more — the dominant direction of the flick.
+                    let seed: Double = abs(overshootWidth) >= abs(overshootHeight)
+                        ? PinchPhysics.normalizedVelocity(
+                            gestureVelocity: value.velocity.width, current: raw.width, target: clamped.width
+                          )
+                        : PinchPhysics.normalizedVelocity(
+                            gestureVelocity: value.velocity.height, current: raw.height, target: clamped.height
+                          )
+                    withAnimation(.interpolatingSpring(duration: springResponse, bounce: 0, initialVelocity: seed)) {
+                        panOffset = clamped
+                    }
+                }
+            }
+    }
+
+    // MARK: - Double-tap: zoom in at the tap point, or reset if already zoomed
+
+    private var doubleTapGesture: some Gesture {
+        SpatialTapGesture(count: 2)
+            .onEnded { value in
+                if isZoomed {
+                    withAnimation(Theme.Motion.interactive(springResponse)) {
+                        zoomScale = 1
+                        panOffset = .zero
+                    }
+                } else {
+                    let focal = CGSize(
+                        width: value.location.x - containerSize.width / 2,
+                        height: value.location.y - containerSize.height / 2
+                    )
+                    let solved = PinchPhysics.focalOffset(
+                        scale0: 1, offset0: .zero, newScale: doubleTapZoom, focal: focal
+                    )
+                    let target = clampedOffset(solved, zoom: doubleTapZoom, containerSize: containerSize)
+                    withAnimation(Theme.Motion.interactive(springResponse)) {
+                        zoomScale = doubleTapZoom
+                        panOffset = target
+                    }
+                }
+            }
+    }
+
+    // MARK: - Physics helpers
+
     /// Live rubber-band resistance while pinching past `1...maxZoom` — the
     /// touch still tracks the finger, just with diminishing returns, rather
-    /// than hard-freezing at the boundary (skill §9).
-    private func resistedZoomDelta(for magnification: CGFloat) -> CGFloat {
-        let candidate = zoomScale * magnification
-        let resisted: CGFloat
+    /// than hard-freezing at the boundary (skill §9). Returns an absolute
+    /// scale (not a delta).
+    private func resistedZoom(_ candidate: CGFloat) -> CGFloat {
         if candidate < 1 {
-            resisted = 1 + PinchPhysics.rubberband(overshoot: candidate - 1, dimension: 1)
+            return 1 + PinchPhysics.rubberband(overshoot: candidate - 1, dimension: 1)
         } else if candidate > maxZoom {
-            resisted = maxZoom + PinchPhysics.rubberband(overshoot: candidate - maxZoom, dimension: 1)
-        } else {
-            resisted = candidate
+            return maxZoom + PinchPhysics.rubberband(overshoot: candidate - maxZoom, dimension: 1)
         }
-        return resisted / zoomScale
+        return candidate
     }
 
     /// Live rubber-band resistance while panning past the legal (clamped)
-    /// range, same shape as `resistedZoomDelta`.
-    private func resistedPanDelta(for translation: CGSize) -> CGSize {
-        let candidate = CGSize(
-            width: panOffset.width + translation.width, height: panOffset.height + translation.height
-        )
+    /// range, same shape as `resistedZoom`. Returns an absolute offset.
+    private func resistedPan(_ candidate: CGSize) -> CGSize {
         let clamped = clampedOffset(candidate, zoom: zoomScale, containerSize: containerSize)
         let dimensionX = max(containerSize.width, 1)
         let dimensionY = max(containerSize.height, 1)
-        let resistedWidth = clamped.width + PinchPhysics.rubberband(overshoot: candidate.width - clamped.width, dimension: dimensionX)
-        let resistedHeight = clamped.height + PinchPhysics.rubberband(overshoot: candidate.height - clamped.height, dimension: dimensionY)
-        return CGSize(width: resistedWidth - panOffset.width, height: resistedHeight - panOffset.height)
+        return CGSize(
+            width: clamped.width + PinchPhysics.rubberband(overshoot: candidate.width - clamped.width, dimension: dimensionX),
+            height: clamped.height + PinchPhysics.rubberband(overshoot: candidate.height - clamped.height, dimension: dimensionY)
+        )
     }
 
     /// Keeps the zoomed image from panning fully out of view — max travel in
