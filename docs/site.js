@@ -107,6 +107,26 @@
     render();
   }
 
+  /* ---------- formula hover-link (Plan AB, Part 2.3) ----------
+     Bidirectional highlight between the methodology equation's glyph spans
+     and the decoder legend rows that share a data-term key. Hover-only;
+     legend rows are also tabindex=0 so keyboard focus mirrors the same
+     highlight (hover never fires on touch). */
+  var formulaPanel = document.querySelector('.formula-panel');
+  if (formulaPanel) {
+    var lightUp = function (term, on) {
+      var matches = formulaPanel.querySelectorAll('[data-term="' + term + '"]');
+      matches.forEach(function (el) { el.classList.toggle('is-lit', on); });
+    };
+    formulaPanel.querySelectorAll('[data-term]').forEach(function (el) {
+      var term = el.getAttribute('data-term');
+      el.addEventListener('mouseenter', function () { lightUp(term, true); });
+      el.addEventListener('mouseleave', function () { lightUp(term, false); });
+      el.addEventListener('focus', function () { lightUp(term, true); });
+      el.addEventListener('blur', function () { lightUp(term, false); });
+    });
+  }
+
   /* ---------- entrance targets ----------
      Stagger groups whose direct children cascade in. Hidden state lives in
      CSS keyed on these same selectors, so there is no flash before this runs;

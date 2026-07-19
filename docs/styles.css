@@ -26,8 +26,8 @@
 
 :root{
   /* --- Site tokens (app values, editorial lift) --- */
-  --bg0:#121417; --bg1:#16191D; --bg2:#1C2025;
-  --line:#2A2E34; --line2:#20242A;
+  --bg0:#121417; --bg1:#16191D; --bg2:#1C2025; --panel:#1E222A;
+  --line:#2A2E34; --line2:#2E333B;
   --fg:#E8E6E1; --fg2:#A6A29B; --fg3:#8A867F; --fg4:#5E5A54;
   --acc:#D9F020; --amb:#E8A020;
 
@@ -190,7 +190,7 @@ section.block{padding:64px 0; border-top:1px solid var(--line2)}
 }
 h2{
   font-family:var(--head); font-weight:700; text-transform:uppercase;
-  font-size:clamp(34px,6vw,60px); line-height:.95;
+  font-size:clamp(34px,6vw,60px); line-height:1.02; text-wrap:balance;
   letter-spacing:-1.2px; margin-bottom:24px;
 }
 p.body{max-width:var(--measure); color:var(--fg2); margin-bottom:18px}
@@ -205,7 +205,7 @@ p.body em{color:var(--fg); font-style:italic}
 .floor .row{
   display:grid; grid-template-columns:1fr auto;
   font-family:var(--mono); font-size:15px;
-  padding:16px 22px; border-bottom:1px solid var(--line2);
+  padding:24px 22px; border-bottom:1px solid var(--line2);
   color:var(--fg2);
 }
 .floor .row .v{color:var(--fg); font-variant-numeric:tabular-nums}
@@ -255,6 +255,16 @@ p.body em{color:var(--fg); font-style:italic}
 .sowhat-sub{font-family:var(--mono); font-size:13px; color:var(--fg3)}
 .sowhat-fine{font-family:var(--mono); font-size:12px; color:var(--fg4); margin-top:16px; line-height:1.6}
 .sowhat-fine strong{color:var(--fg3)}
+
+/* the physics behind the slider (Plan AB6) — same term the app changes
+   (aero) reads acid, the term it can't (rolling) reads dim, on both the
+   landing slider and the methodology formula panel below */
+.f-aero{color:var(--acc)}
+.f-roll{color:var(--fg4)}
+.sowhat-formula{
+  font-family:var(--mono); font-weight:700; font-size:clamp(15px,1.8vw,18px);
+  color:var(--fg2); margin-bottom:18px; letter-spacing:.2px;
+}
 
 /* ---------- proof strip (what it looks like) ---------- */
 .shots{
@@ -355,14 +365,13 @@ footer .dads{color:var(--fg2)}
   transition:opacity .5s var(--ease-out) var(--sd,0s), transform .5s var(--ease-out) var(--sd,0s)
 }
 
-/* an acid rule draws along each section's top divider as it enters */
-section.block, .doc > section{position:relative}
-.js section.block::before, .js .doc > section::before{
-  content:""; position:absolute; top:-1px; left:0; height:1px; width:64px;
-  background:var(--acc); transform:scaleX(0); transform-origin:left;
-  transition:transform .6s var(--ease-io) .1s;
+/* a persistent acid tick marks every section top — structure, not a scroll
+   trick, so it's on screen on load and with JS off (no .js/.in gating) */
+section.block, .doc > section, .formula-panel{position:relative}
+section.block::before, .doc > section::before, .formula-panel::before{
+  content:""; position:absolute; top:-2px; left:0; height:3px; width:64px;
+  background:var(--acc);
 }
-section.block.in::before, .doc > section.in::before{transform:scaleX(1)}
 
 /* ==========================================================================
    Methodology page
@@ -380,15 +389,17 @@ h1.doc-title{
 }
 .doc-intro{font-size:clamp(19px,2.4vw,22px); line-height:1.55; color:var(--fg)}
 
-.doc section{padding:44px 0; border-top:1px solid var(--line2)}
+.doc section{padding:64px 0; border-top:1px solid var(--line2)}
 .doc h2{
   font-size:clamp(28px,5vw,44px); letter-spacing:-.8px; margin-bottom:20px;
 }
-.doc .num-label{color:var(--acc); font-family:var(--mono); font-size:14px;
-  letter-spacing:2px; margin-right:12px; font-weight:700}
-.doc p{max-width:var(--measure); color:var(--fg2); margin-bottom:16px}
+.doc .num-label{color:var(--acc); font-family:var(--mono); font-size:16px;
+  letter-spacing:2px; font-weight:700; display:block; margin-bottom:10px}
+.doc p{max-width:var(--measure); color:var(--fg2); margin-bottom:22px}
 .doc p strong{color:var(--fg)}
 .doc p em{color:var(--fg); font-style:italic}
+/* lead sentence of each section opens bright, then settles to fg2 */
+.doc section > p:first-of-type{color:var(--fg)}
 .doc ul.plain{list-style:none; margin:8px 0 16px; max-width:var(--measure)}
 .doc ul.plain li{
   padding:12px 0 12px 20px; color:var(--fg2); border-bottom:1px solid var(--line2);
@@ -400,11 +411,11 @@ h1.doc-title{
 
 /* disclosure blocks (Layer 2) */
 details{
-  border:1px solid var(--line); background:var(--bg1);
+  border:1px solid var(--line); background:var(--panel);
   margin:18px 0; max-width:var(--measure);
 }
 details summary{
-  cursor:pointer; list-style:none; padding:16px 20px;
+  cursor:pointer; list-style:none; padding:24px;
   font-family:var(--mono); font-size:14px; letter-spacing:.5px;
   color:var(--acc); display:flex; align-items:center; gap:10px;
   user-select:none;
@@ -415,7 +426,7 @@ details[open] summary::before{transform:rotate(90deg)}
 details summary.fun{color:var(--amb)}
 details summary.fun::before{color:var(--amb)}
 details .disc-body{
-  padding:4px 20px 20px; border-top:1px solid var(--line2);
+  padding:4px 24px 24px; border-top:1px solid var(--line2);
   color:var(--fg2); font-size:16.5px; line-height:1.6;
 }
 details .disc-body p{color:var(--fg2); margin-bottom:14px; max-width:none}
@@ -444,7 +455,10 @@ details .figure-note{
 }
 
 /* callout (deliberately-don't) */
-.dont{border-left:3px solid var(--amb); padding:4px 0 4px 22px; margin:8px 0 4px}
+.dont{
+  border-left:3px solid var(--amb); background:var(--panel);
+  padding:16px 20px 16px 24px; margin:12px 0;
+}
 
 /* citations */
 .cites{list-style:none; max-width:var(--measure)}
@@ -468,6 +482,60 @@ details .figure-note{
   letter-spacing:.5px;
 }
 .doc-cta .line a{color:var(--acc)}
+
+/* the formula, as a teaching graphic (Plan AB6) — static on this page,
+   links out to the landing's live slider rather than duplicating it */
+.formula-panel{
+  background:var(--panel); border:1px solid var(--line);
+  max-width:var(--measure); padding:40px 36px; margin:36px 0;
+}
+.formula-eyebrow{
+  font-family:var(--mono); font-size:12px; letter-spacing:2.5px;
+  text-transform:uppercase; color:var(--fg3); margin-bottom:18px;
+}
+.formula-bridge{
+  font-family:var(--head); font-weight:600; text-transform:uppercase;
+  font-size:clamp(18px,2.6vw,24px); letter-spacing:-.2px;
+  color:var(--fg); margin-bottom:22px;
+}
+.formula-eq{
+  font-family:var(--mono); font-weight:700;
+  font-size:clamp(22px,3.4vw,32px); line-height:1.5;
+  letter-spacing:-.5px; margin-bottom:22px;
+}
+.formula-eq .f-cda{border-bottom:2px solid var(--acc)}
+/* bidirectional hover-link (Plan AB, Part 2.3) — hovering (or focusing) a
+   glyph in the equation or its matching row in the decoder legend below
+   lifts every element sharing that data-term key to white; the resting
+   aero-acid / rolling-grey split (above) stays untouched otherwise. */
+.formula-eq .term, .formula-legend > div{cursor:default}
+.formula-legend > div{outline:none}
+.formula-legend > div:focus-visible{outline:1px solid var(--acc); outline-offset:3px}
+.formula-eq .term.is-lit,
+.formula-legend > div.is-lit dt,
+.formula-legend > div.is-lit dd{color:var(--fg)}
+.formula-callout{
+  font-size:16.5px; line-height:1.55; color:var(--fg2); margin-bottom:26px;
+  max-width:52ch;
+}
+.formula-callout .f-cda{color:var(--acc); font-family:var(--mono); font-weight:700}
+.formula-legend{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:14px 20px; padding-top:22px; border-top:1px solid var(--line2);
+  margin-bottom:0;
+}
+.formula-legend div{display:flex; align-items:baseline; gap:10px}
+.formula-legend dt{
+  font-family:var(--mono); font-weight:700; font-size:15px; color:var(--fg);
+  min-width:1.6em;
+}
+.formula-legend dd{font-size:14.5px; color:var(--fg3)}
+.formula-link{
+  display:inline-block; margin-top:26px;
+  font-family:var(--mono); font-size:14px; color:var(--fg);
+  border-bottom:2px solid var(--acc); padding-bottom:2px;
+}
+.formula-link:hover{text-decoration:none; color:var(--acc)}
 
 /* ==========================================================================
    Hover micro-interactions (eased, hard-edged; pointer devices only)
@@ -519,7 +587,7 @@ details .figure-note{
   .get-grid{grid-template-columns:1fr; gap:32px}
   .shots{grid-template-columns:1fr 1fr}
   .faq{grid-template-columns:1fr; gap:0}
-  .doc > section{padding:36px 0}
+  .doc > section{padding:48px 0}
   .doc-head{padding:48px 0 8px}
   .readout .num{text-shadow:none}
 }
