@@ -67,6 +67,11 @@ private struct PinchZoomModifier: ViewModifier {
     // for attention. No-op default — RevealStep/PositionDetailView don't
     // need it.
     var onGestureBegan: () -> Void = {}
+    // AB11: lets a call site gate its own gesture (e.g. swipe-to-cycle the
+    // photo-mode toggle) on whether this image is currently zoomed — a
+    // horizontal pan while zoomed must never also be read as a tab swipe.
+    // No-op default so every existing call site is unaffected.
+    var onZoomChanged: (Bool) -> Void = { _ in }
 
     @State private var zoomScale: CGFloat = 1
     @State private var panOffset: CGSize = .zero
@@ -113,6 +118,9 @@ private struct PinchZoomModifier: ViewModifier {
             .gesture(magnifyGesture)
             .highPriorityGesture(panGesture, including: isZoomed ? .all : .none)
             .gesture(doubleTapGesture)
+            .onChange(of: zoomScale) { _, newValue in
+                onZoomChanged(newValue > 1.01)
+            }
     }
 
     // MARK: - Pinch (focal-anchored, continuous commit)
@@ -282,7 +290,9 @@ extension View {
     /// distinguishes one photo from another (e.g. FRONTAL vs SIDE-ON) so
     /// switching photos resets zoom instead of carrying over a now-meaningless
     /// offset onto a different image.
-    func pinchZoomable(maxZoom: CGFloat = 4, onGestureBegan: @escaping () -> Void = {}) -> some View {
-        modifier(PinchZoomModifier(maxZoom: maxZoom, onGestureBegan: onGestureBegan))
+    func pinchZoomable(
+        maxZoom: CGFloat = 4, onGestureBegan: @escaping () -> Void = {}, onZoomChanged: @escaping (Bool) -> Void = { _ in }
+    ) -> some View {
+        modifier(PinchZoomModifier(maxZoom: maxZoom, onGestureBegan: onGestureBegan, onZoomChanged: onZoomChanged))
     }
 }

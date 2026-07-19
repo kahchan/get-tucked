@@ -84,6 +84,44 @@ enum EffortModel {
         return (timeASeconds - timeBSeconds) / 60
     }
 
+    /// Point estimate: % faster position B is at the same power A implies at
+    /// `speedMS` (Plan AB13) — the speed-domain sibling of
+    /// `timeDeltaMinutes`, same two-step power-balance solve, just read out
+    /// as a speed ratio instead of a time-over-distance. Positive = B faster
+    /// (agrees with `timeDeltaMinutes`'s own sign convention by construction:
+    /// both are monotonic in the same direction in `areaBCm2 - areaACm2`).
+    static func speedDeltaPercent(areaACm2: Double, areaBCm2: Double, speedMS: Double, massKg: Double) -> Double {
+        let cdaA = assumedCd * areaACm2 / 10_000
+        let cdaB = assumedCd * areaBCm2 / 10_000
+        let power = impliedPowerW(speedMS: speedMS, cdaM2: cdaA, massKg: massKg)
+        let speedB = speedAtPowerMS(powerW: power, cdaM2: cdaB, massKg: massKg, referenceSpeedMS: speedMS)
+        return (speedB - speedMS) / speedMS * 100
+    }
+
+    /// Speed-domain sibling of `timeDeltaBandMinutes` — same area-noise
+    /// perturbation, same narrower/wider-gap shape, so a comparison view can
+    /// show a `%` range with the same honesty as the minutes band beside it.
+    static func speedDeltaPercentBand(
+        areaACm2: Double, areaBCm2: Double, speedMS: Double, massKg: Double,
+        noiseFraction: Double = AnalysisMath.uncertaintyFraction
+    ) -> (low: Double, high: Double) {
+        let narrowerGap = speedDeltaPercent(
+            areaACm2: areaACm2 * (1 - noiseFraction), areaBCm2: areaBCm2 * (1 + noiseFraction),
+            speedMS: speedMS, massKg: massKg
+        )
+        let widerGap = speedDeltaPercent(
+            areaACm2: areaACm2 * (1 + noiseFraction), areaBCm2: areaBCm2 * (1 - noiseFraction),
+            speedMS: speedMS, massKg: massKg
+        )
+        return (min(narrowerGap, widerGap), max(narrowerGap, widerGap))
+    }
+
+    /// Rounds to 5 W steps (Plan AB12) — the ±3% area noise floor already
+    /// shown elsewhere puts fake precision in single-watt figures.
+    static func roundedWatts5(_ watts: Double) -> Int {
+        Int((watts / 5).rounded() * 5)
+    }
+
     /// Propagates the ±`noiseFraction` area uncertainty (default 3%,
     /// matching `AnalysisMath.uncertaintyFraction`) through to a band on the
     /// time delta — the widest-gap and narrowest-gap area pairings, in

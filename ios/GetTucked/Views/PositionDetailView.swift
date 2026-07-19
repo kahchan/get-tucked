@@ -29,6 +29,10 @@ struct PositionDetailView: View {
     @State private var frontalPhotoSegment: PhotoSegment = .photo
     @State private var sideOnPhotoSegment: PhotoSegment = .photo
     @State private var showDeleteConfirm = false
+    // AB11: gates the swipe-to-cycle gesture below — a pinch-zoomed pan must
+    // never also be read as a tab swipe. Reset per photo via `.id(showingSideOn)`
+    // resetting the whole pinch-zoom modifier, same as zoom itself.
+    @State private var isPhotoZoomed = false
     // Peeked from the stored photos' headers (no full decode) so the
     // placeholder box is sized correctly from the very first frame (N5) —
     // the decoded photo then fades in over it with zero layout shift.
@@ -134,7 +138,14 @@ struct PositionDetailView: View {
                         // rather than carrying a now-meaningless offset onto a
                         // different image with a different aspect ratio.
                         .id(showingSideOn)
-                        .pinchZoomable()
+                        .pinchZoomable(onZoomChanged: { isPhotoZoomed = $0 })
+                        // AB11: swipe the photo itself to cycle PHOTO/MASK/BONES —
+                        // `.simultaneousGesture` so it never steals the enclosing
+                        // ScrollView's vertical drag (only `.onEnded` acts, and only
+                        // once the drag is clearly horizontal); the `isPhotoZoomed`
+                        // guard is what keeps a zoomed pan from also being read as a
+                        // tab swipe.
+                        .simultaneousGesture(photoSwipeGesture)
                         // MASK/BONES only make sense once the overlay they need is
                         // ready — fades in (rather than popping the layout) once it
                         // is, same as the underlying mask fade in loadPhotos().
@@ -213,7 +224,7 @@ struct PositionDetailView: View {
                         // Same-kit reminder (Q3.2) — the one piece of
                         // SetTheSceneView's coaching this flow genuinely
                         // needs, since that screen is never shown here.
-                        Text("Same kit, same helmet, same bar position — clothing changes your silhouette as much as a small bag does.")
+                        Text("Same kit, same helmet, same bar position: clothing changes your silhouette as much as a small bag does.")
                             .font(Theme.mono(11))
                             .foregroundStyle(Theme.Palette.fg3)
                             .padding(.horizontal, Theme.Space.screenMargin)
@@ -316,6 +327,31 @@ struct PositionDetailView: View {
                 }
             }
         )
+    }
+
+    /// AB11: one gesture, one meaning — cycles whichever toggle bar is
+    /// currently showing (frontal or side-on), through only its own
+    /// available segments. `minimumDistance: 24` keeps an ordinary vertical
+    /// scroll from ever registering as a swipe attempt in the first place;
+    /// the horizontal-dominance + distance checks in `onEnded` are the
+    /// second gate. No wraparound: `frontalPhotoSegmentBinding`/
+    /// `sideOnPhotoSegmentBinding` already no-op on an out-of-range index.
+    private var photoSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                guard !isPhotoZoomed else { return }
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > 50, abs(horizontal) > abs(vertical) * 1.5 else { return }
+                let delta = horizontal < 0 ? 1 : -1
+                if showingSideOn {
+                    let binding = sideOnPhotoSegmentBinding
+                    binding.wrappedValue = binding.wrappedValue + delta
+                } else {
+                    let binding = frontalPhotoSegmentBinding
+                    binding.wrappedValue = binding.wrappedValue + delta
+                }
+            }
     }
 
     /// No draw-on here (Plan O5) — `SkeletonOverlay.progress` defaults to 1
@@ -766,6 +802,11 @@ private struct MetricsSection: View {
 
             SectionDivider()
 
+            // AB12: the solo "so what" — cost, not impact (spec §3: a lone
+            // position has no baseline to diff against, so this is a bare
+            // watts figure, never a fake time-over-distance delta).
+            SoloEffortRow(areaCm2: metrics.frontalAreaCm2)
+
             // Tier 3: the one posture number riders actually talk about
             // (bar drop / head position) — shown only when a real wheelbase
             // ruler produced it (Plan P1.5). Still stored on
@@ -812,6 +853,48 @@ private struct MetricsSection: View {
                 }
             }
             .padding(.horizontal, Theme.Space.screenMargin)
+        }
+    }
+}
+
+// MARK: - Solo effort row (Plan AB12)
+
+/// Standalone watts, not a delta — a lone position has no reference to diff
+/// against (spec §3 forbids inventing one), so this states the *cost* of
+/// this position's own frontal area at the rider's chosen flat-road speed
+/// instead. Shares its `@AppStorage` keys with `ComparisonView`'s
+/// `TimeImpactSection` (same speed, same "confirmed vs assumed" framing) so
+/// a speed committed on either screen updates both.
+private struct SoloEffortRow: View {
+    let areaCm2: Double
+
+    @AppStorage("effortSpeedKmh") private var speedKmh: Double = 30
+    @AppStorage("effortInputsConfirmed") private var inputsConfirmed = false
+
+    private var watts: Int {
+        let speedMS = speedKmh / 3.6
+        let cda = EffortModel.assumedCd * areaCm2 / 10_000
+        let power = EffortModel.impliedPowerW(speedMS: speedMS, cdaM2: cda, massKg: EffortModel.assumedMassKg)
+        return EffortModel.roundedWatts5(power)
+    }
+
+    private var sentence: String {
+        if inputsConfirmed {
+            return "Holding \(Int(speedKmh)) km/h in this position takes ~\(watts) W."
+        }
+        return "Holding an assumed \(Int(speedKmh)) km/h in this position takes ~\(watts) W."
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(sentence)
+                .font(Theme.mono(13))
+                .foregroundStyle(Theme.Palette.fg2)
+                .padding(.horizontal, Theme.Space.screenMargin)
+                .frame(minHeight: Theme.Control.metricRowHeight, alignment: .leading)
+            Rectangle()
+                .fill(Theme.Palette.line2)
+                .frame(height: Theme.Control.hairline)
         }
     }
 }

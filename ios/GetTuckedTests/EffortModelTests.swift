@@ -151,4 +151,83 @@ final class EffortModelTests: XCTestCase {
         // Hand-checked point: ~3.0 min at 30 km/h for a 5% cut over 100 km.
         XCTAssertEqual(delta(atKmh: 30), 3.05, accuracy: 0.15)
     }
+
+    // MARK: - AB13: % callout must agree with the minutes band
+
+    /// The comparison's minutes sentence and its "same effort, % faster"
+    /// line are two different read-outs of the same power-balance solve —
+    /// they must never disagree on which side wins or which way the sign
+    /// points, across a spread of plausible area pairs (equal, small gap,
+    /// large gap, either side ahead).
+    func testSpeedDeltaPercentAgreesInSignWithTimeDeltaMinutes() {
+        let pairs: [(areaA: Double, areaB: Double)] = [
+            (4500, 4200), (4200, 4500), (4000, 3800), (3800, 4000),
+            (5000, 4000), (4200, 4200), (4210, 4200),
+        ]
+        for pair in pairs {
+            for kmh in [15.0, 30.0, 45.0] {
+                let speedMS = kmh / 3.6
+                let timeDelta = EffortModel.timeDeltaMinutes(
+                    areaACm2: pair.areaA, areaBCm2: pair.areaB, speedMS: speedMS,
+                    massKg: EffortModel.assumedMassKg, distanceM: 100_000
+                )
+                let pctDelta = EffortModel.speedDeltaPercent(
+                    areaACm2: pair.areaA, areaBCm2: pair.areaB, speedMS: speedMS, massKg: EffortModel.assumedMassKg
+                )
+                // Same-sign agreement (both derive from B being smaller/larger
+                // than A) — a strict `==` on the boolean tests the sign, not
+                // the magnitude, so ties (equal areas) round-trip cleanly too.
+                XCTAssertEqual(
+                    timeDelta >= 0, pctDelta >= 0,
+                    "areaA=\(pair.areaA) areaB=\(pair.areaB) at \(kmh) km/h: time delta \(timeDelta) vs pct delta \(pctDelta)"
+                )
+            }
+        }
+    }
+
+    func testSpeedDeltaPercentBandLowNeverExceedsHigh() {
+        let band = EffortModel.speedDeltaPercentBand(
+            areaACm2: 4500, areaBCm2: 4200, speedMS: 8.33, massKg: EffortModel.assumedMassKg
+        )
+        XCTAssertLessThanOrEqual(band.low, band.high)
+    }
+
+    func testSpeedDeltaPercentBandCanSpanZeroForATinyBarelyDistinguishableDelta() {
+        let band = EffortModel.speedDeltaPercentBand(
+            areaACm2: 4210, areaBCm2: 4200, speedMS: 8.33, massKg: EffortModel.assumedMassKg
+        )
+        XCTAssertLessThan(band.low, 0)
+        XCTAssertGreaterThan(band.high, 0)
+    }
+
+    func testEqualAreasProduceZeroSpeedDeltaPercent() {
+        // Accuracy loosened past the bisection's own 0.001 m/s tolerance
+        // (translated to a % of an ~8 m/s reference speed) so this isn't
+        // flaky against `speedAtPowerMS`'s numerical convergence noise.
+        let pct = EffortModel.speedDeltaPercent(
+            areaACm2: 4200, areaBCm2: 4200, speedMS: 8.33, massKg: EffortModel.assumedMassKg
+        )
+        XCTAssertEqual(pct, 0, accuracy: 0.05)
+    }
+
+    // MARK: - AB12: watts rounding
+
+    func testRoundedWatts5RoundsToNearestFiveWattSteps() {
+        XCTAssertEqual(EffortModel.roundedWatts5(187), 185)
+        XCTAssertEqual(EffortModel.roundedWatts5(188), 190)
+        XCTAssertEqual(EffortModel.roundedWatts5(190), 190)
+        XCTAssertEqual(EffortModel.roundedWatts5(0), 0)
+    }
+
+    func testWorkedExampleSoloWattsAreInAPlausibleRoundedRange() {
+        // Same worked example as the comparison's own sanity check (30 km/h,
+        // 4200 cm², 80 kg) — the solo row is the same math, read out alone.
+        let speedMS = 30.0 / 3.6
+        let cda = EffortModel.assumedCd * 4200 / 10_000
+        let power = EffortModel.impliedPowerW(speedMS: speedMS, cdaM2: cda, massKg: EffortModel.assumedMassKg)
+        let rounded = EffortModel.roundedWatts5(power)
+        XCTAssertEqual(rounded % 5, 0)
+        XCTAssertGreaterThan(rounded, 80)
+        XCTAssertLessThan(rounded, 300)
+    }
 }

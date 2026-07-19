@@ -111,12 +111,12 @@ struct ComparisonView: View {
         guard let fraction = metrics?.wheelCheckDisagreementFraction,
               let warning = AnalysisMath.wheelCheckWarning(fraction)
         else { return nil }
-        return "\(side) — \(warning)"
+        return "\(side): \(warning)"
     }
 
     private func shoulderWidthAdvisory(_ metrics: PositionMetrics?, side: String) -> String? {
         guard let cm = metrics?.shoulderWidthCm, let warning = AnalysisMath.shoulderWidthWarning(cm) else { return nil }
-        return "\(side) — \(warning)"
+        return "\(side): \(warning)"
     }
 
     private var advisoryLines: [String] {
@@ -170,7 +170,8 @@ struct ComparisonView: View {
                                         showLayerA: showLayerA, showLayerB: showLayerB,
                                         drawInProgressA: reduceMotion ? 1 : drawInProgressA,
                                         drawInProgressB: reduceMotion ? 1 : drawInProgressB,
-                                        onGestureBegan: cancelDrawInIfNeeded
+                                        onGestureBegan: cancelDrawInIfNeeded,
+                                        onSwipeCycle: cycleOutlineSegment
                                     )
                                     .overlay(alignment: .topTrailing) {
                                         HStack(spacing: Theme.Space.xs) {
@@ -287,6 +288,15 @@ struct ComparisonView: View {
                 showOutline = newValue == 1
             }
         )
+    }
+
+    /// AB11: routes the overlay's swipe gesture through the same binding the
+    /// PHOTO/OUTLINE toggle uses (so `cancelDrawInIfNeeded` fires identically
+    /// either way) — no wraparound: an out-of-range index is simply dropped.
+    private func cycleOutlineSegment(delta: Int) {
+        let newIndex = showOutlineBinding.wrappedValue + delta
+        guard (0...1).contains(newIndex) else { return }
+        showOutlineBinding.wrappedValue = newIndex
     }
 
     /// Off-main, once — mirrors the pattern `CaptureView.buildGhosts()` uses
@@ -440,7 +450,7 @@ struct ComparisonView: View {
 
 private struct CrossBikeWarning: View {
     var body: some View {
-        Text("DIFFERENT BIKES — differences may reflect the bikes, not the rider.")
+        Text("DIFFERENT BIKES. Differences may reflect the bikes, not the rider.")
             .font(Theme.mono(11))
             .foregroundStyle(Theme.Palette.amb)
             .padding(Theme.Space.md)
@@ -560,6 +570,11 @@ private struct GhostCompareOverlay: View {
     // R1.4: a pinch/pan starting mid-draw snaps the ceremony to done —
     // scrolling/zooming shouldn't compete with an unrelated animation.
     var onGestureBegan: () -> Void = {}
+    // AB11: swipe the overlay to cycle PHOTO/OUTLINE — never A/B, which
+    // keeps its own chips untouched.
+    var onSwipeCycle: (Int) -> Void = { _ in }
+
+    @State private var isZoomed = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -584,10 +599,27 @@ private struct GhostCompareOverlay: View {
             // PositionDetailView/RevealStep use) — PHOTO/OUTLINE and the A/B
             // toggles don't reset zoom, since the physical-cm placement puts
             // both modes' content at the identical screen position/scale.
-            .pinchZoomable(onGestureBegan: onGestureBegan)
+            .pinchZoomable(onGestureBegan: onGestureBegan, onZoomChanged: { isZoomed = $0 })
+            // AB11: `.simultaneousGesture` so the swipe never steals the
+            // enclosing ScrollView's vertical drag — only `.onEnded` acts,
+            // and only for a clearly horizontal drag while unzoomed (a
+            // zoomed pan is a different, `.highPriorityGesture`-owned
+            // gesture already; `isZoomed` is a defense-in-depth guard here).
+            .simultaneousGesture(swipeGesture)
         }
         .background(Theme.Palette.bg1)
         .clipped()
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                guard !isZoomed else { return }
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > 50, abs(horizontal) > abs(vertical) * 1.5 else { return }
+                onSwipeCycle(horizontal < 0 ? 1 : -1)
+            }
     }
 
     @ViewBuilder
@@ -756,6 +788,12 @@ private struct TimeImpactSection: View {
     // Live-typed text, committed to the @AppStorage value above on blur
     // (this app's numeric-field convention) rather than on every keystroke.
     @State private var speedText = ""
+    // AB10: the one live value driving both the slider's thumb position and
+    // the output band — the slider commits into it continuously (live drag),
+    // the text field only on blur (`commitSpeed`), matching "both controls
+    // count as a commit" without making the band recompute on every
+    // keystroke (this app's numeric-field convention).
+    @State private var speedKmh: Double = 30
     @State private var selectedPreset: DistancePreset? = .c100
     @State private var customDistanceText = ""
     @FocusState private var focusedField: Field?
@@ -793,6 +831,7 @@ private struct TimeImpactSection: View {
         .padding(.bottom, Theme.Space.lg)
         .onAppear {
             speedText = String(Int(persistedSpeedKmh))
+            speedKmh = persistedSpeedKmh
         }
         .onChange(of: focusedField) { oldValue, _ in
             switch oldValue {
@@ -824,12 +863,22 @@ private struct TimeImpactSection: View {
                     .font(Theme.mono(15, weight: .bold))
                     .foregroundStyle(Theme.Palette.fg)
             }
+            // AB13: same-effort % speed, directly beneath the minutes
+            // sentence — `pctBand.winnerLabel == band.winnerLabel` is a
+            // defensive check, not a coupling; the two are derived from the
+            // same power-balance model and always agree in sign (pinned by
+            // `EffortModelTests`), so this should never actually skip.
+            if pctBand.winnerLabel == band.winnerLabel {
+                Text(pctSentence(band, pctBand))
+                    .font(Theme.mono(13))
+                    .foregroundStyle(Theme.Palette.fg2)
+            }
             if !inputsConfirmed {
-                Text("Using a default speed — edit below for yours.")
+                Text("Using a default speed. Edit below for yours.")
                     .font(Theme.mono(11, weight: .bold))
                     .foregroundStyle(Theme.Palette.amb)
             }
-            Text("Estimate — assumes equal effort, equal drag coefficient, an \(Int(EffortModel.assumedMassKg)) kg rider+bike+kit, flat course, no wind. A rear-mounted bag can change drag through wake effects this model doesn't capture.")
+            Text("Estimate. Assumes equal effort, equal drag coefficient, an \(Int(EffortModel.assumedMassKg)) kg rider+bike+kit, flat course, no wind. A rear-mounted bag can change drag through wake effects this model doesn't capture.")
                 .font(Theme.mono(10))
                 .foregroundStyle(Theme.Palette.fg3)
         }
@@ -851,9 +900,7 @@ private struct TimeImpactSection: View {
     /// nil when any input is missing/out of range (Plan S2 edge cases) —
     /// no output card at all in that case, just the bare fields.
     private var outputBand: OutputBand? {
-        guard let distanceKm, distanceKm > 0,
-              let speedKmh = Double(speedText), (10...60).contains(speedKmh)
-        else { return nil }
+        guard let distanceKm, distanceKm > 0 else { return nil }
 
         let speedMS = speedKmh / 3.6
         let distanceM = distanceKm * 1000
@@ -896,6 +943,41 @@ private struct TimeImpactSection: View {
         return "\(Int(distanceKm)) km"
     }
 
+    // MARK: - AB13: same-effort % speed
+
+    private typealias PctBand = (winnerLabel: String, lowPct: Double, highPct: Double)
+
+    /// Speed-domain sibling of `outputBand` — same power-balance model, same
+    /// area-noise perturbation, so the winner/sign always agree with the
+    /// minutes band beside it (pinned by `EffortModelTests`). Unlike
+    /// `outputBand`, this never depends on distance, so it's never nil.
+    private var pctBand: PctBand {
+        let speedMS = speedKmh / 3.6
+        let massKg = EffortModel.assumedMassKg
+        let point = EffortModel.speedDeltaPercent(areaACm2: areaA, areaBCm2: areaB, speedMS: speedMS, massKg: massKg)
+        let band = EffortModel.speedDeltaPercentBand(areaACm2: areaA, areaBCm2: areaB, speedMS: speedMS, massKg: massKg)
+
+        if band.low >= 0 { return ("B", band.low, band.high) }
+        if band.high <= 0 { return ("A", -band.high, -band.low) }
+        let magnitude = max(abs(band.low), abs(band.high))
+        return (point >= 0 ? "B" : "A", 0, magnitude)
+    }
+
+    private func pctSentence(_ band: OutputBand, _ pct: PctBand) -> String {
+        "Same effort at \(Int(band.speedKmh)) km/h: position \(pct.winnerLabel) is \(formattedPct(pct)) faster."
+    }
+
+    /// Never a false three-significant-digit percentage (AB13): a single
+    /// figure gets one decimal place; a spread wide enough to matter shows as
+    /// a range instead, same honesty shape as `formattedRange`.
+    private func formattedPct(_ pct: PctBand) -> String {
+        if pct.highPct - pct.lowPct < 0.3 {
+            let mid = (pct.lowPct + pct.highPct) / 2
+            return "~\(String(format: "%.1f", mid))%"
+        }
+        return "~\(String(format: "%.1f", pct.lowPct))–\(String(format: "%.1f", pct.highPct))%"
+    }
+
     // MARK: - Inputs
 
     private var inputs: some View {
@@ -921,8 +1003,14 @@ private struct TimeImpactSection: View {
                     FieldLabel("FLAT-ROAD SPEED (KM/H)")
                     MonoField(placeholder: "30", text: $speedText, numericOnly: true)
                         .focused($focusedField, equals: .speed)
+                    // AB10: alongside the type-in field, both bound to the
+                    // same value — the field commits on blur, the slider
+                    // live-updates the band during drag and persists on
+                    // release (either counts as a commit).
+                    WideSlider(value: $speedKmh, range: 10...60, step: 1, onCommit: commitSpeedFromSlider)
+                        .padding(.top, Theme.Space.xs)
                 }
-                Text("The speed you'd hold on a flat, calm road — not a ridden average (that bundles hills, stops and wind).")
+                Text("The speed you'd hold on a flat, calm road, not a ridden average (that bundles hills, stops and wind).")
                     .font(Theme.mono(10))
                     .foregroundStyle(Theme.Palette.fg4)
             }
@@ -947,8 +1035,72 @@ private struct TimeImpactSection: View {
 
     private func commitSpeed() {
         guard let value = Double(speedText), (10...60).contains(value) else { return }
+        speedKmh = value
         persistedSpeedKmh = value
         inputsConfirmed = true
+    }
+
+    /// AB10: the slider's own commit, fired on release — syncs the text
+    /// field to match so the two controls never visibly disagree once the
+    /// gesture ends.
+    private func commitSpeedFromSlider() {
+        persistedSpeedKmh = speedKmh
+        inputsConfirmed = true
+        speedText = String(Int(speedKmh))
+    }
+}
+
+// MARK: - Wide-hit-zone speed slider (Plan AB10)
+
+/// A stock `Slider`'s thumb is a small target; this trades it for a
+/// full-width, ≥44pt-tall drag zone (the whole track is the hit target, not
+/// just a knob) — the ask was "a LOT wider than a stock thumb." Value
+/// commits live as the finger moves (drives the so-what band during drag);
+/// `onCommit` fires once on release, mirroring the text field's
+/// commit-on-blur so either control counts as "a commit."
+private struct WideSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+    var onCommit: () -> Void = {}
+
+    private var fraction: CGFloat {
+        guard range.upperBound > range.lowerBound else { return 0 }
+        return CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound))
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, 1)
+            let thumbX = min(width, max(0, width * fraction))
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(Theme.Palette.line)
+                    .frame(height: 2)
+                Rectangle()
+                    .fill(Theme.Palette.acc)
+                    .frame(width: thumbX, height: 2)
+                Rectangle()
+                    .fill(Theme.Palette.acc)
+                    .frame(width: 3, height: 18)
+                    .offset(x: thumbX - 1.5)
+            }
+            .frame(maxHeight: .infinity)
+            // The full-width `contentShape`, not just the visible track, is
+            // the actual drag target — this is the "wider than a stock
+            // thumb" part.
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+                        let clampedX = min(max(0, drag.location.x), width)
+                        let raw = range.lowerBound + Double(clampedX / width) * (range.upperBound - range.lowerBound)
+                        value = (raw / step).rounded() * step
+                    }
+                    .onEnded { _ in onCommit() }
+            )
+        }
+        .frame(height: Theme.Control.iconTapTarget) // 44pt — HIG's own minimum, reused as the "much wider" hit zone
     }
 }
 
