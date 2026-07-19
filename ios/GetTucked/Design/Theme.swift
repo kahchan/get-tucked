@@ -14,6 +14,10 @@ enum Theme {
         static let bg2 = Color(hex: 0x161616)   // tertiary surface
         static let line = Color(hex: 0x262626)   // divider / border
         static let line2 = Color(hex: 0x1A1A1A)  // subtle divider
+        /// Border for panels lifted onto `bg2` (Plan AB3) — `line` reads
+        /// against `bg0`/`bg1` and goes muddy against the lighter `bg2` fill,
+        /// so lifted surfaces need a brighter border to still read separated.
+        static let line3 = Color(hex: 0x333333)
         static let fg = Color(hex: 0xEEEEEE)     // primary text
         static let fg2 = Color(hex: 0x999999)    // secondary text
         static let fg3 = Color(hex: 0x777777)    // tertiary text

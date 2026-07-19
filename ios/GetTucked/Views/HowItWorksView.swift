@@ -15,69 +15,73 @@ struct HowItWorksView: View {
                 SectionDivider()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        MethodStep(
-                            number: "01", title: "Isolate",
-                            // Rider+bike+bags system (2026-07-07 product decision) —
-                            // not the prototype's rider-and-bike-only copy.
-                            description: "We separate you, your bike, and your bags from everything behind you. The background is thrown away — only your silhouette survives.",
-                            showRail: true
-                        )
-                        MethodStep(
-                            number: "02", title: "Scale",
-                            description: "Your handlebar width is a known ruler in the frame. It converts pixels into real centimetres — no depth sensor required.",
-                            showRail: true
-                        )
-                        MethodStep(
-                            number: "03", title: "Project",
-                            description: "We sum the lit silhouette into one figure: your frontal area, in cm² — the surface the wind actually sees.",
-                            showRail: false
-                        )
+                    // Plan AB1: one rhythm for the whole page — xl between
+                    // sections, lg within a section's groupings, md between
+                    // paragraphs — owned here once instead of each section
+                    // hand-placing its own top padding.
+                    VStack(alignment: .leading, spacing: Theme.Space.xl) {
+                        VStack(alignment: .leading, spacing: Theme.Space.lg) {
+                            MethodStep(
+                                number: "01", title: "Isolate",
+                                // Rider+bike+bags system (2026-07-07 product
+                                // decision) — not the prototype's
+                                // rider-and-bike-only copy.
+                                lead: "We separate you, your bike, and your bags from everything behind you.",
+                                detail: "The background is thrown away: only your silhouette survives."
+                            )
+                            MethodStep(
+                                number: "02", title: "Scale",
+                                lead: "Your handlebar width is a known ruler in the frame.",
+                                detail: "It converts pixels into real centimetres, no depth sensor required."
+                            )
+                            MethodStep(
+                                number: "03", title: "Project",
+                                lead: "We sum the lit silhouette into one figure: your frontal area, in cm² (the surface the wind actually sees).",
+                                detail: nil
+                            )
+                        }
 
-                        // Every section below owns its own top gap (Theme.Space.lg)
-                        // rather than the preceding divider carrying trailing
-                        // padding — one consistent rule for the whole screen's
-                        // vertical rhythm instead of spacing living on whichever
-                        // side of a divider happened to need it.
                         SectionDivider()
 
-                        Text("WHAT THE NUMBER IS — AND ISN'T")
-                            .font(Theme.mono(11, weight: .bold))
-                            .foregroundStyle(Theme.Palette.fg3)
-                            .kerning(0.3)
-                            .padding(.horizontal, Theme.Space.screenMargin)
-                            .padding(.top, Theme.Space.lg)
-                            .padding(.bottom, Theme.Space.sm)
-
-                        // Stacked, not side-by-side (Kah, 2026-07-10) — two
-                        // columns at 11pt type left each list cramped.
                         VStack(alignment: .leading, spacing: Theme.Space.lg) {
-                            FactColumn(
-                                tag: "IT IS", color: Theme.Palette.acc, mark: "+",
-                                items: [
-                                    "A repeatable proxy for drag",
-                                    "Sensitive to position, not weather",
-                                    "Comparable shot to shot",
-                                ]
-                            )
-                            FactColumn(
-                                tag: "IT ISN'T", color: Theme.Palette.amb, mark: "−",
-                                items: [
-                                    "A wind-tunnel CdA figure",
-                                    "A read on surface or yaw drag",
-                                    "A watts-saved promise",
-                                ]
-                            )
+                            Text("WHAT THE NUMBER IS, AND ISN'T")
+                                .font(Theme.mono(11, weight: .bold))
+                                .foregroundStyle(Theme.Palette.fg)
+                                .kerning(0.3)
+
+                            // Stacked, not side-by-side (Kah, 2026-07-10) — two
+                            // columns at 11pt type left each list cramped.
+                            VStack(alignment: .leading, spacing: Theme.Space.lg) {
+                                FactColumn(
+                                    tag: "IT IS", color: Theme.Palette.acc, mark: "+",
+                                    items: [
+                                        "A repeatable proxy for drag",
+                                        "Sensitive to position, not weather",
+                                        "Comparable shot to shot",
+                                    ]
+                                )
+                                FactColumn(
+                                    tag: "IT ISN'T", color: Theme.Palette.amb, mark: "−",
+                                    items: [
+                                        "A wind-tunnel CdA figure",
+                                        "A read on surface or yaw drag",
+                                        "A watts-saved promise",
+                                    ]
+                                )
+                            }
                         }
                         .padding(.horizontal, Theme.Space.screenMargin)
 
+                        // Plan AB5: promoted from a bordered card to a full,
+                        // acid-led section — this is the payoff/method beat.
+                        TimeEstimateSection()
+                            .padding(.horizontal, Theme.Space.screenMargin)
+
+                        // Plan AB5: the honest caveat, amber-cued, kept tight
+                        // by design — the contrast with the section above it
+                        // is the differentiation.
                         NoiseFloorNote()
                             .padding(.horizontal, Theme.Space.screenMargin)
-                            .padding(.top, Theme.Space.lg)
-
-                        TimeEstimateNote()
-                            .padding(.horizontal, Theme.Space.screenMargin)
-                            .padding(.top, Theme.Space.lg)
 
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Be informed,")
@@ -90,10 +94,9 @@ struct HowItWorksView: View {
                                 .kerning(Theme.Typography.tracking(forSize: 30))
                         }
                         .padding(.horizontal, Theme.Space.screenMargin)
-                        .padding(.top, Theme.Space.xl)
-                        .padding(.bottom, Theme.Space.xl)
                     }
                     .padding(.top, Theme.Space.lg)
+                    .padding(.bottom, Theme.Space.xl)
                 }
             }
         }
@@ -101,48 +104,40 @@ struct HowItWorksView: View {
     }
 }
 
-// MARK: - Numbered rail step
+// MARK: - Numbered step
 
+/// Plan AB2: the step number is a large acid eyebrow above its title, with
+/// title and body flush left at `screenMargin` — no rail, no indent. Kah,
+/// 2026-07-19: "eyebrows only."
 private struct MethodStep: View {
     let number: String
     let title: String
-    let description: String
-    let showRail: Bool
+    let lead: String
+    let detail: String?
 
     var body: some View {
-        HStack(alignment: .top, spacing: Theme.Space.md) {
-            VStack(spacing: 0) {
-                ZStack {
-                    Circle()
-                        .fill(Theme.Palette.bg0)
-                        .overlay(Circle().stroke(Theme.Palette.acc.opacity(0.4), lineWidth: 1))
-                    Text(number)
-                        .font(Theme.mono(11, weight: .bold))
-                        .foregroundStyle(Theme.Palette.acc)
-                }
-                .frame(width: 30, height: 30)
-                if showRail {
-                    Rectangle()
-                        .fill(Theme.Palette.line)
-                        .frame(width: 1)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: Theme.Space.sm) {
-                Text(title.uppercased())
-                    .font(Theme.heading(17))
-                    .foregroundStyle(Theme.Palette.fg)
-                    .kerning(0.2)
-                Text(description)
+        VStack(alignment: .leading, spacing: Theme.Space.sm) {
+            Text(number)
+                .font(Theme.mono(28, weight: .bold))
+                .foregroundStyle(Theme.Palette.acc)
+                .kerning(Theme.Typography.tracking(forSize: 28))
+            Text(title.uppercased())
+                .font(Theme.heading(17))
+                .foregroundStyle(Theme.Palette.fg)
+                .kerning(0.2)
+            // Plan AB3: lead sentence promoted to `fg`, any secondary
+            // sentence stays dimmer — a bright line to open each step, then
+            // it settles.
+            Text(lead)
+                .font(Theme.mono(11))
+                .foregroundStyle(Theme.Palette.fg)
+                .fixedSize(horizontal: false, vertical: true)
+            if let detail {
+                Text(detail)
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.Palette.fg3)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.bottom, Theme.Space.lg)
-            // Optical nudge, not rhythm spacing — aligns the title's cap-height
-            // with the circle's vertical centre; closest token is xs (4pt vs
-            // the hand-tuned 3pt, imperceptible).
-            .padding(.top, Theme.Space.xs)
         }
         .padding(.horizontal, Theme.Space.screenMargin)
     }
@@ -180,16 +175,19 @@ private struct FactColumn: View {
 
 // MARK: - Noise floor note
 
+/// Stays a compact, amber-cued caveat card (Plan AB5) — tight by design, in
+/// deliberate contrast with the full-section treatment above it.
 private struct NoiseFloorNote: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.sm) {
             Text("THE NOISE FLOOR")
                 .font(Theme.mono(9, weight: .bold))
-                .foregroundStyle(Theme.Palette.acc)
+                .foregroundStyle(Theme.Palette.amb)
                 .kerning(1.2)
+            // Plan AB9: varied off the "X, not Y" negation used elsewhere.
             Text(
-                "Every reading carries a ±\(Int(AnalysisMath.uncertaintyFraction * 100))% margin. " +
-                "Re-shoot the same position to confirm a change is real — not measurement jitter."
+                "Every reading carries a ±\(Int(AnalysisMath.uncertaintyFraction * 100))% margin, so " +
+                "re-shoot the same position to tell a real change from ordinary noise."
             )
             .font(Theme.mono(10))
             .foregroundStyle(Theme.Palette.fg2)
@@ -198,57 +196,145 @@ private struct NoiseFloorNote: View {
             // out when comparing two positions shot the same way.
             Text(
                 "The handlebar ruler sits slightly forward of your torso, so the " +
-                "absolute number reads a touch low — this mostly cancels out when comparing positions."
+                "absolute number reads a touch low, though this mostly cancels out when comparing positions."
             )
             .font(Theme.mono(10))
             .foregroundStyle(Theme.Palette.fg2)
         }
         .padding(Theme.Space.md)
-        .background(Theme.Palette.bg1)
-        .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+        .background(Theme.Palette.bg2)
+        .overlay(Rectangle().stroke(Theme.Palette.line3, lineWidth: 1))
     }
 }
 
-// MARK: - Time estimate note (Plan U)
+// MARK: - Time estimate section (Plan U, promoted to a full section by AB5)
 
 /// Explains the TIME IMPACT card's "so what" number (ComparisonView) — the
 /// one figure on screen that layers assumptions on top of the raw area
 /// measurement, so it earns its own defensibility section (spec §3).
-private struct TimeEstimateNote: View {
+private struct TimeEstimateSection: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.sm) {
+        VStack(alignment: .leading, spacing: Theme.Space.lg) {
             Text("THE TIME ESTIMATE")
-                .font(Theme.mono(9, weight: .bold))
-                .foregroundStyle(Theme.Palette.acc)
-                .kerning(1.2)
-            Text("P = v · (½ · ρ · CdA · v² + Crr · m · g)")
                 .font(Theme.mono(11, weight: .bold))
-                .foregroundStyle(Theme.Palette.fg)
-            Text(
-                "We take your flat-road speed, work out the power it implies for the " +
-                "larger position, then ask how fast that same power pushes the smaller " +
-                "one. The time gap over your distance is the estimate."
-            )
-            .font(Theme.mono(10))
-            .foregroundStyle(Theme.Palette.fg2)
-            Text(
-                "Fixed assumptions: drag coefficient \(EffortModel.assumedCd), rider + " +
-                "bike + kit \(Int(EffortModel.assumedMassKg)) kg, rolling resistance " +
-                "\(String(format: "%.3f", EffortModel.crr)), sea-level air. Flat course, no wind, equal effort."
-            )
-            .font(Theme.mono(10))
-            .foregroundStyle(Theme.Palette.fg2)
-            Text(
-                "Slower riders gain more minutes, not fewer: an area cut buys roughly the " +
-                "same percentage of speed at any pace, and a slower rider spends longer on " +
-                "course for it to add up. Over a fixed distance, aero minutes favour the " +
-                "patient."
-            )
-            .font(Theme.mono(10))
-            .foregroundStyle(Theme.Palette.fg2)
+                .foregroundStyle(Theme.Palette.acc)
+                .kerning(0.3)
+
+            FormulaHero()
+
+            VStack(alignment: .leading, spacing: Theme.Space.md) {
+                Text(
+                    "We take your flat-road speed, work out the power it implies for the " +
+                    "larger position, then ask how fast that same power pushes the smaller " +
+                    "one. The time gap over your distance is the estimate."
+                )
+                .font(Theme.mono(10))
+                .foregroundStyle(Theme.Palette.fg2)
+                Text(
+                    "Fixed assumptions: drag coefficient \(EffortModel.assumedCd), rider + " +
+                    "bike + kit \(Int(EffortModel.assumedMassKg)) kg, rolling resistance " +
+                    "\(String(format: "%.3f", EffortModel.crr)), sea-level air. Flat course, no wind, equal effort."
+                )
+                .font(Theme.mono(10))
+                .foregroundStyle(Theme.Palette.fg2)
+                Text(
+                    "Slower riders gain more minutes, not fewer: an area cut buys roughly the " +
+                    "same percentage of speed at any pace, and a slower rider spends longer on " +
+                    "course for it to add up. Over a fixed distance, aero minutes favour the " +
+                    "patient."
+                )
+                .font(Theme.mono(10))
+                .foregroundStyle(Theme.Palette.fg2)
+            }
         }
-        .padding(Theme.Space.md)
-        .background(Theme.Palette.bg1)
-        .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+    }
+}
+
+// MARK: - Formula hero (Plan AB6)
+
+/// Dedicated panel for the power equation — the single most
+/// technically-reassuring element on the screen, and one of the ~2–3
+/// deliberate acid pops for the page (Plan AB4). Tapping a symbol reveals its
+/// plain meaning in place, so the panel stays compact until asked to explain
+/// itself.
+private struct FormulaHero: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var revealed: Set<String> = []
+
+    private static let legend: [(glyph: String, meaning: String)] = [
+        ("v", "your speed"),
+        ("ρ", "air density"),
+        ("CdA", "frontal area × drag"),
+        ("Crr", "rolling resistance"),
+        ("m", "you + bike + kit"),
+        ("g", "gravity"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.md) {
+            Text("Power = speed × (air drag + rolling drag)")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg2)
+                .kerning(0.2)
+
+            // Color-split teaches the thesis: the aero term (acid) is the
+            // half you can change by position; rolling drag (grey) is fixed.
+            (
+                Text("P = v × (½ × ρ × ").foregroundStyle(Theme.Palette.fg3)
+                + Text("CdA").foregroundStyle(Theme.Palette.acc).underline(true, color: Theme.Palette.acc)
+                + Text(" × v²").foregroundStyle(Theme.Palette.acc)
+                + Text(" + Crr × m × g)").foregroundStyle(Theme.Palette.fg3)
+            )
+            .font(Theme.mono(26, weight: .bold))
+            .lineSpacing(6)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Text("CdA: your frontal area, the one thing you change.")
+                .font(Theme.mono(10, weight: .bold))
+                .foregroundStyle(Theme.Palette.acc)
+
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                ForEach(Self.legend, id: \.glyph) { symbol in
+                    Button {
+                        withAnimation(Theme.Motion.interactive()) {
+                            if revealed.contains(symbol.glyph) {
+                                revealed.remove(symbol.glyph)
+                            } else {
+                                revealed.insert(symbol.glyph)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: Theme.Space.sm) {
+                            Text(symbol.glyph)
+                                .font(Theme.mono(12, weight: .bold))
+                                .foregroundStyle(Theme.Palette.acc)
+                                .frame(width: 40, alignment: .leading)
+                            Text(revealed.contains(symbol.glyph) ? symbol.meaning : "tap to decode")
+                                .font(Theme.mono(10))
+                                .foregroundStyle(revealed.contains(symbol.glyph) ? Theme.Palette.fg2 : Theme.Palette.fg4)
+                            Spacer(minLength: 0)
+                        }
+                        // HIG minimum tap target, not the glyph's visual size.
+                        .frame(minHeight: Theme.Control.iconTapTarget)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // The real interactive lives in Comparison (real photos, real
+            // time impact) — this just hands off to it.
+            Button {
+                dismiss()
+            } label: {
+                Text("see it on your own positions →")
+                    .font(Theme.mono(11, weight: .bold))
+                    .foregroundStyle(Theme.Palette.acc)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(Theme.Space.lg)
+        .background(Theme.Palette.bg2)
+        .overlay(Rectangle().stroke(Theme.Palette.line3, lineWidth: 1))
     }
 }
