@@ -187,17 +187,21 @@
       <p class="sowhat-formula">
         P = v × (<span class="f-aero">½ × ρ × CdA × v²</span> + <span class="f-roll">Crr × m × g</span>)
       </p>
-      <input type="range" id="sowhatPct" min="1" max="15" value="8" step="1"
-             aria-label="Estimated area saved, percent">
-      <div class="sowhat-anchors">
-        <span class="a-lo">1%<i>tucking your elbows</i></span>
-        <span class="a-mid">8%<i>hoods → drops</i></span>
-        <span class="a-hi">15%<i>removing a bar roll</i></span>
-      </div>
-      <div class="sowhat-out">
-        <span class="tag-est">EST</span>
-        <span id="sowhatRange" class="sowhat-range">~3–17 min</span>
-        <span class="sowhat-sub">faster over 200&nbsp;km, at <span id="sowhatPctLabel">8</span>% smaller</span>
+      <div class="sowhat-body">
+        <div class="sowhat-left">
+          <input type="range" id="sowhatPct" min="1" max="15" value="8" step="1"
+                 aria-label="Estimated area saved, percent">
+          <div class="sowhat-anchors">
+            <span class="a-lo">1%<i>tucking your elbows</i></span>
+            <span class="a-mid">8%<i>hoods → drops</i></span>
+            <span class="a-hi">15%<i>removing a bar roll</i></span>
+          </div>
+        </div>
+        <div class="sowhat-out">
+          <span class="tag-est">EST</span>
+          <span id="sowhatRange" class="sowhat-range">~3–17 min</span>
+          <span class="sowhat-sub">faster over 200&nbsp;km, at <span id="sowhatPctLabel">8</span>% smaller</span>
+        </div>
       </div>
       <p class="sowhat-fine">
         Illustrative. Assumes a 30&nbsp;km/h flat cruise, no wind, sea-level air:

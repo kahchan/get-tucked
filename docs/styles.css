@@ -226,20 +226,20 @@ p.body em{color:var(--fg); font-style:italic}
 /* ---------- so-what calculator (Plan S3) ---------- */
 .sowhat{
   background:var(--bg1); border:1px solid var(--line);
-  max-width:640px; padding:28px 26px;
+  max-width:960px; padding:28px 26px;
 }
 .sowhat input[type=range]{
   width:100%; accent-color:var(--acc); display:block; margin-bottom:12px;
 }
 .sowhat-anchors{
   display:flex; justify-content:space-between;
-  font-family:var(--mono); font-size:11px; color:var(--fg3);
+  font-family:var(--mono); font-size:12px; color:var(--fg3);
   margin-bottom:22px;
 }
 .sowhat-anchors span{display:flex; flex-direction:column; max-width:33%}
 .sowhat-anchors .a-mid{align-items:center; text-align:center}
 .sowhat-anchors .a-hi{align-items:flex-end; text-align:right}
-.sowhat-anchors i{font-style:normal; color:var(--fg4); margin-top:2px}
+.sowhat-anchors i{font-style:normal; color:var(--fg3); margin-top:3px}
 .sowhat-out{
   display:flex; align-items:baseline; flex-wrap:wrap; gap:10px;
   padding-top:18px; border-top:1px solid var(--line2);
@@ -252,18 +252,37 @@ p.body em{color:var(--fg); font-style:italic}
   font-family:var(--mono); font-weight:700; font-size:26px; color:var(--fg);
   font-variant-numeric:tabular-nums;
 }
-.sowhat-sub{font-family:var(--mono); font-size:13px; color:var(--fg3)}
-.sowhat-fine{font-family:var(--mono); font-size:12px; color:var(--fg4); margin-top:16px; line-height:1.6}
-.sowhat-fine strong{color:var(--fg3)}
+.sowhat-sub{font-family:var(--mono); font-size:14px; color:var(--fg2)}
+.sowhat-fine{
+  font-family:var(--mono); font-size:14px; color:var(--fg3); margin-top:16px;
+  line-height:1.65; max-width:52ch;
+}
+.sowhat-fine strong{color:var(--fg)}
 
 /* the physics behind the slider (Plan AB6) — same term the app changes
    (aero) reads acid, the term it can't (rolling) reads dim, on both the
    landing slider and the methodology formula panel below */
 .f-aero{color:var(--acc)}
-.f-roll{color:var(--fg4)}
+.f-roll{color:var(--fg3)}
 .sowhat-formula{
-  font-family:var(--mono); font-weight:700; font-size:clamp(15px,1.8vw,18px);
+  font-family:var(--mono); font-weight:700; font-size:clamp(16px,1.9vw,19px);
   color:var(--fg2); margin-bottom:18px; letter-spacing:.2px;
+}
+
+/* two-column-on-wide (Plan AC1): the panel under-used the column at
+   640px; wide screens spend the width on a bigger payoff readout and a
+   sane track length rather than a stretched slider track */
+.sowhat-body{display:flex; flex-direction:column}
+.sowhat-left{min-width:0}
+@media (min-width:720px){
+  .sowhat-body{flex-direction:row; align-items:center; gap:44px}
+  .sowhat-left{flex:1 1 auto}
+  .sowhat-out{
+    flex:0 0 auto; flex-direction:column; align-items:flex-start; gap:8px;
+    padding-top:0; border-top:none; border-left:1px solid var(--line2);
+    padding-left:36px;
+  }
+  .sowhat-range{font-size:clamp(32px,3.2vw,44px)}
 }
 
 /* ---------- proof strip (what it looks like) ---------- */
