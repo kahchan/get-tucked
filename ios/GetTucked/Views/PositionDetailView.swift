@@ -868,8 +868,13 @@ private struct MetricsSection: View {
 private struct SoloEffortRow: View {
     let areaCm2: Double
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("effortSpeedKmh") private var speedKmh: Double = 30
     @AppStorage("effortInputsConfirmed") private var inputsConfirmed = false
+    // The speed control (a shared value with Compare) is set on the Compare
+    // screen too; this chip surfaces it here so the number isn't a dead end
+    // (Plan AC3). Collapsed by default.
+    @State private var editing = false
 
     private var watts: Int {
         let speedMS = speedKmh / 3.6
@@ -878,23 +883,67 @@ private struct SoloEffortRow: View {
         return EffortModel.roundedWatts5(power)
     }
 
-    private var sentence: String {
-        if inputsConfirmed {
-            return "Holding \(Int(speedKmh)) km/h in this position takes ~\(watts) W."
-        }
-        return "Holding an assumed \(Int(speedKmh)) km/h in this position takes ~\(watts) W."
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(sentence)
-                .font(Theme.mono(13))
-                .foregroundStyle(Theme.Palette.fg2)
-                .padding(.horizontal, Theme.Space.screenMargin)
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                HStack(spacing: Theme.Space.sm) {
+                    Text("Holding")
+                        .font(Theme.mono(13))
+                        .foregroundStyle(Theme.Palette.fg2)
+                    speedChip
+                    Text("takes ~\(watts) W")
+                        .font(Theme.mono(13))
+                        .foregroundStyle(Theme.Palette.fg2)
+                    Spacer(minLength: 0)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .frame(minHeight: Theme.Control.metricRowHeight, alignment: .leading)
+
+                if !inputsConfirmed {
+                    Text("Assumed — tap the speed to set yours.")
+                        .font(Theme.mono(10))
+                        .foregroundStyle(Theme.Palette.fg3)
+                }
+
+                if editing {
+                    // Writes the shared speed live; committing (release) flips
+                    // inputsConfirmed, dropping "assumed" here and on Compare.
+                    Slider(value: $speedKmh, in: 10...60, step: 1) { released in
+                        if !released { inputsConfirmed = true }
+                    }
+                    .tint(Theme.Palette.acc)
+                    .padding(.top, Theme.Space.xs)
+                }
+            }
+            .padding(.horizontal, Theme.Space.screenMargin)
+            .padding(.bottom, editing ? Theme.Space.sm : 0)
+
             Rectangle()
                 .fill(Theme.Palette.line2)
                 .frame(height: Theme.Control.hairline)
         }
+    }
+
+    private var speedChip: some View {
+        Button {
+            if reduceMotion { editing.toggle() }
+            else { withAnimation(Theme.Motion.interactive()) { editing.toggle() } }
+        } label: {
+            HStack(spacing: 4) {
+                Text("\(Int(speedKmh)) km/h")
+                    .font(Theme.mono(13, weight: .bold))
+                    .foregroundStyle(Theme.Palette.acc)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Theme.Palette.acc)
+                    .rotationEffect(.degrees(editing ? 180 : 0))
+            }
+            .padding(.horizontal, Theme.Space.sm)
+            .padding(.vertical, 6)
+            .overlay(Rectangle().stroke(Theme.Palette.acc, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
