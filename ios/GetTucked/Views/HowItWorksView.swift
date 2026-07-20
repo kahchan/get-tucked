@@ -254,12 +254,14 @@ private struct TimeEstimateSection: View {
 
 /// Dedicated panel for the power equation — the single most
 /// technically-reassuring element on the screen, and one of the ~2–3
-/// deliberate acid pops for the page (Plan AB4). Tapping a symbol reveals its
-/// plain meaning in place, so the panel stays compact until asked to explain
-/// itself.
+/// deliberate acid pops for the page (Plan AB4). The glossary shows every
+/// symbol's plain meaning outright; tapping a legend row lights that symbol's
+/// place(s) in the equation above (Plan AC2), the tap-driven analog of the
+/// web formula's hover-link.
 private struct FormulaHero: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var revealed: Set<String> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var selectedTerm: String?
 
     private static let legend: [(glyph: String, meaning: String)] = [
         ("v", "your speed"),
@@ -270,6 +272,12 @@ private struct FormulaHero: View {
         ("g", "gravity"),
     ]
 
+    /// A glyph lights to `fg` when its term is selected; otherwise it keeps its
+    /// resting color (the aero/rolling color-split).
+    private func lit(_ term: String, resting: Color) -> Color {
+        selectedTerm == term ? Theme.Palette.fg : resting
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.md) {
             Text("Power = speed × (air drag + rolling drag)")
@@ -277,13 +285,26 @@ private struct FormulaHero: View {
                 .foregroundStyle(Theme.Palette.fg2)
                 .kerning(0.2)
 
-            // Color-split teaches the thesis: the aero term (acid) is the
-            // half you can change by position; rolling drag (grey) is fixed.
+            // Color-split teaches the thesis: the aero term (acid) is the half
+            // you can change by position; rolling drag (grey) is fixed. Each
+            // decodable glyph is its own run so a selected term can light to fg
+            // (AC2); v lights in both places it appears.
             (
-                Text("P = v × (½ × ρ × ").foregroundStyle(Theme.Palette.fg3)
-                + Text("CdA").foregroundStyle(Theme.Palette.acc).underline(true, color: Theme.Palette.acc)
-                + Text(" × v²").foregroundStyle(Theme.Palette.acc)
-                + Text(" + Crr × m × g)").foregroundStyle(Theme.Palette.fg3)
+                Text("P = ").foregroundStyle(Theme.Palette.fg3)
+                + Text("v").foregroundStyle(lit("v", resting: Theme.Palette.fg3))
+                + Text(" × (½ × ").foregroundStyle(Theme.Palette.fg3)
+                + Text("ρ").foregroundStyle(lit("ρ", resting: Theme.Palette.fg3))
+                + Text(" × ").foregroundStyle(Theme.Palette.fg3)
+                + Text("CdA").foregroundStyle(lit("CdA", resting: Theme.Palette.acc)).underline(true, color: Theme.Palette.acc)
+                + Text(" × ").foregroundStyle(Theme.Palette.acc)
+                + Text("v²").foregroundStyle(lit("v", resting: Theme.Palette.acc))
+                + Text(" + ").foregroundStyle(Theme.Palette.fg3)
+                + Text("Crr").foregroundStyle(lit("Crr", resting: Theme.Palette.fg3))
+                + Text(" × ").foregroundStyle(Theme.Palette.fg3)
+                + Text("m").foregroundStyle(lit("m", resting: Theme.Palette.fg3))
+                + Text(" × ").foregroundStyle(Theme.Palette.fg3)
+                + Text("g").foregroundStyle(lit("g", resting: Theme.Palette.fg3))
+                + Text(")").foregroundStyle(Theme.Palette.fg3)
             )
             .font(Theme.mono(26, weight: .bold))
             .lineSpacing(6)
@@ -296,22 +317,26 @@ private struct FormulaHero: View {
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
                 ForEach(Self.legend, id: \.glyph) { symbol in
                     Button {
-                        withAnimation(Theme.Motion.interactive()) {
-                            if revealed.contains(symbol.glyph) {
-                                revealed.remove(symbol.glyph)
-                            } else {
-                                revealed.insert(symbol.glyph)
-                            }
+                        let next: String? = selectedTerm == symbol.glyph ? nil : symbol.glyph
+                        if reduceMotion {
+                            selectedTerm = next
+                        } else {
+                            withAnimation(Theme.Motion.interactive()) { selectedTerm = next }
                         }
                     } label: {
                         HStack(spacing: Theme.Space.sm) {
+                            // Leading rule marks the selected row; always 2pt so
+                            // the row doesn't shift when it lights.
+                            Rectangle()
+                                .fill(selectedTerm == symbol.glyph ? Theme.Palette.acc : Color.clear)
+                                .frame(width: 2)
                             Text(symbol.glyph)
                                 .font(Theme.mono(12, weight: .bold))
                                 .foregroundStyle(Theme.Palette.acc)
                                 .frame(width: 40, alignment: .leading)
-                            Text(revealed.contains(symbol.glyph) ? symbol.meaning : "tap to decode")
-                                .font(Theme.mono(10))
-                                .foregroundStyle(revealed.contains(symbol.glyph) ? Theme.Palette.fg2 : Theme.Palette.fg4)
+                            Text(symbol.meaning)
+                                .font(Theme.mono(13))
+                                .foregroundStyle(Theme.Palette.fg2)
                             Spacer(minLength: 0)
                         }
                         // HIG minimum tap target, not the glyph's visual size.
