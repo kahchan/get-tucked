@@ -153,6 +153,11 @@ struct SideOnPoseMetrics {
 struct SideOnAnalysis {
     let pose: SideOnPoseMetrics
     let maskImage: UIImage?
+    /// Subject-lift (rider+bike+bags) mask (Plan AH), mirroring the frontal
+    /// path's `AnalysisResult.subjectMaskImage` — nil when subject-lifting
+    /// failed, in which case the person-only `maskImage` above stays the
+    /// fallback exactly as it already was pre-AH.
+    let subjectMaskImage: UIImage?
 }
 
 struct AnalysisEngine {
@@ -267,8 +272,19 @@ struct AnalysisEngine {
         // Side-on matte is presentational (Plan O) — a failure here must not
         // fail the posture metrics, which is why this is the only place in
         // the engine that swallows a segmentPerson error instead of propagating it.
-        let maskImage = (try? await segmentPerson(cgImage: cgImage)).map(UIImage.init(cgImage:))
-        return SideOnAnalysis(pose: pose, maskImage: maskImage)
+        let coarseMask = try? await segmentPerson(cgImage: cgImage)
+        // AD5b: sharpen the soft full-frame silhouette with a crop-and-reseg
+        // pass; keep the coarse mask if the refine can't run (nil on the
+        // Simulator, where person segmentation returns nothing at all). This
+        // stays the fallback below — AH prefers the subject-lift mask, but
+        // the crop-refined edge is still what a person-only fallback renders.
+        let matteMask = coarseMask.map { cropRefinedPersonMask(source: cgImage, coarseMask: $0) ?? $0 }
+        let maskImage = matteMask.map(UIImage.init(cgImage:))
+        // Plan AH: side-on now prefers the subject-lift (rider+bike+bags)
+        // mask, same as the frontal path — best-effort, never blocks the
+        // pose result on failure.
+        let subjectMaskImage = await segmentSubject(cgImage: cgImage).mask.map(UIImage.init(cgImage:))
+        return SideOnAnalysis(pose: pose, maskImage: maskImage, subjectMaskImage: subjectMaskImage)
     }
 
     // MARK: - Person validation
@@ -357,6 +373,142 @@ struct AnalysisEngine {
             maskBuffer,
             sourceSize: CGSize(width: cgImage.width, height: cgImage.height)
         )
+    }
+
+    // MARK: - AD5b: crop-refined side-on matte
+
+    /// Best-effort crisper side-on person matte, ported from the matte-lab
+    /// AFCROP path (Plan AD5b) that produced the silhouettes Kah signed off
+    /// on. `VNGeneratePersonSegmentation` runs at a fixed input resolution;
+    /// over a whole frame the rider occupies few of those pixels, so the body
+    /// edge upsamples soft — the halo that makes the single-tone side-on matte
+    /// look mushy. Re-running the request on a tight crop around the rider
+    /// spends that fixed budget on the body alone, for a crisp edge, then
+    /// pastes the crop mask back into a full-frame buffer. Presentational only
+    /// (Plan O — the side-on matte feeds no number), so this returns nil on any
+    /// failure and the caller keeps the coarse full-frame mask.
+    static func cropRefinedPersonMask(source cgImage: CGImage, coarseMask: CGImage) -> CGImage? {
+        guard let tight = maskForegroundBBox(coarseMask, threshold: 128) else { return nil }
+        // Pad the bbox so the model sees a little context around the rider,
+        // not a silhouette flush to the crop edge (matches the harness 3%).
+        let pad: CGFloat = 0.03
+        let bbox = (x0: max(0, tight.x0 - pad), y0: max(0, tight.y0 - pad),
+                    x1: min(1, tight.x1 + pad), y1: min(1, tight.y1 + pad))
+        let srcW = cgImage.width, srcH = cgImage.height
+        let cropRect = CGRect(x: bbox.x0 * CGFloat(srcW), y: bbox.y0 * CGFloat(srcH),
+                              width: (bbox.x1 - bbox.x0) * CGFloat(srcW),
+                              height: (bbox.y1 - bbox.y0) * CGFloat(srcH)).integral
+        guard cropRect.width >= 1, cropRect.height >= 1,
+              let cropped = cgImage.cropping(to: cropRect) else { return nil }
+
+        let request = VNGeneratePersonSegmentationRequest()
+        request.qualityLevel = .accurate
+        request.outputPixelFormat = kCVPixelFormatType_OneComponent8
+        let handler = VNImageRequestHandler(cgImage: cropped)
+        guard (try? handler.perform([request])) != nil,
+              let result = request.results?.first,
+              let cropMaskImage = try? cgImageFromPixelBuffer(
+                  result.pixelBuffer,
+                  sourceSize: CGSize(width: cropped.width, height: cropped.height)),
+              let crop = grayBytes(from: cropMaskImage) else { return nil }
+
+        let full = pasteMaskFullFrame(
+            cropGray: crop.gray, cropW: crop.w, cropH: crop.h,
+            bbox: bbox, fullW: coarseMask.width, fullH: coarseMask.height
+        )
+        return grayCGImage(full, width: coarseMask.width, height: coarseMask.height)
+    }
+
+    /// Top-left-origin foreground bbox (fractions of the frame) of an 8-bit
+    /// gray mask — the tight box of every pixel at/above `threshold`.
+    static func maskForegroundBBox(
+        _ mask: CGImage, threshold: UInt8
+    ) -> (x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat)? {
+        guard let decoded = grayBytes(from: mask) else { return nil }
+        let (gray, w, h) = (decoded.gray, decoded.w, decoded.h)
+        var minX = w, minY = h, maxX = -1, maxY = -1
+        for y in 0 ..< h {
+            let row = y * w
+            for x in 0 ..< w where gray[row + x] >= threshold {
+                if x < minX { minX = x }; if x > maxX { maxX = x }
+                if y < minY { minY = y }; if y > maxY { maxY = y }
+            }
+        }
+        guard maxX >= 0 else { return nil }
+        return (CGFloat(minX) / CGFloat(w), CGFloat(minY) / CGFloat(h),
+                CGFloat(maxX + 1) / CGFloat(w), CGFloat(maxY + 1) / CGFloat(h))
+    }
+
+    /// Pastes a crop-space gray mask into a full-frame buffer at `bbox`
+    /// (top-left fractions), resampling the crop to the bbox's pixel size
+    /// first. Everything outside the bbox stays background (0).
+    static func pasteMaskFullFrame(
+        cropGray: [UInt8], cropW: Int, cropH: Int,
+        bbox: (x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat),
+        fullW: Int, fullH: Int
+    ) -> [UInt8] {
+        var full = [UInt8](repeating: 0, count: fullW * fullH)
+        let ox = Int((bbox.x0 * CGFloat(fullW)).rounded())
+        let oy = Int((bbox.y0 * CGFloat(fullH)).rounded())
+        let bw = Int((bbox.x1 * CGFloat(fullW)).rounded()) - ox
+        let bh = Int((bbox.y1 * CGFloat(fullH)).rounded()) - oy
+        guard bw > 0, bh > 0 else { return full }
+        let resized = resampleGray(cropGray, w: cropW, h: cropH, toW: bw, toH: bh)
+        for y in 0 ..< bh {
+            let fy = oy + y
+            if fy < 0 || fy >= fullH { continue }
+            for x in 0 ..< bw {
+                let fx = ox + x
+                if fx < 0 || fx >= fullW { continue }
+                full[fy * fullW + fx] = resized[y * bw + x]
+            }
+        }
+        return full
+    }
+
+    /// Bilinear resample of a packed gray buffer via a gray `CGContext`.
+    /// Returns the input unchanged if already the target size or on failure.
+    static func resampleGray(_ gray: [UInt8], w: Int, h: Int, toW: Int, toH: Int) -> [UInt8] {
+        guard w != toW || h != toH else { return gray }
+        guard toW > 0, toH > 0,
+              let source = grayCGImage(gray, width: w, height: h),
+              let context = CGContext(
+                  data: nil, width: toW, height: toH, bitsPerComponent: 8,
+                  bytesPerRow: toW, space: CGColorSpaceCreateDeviceGray(),
+                  bitmapInfo: CGImageAlphaInfo.none.rawValue
+              ) else { return gray }
+        context.interpolationQuality = .high
+        context.draw(source, in: CGRect(x: 0, y: 0, width: toW, height: toH))
+        guard let resized = context.makeImage(), let bytes = grayBytes(from: resized) else { return gray }
+        return bytes.gray
+    }
+
+    /// Decodes an 8-bit gray `CGImage` to a packed (row-padding stripped)
+    /// byte array so downstream index math can stride by width alone.
+    static func grayBytes(from image: CGImage) -> (gray: [UInt8], w: Int, h: Int)? {
+        guard let data = image.dataProvider?.data, let ptr = CFDataGetBytePtr(data) else { return nil }
+        let w = image.width, h = image.height, bpr = image.bytesPerRow
+        var out = [UInt8](repeating: 0, count: w * h)
+        for y in 0 ..< h {
+            let row = y * bpr
+            for x in 0 ..< w { out[y * w + x] = ptr[row + x] }
+        }
+        return (out, w, h)
+    }
+
+    /// Builds an 8-bit gray `CGImage` from a packed byte buffer.
+    static func grayCGImage(_ gray: [UInt8], width: Int, height: Int) -> CGImage? {
+        guard width > 0, height > 0, gray.count == width * height else { return nil }
+        var data = gray
+        return data.withUnsafeMutableBytes { raw -> CGImage? in
+            guard let base = raw.baseAddress,
+                  let ctx = CGContext(
+                      data: base, width: width, height: height, bitsPerComponent: 8,
+                      bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+                      bitmapInfo: CGImageAlphaInfo.none.rawValue
+                  ) else { return nil }
+            return ctx.makeImage()
+        }
     }
 
     /// Decodes a Vision mask buffer to an 8-bit gray `CGImage`. Plan AD2 (H2):

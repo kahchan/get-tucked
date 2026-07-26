@@ -456,6 +456,7 @@ struct PositionDetailView: View {
         let maskData = position.maskData
         let subjectMaskData = position.subjectMaskData
         let sideOnMaskData = position.sideOnMaskData
+        let sideOnSubjectMaskData = position.sideOnSubjectMaskData
 
         // Independent work — run concurrently so a revisit never waits
         // longer than the slower of the two (Plan N5's own goal: a revisit
@@ -472,7 +473,7 @@ struct PositionDetailView: View {
         }
 
         async let maskTask = buildMaskOverlay(maskData: maskData, subjectMaskData: subjectMaskData, photo: decodedHeadOn)
-        async let sideOnMaskTask = buildMaskOverlay(maskData: sideOnMaskData, photo: decodedSideOn)
+        async let sideOnMaskTask = buildMaskOverlay(maskData: sideOnMaskData, subjectMaskData: sideOnSubjectMaskData, photo: decodedSideOn)
         async let coverageTask = Self.bikeCoverageFraction(subjectMaskData: subjectMaskData, personMaskData: maskData)
         let (overlay, sideOnOverlay, coverage) = await (maskTask, sideOnMaskTask, coverageTask)
         withAnimation(Theme.Motion.entrance()) {
@@ -511,13 +512,14 @@ struct PositionDetailView: View {
     /// Skips silently — no toggle offered — when there's no stored mask or
     /// when the mask and photo disagree on aspect ratio (Plan I5): a
     /// mismatched composite would tint the wrong region rather than hug the
-    /// rider. `subjectMaskData` (Plan W2, frontal only) is preferred when
-    /// present and its aspect matches the photo — one acid tint over the
-    /// whole subject (Plan AG retired the rider/bike two-tone: the bike
-    /// colour was an absence, subject minus person, so every person-mask
-    /// flaw rendered as a wrong colour somewhere); nil (old positions, or
-    /// side-on which has no subject mask at all) renders the same single
-    /// tone from the person mask exactly as before.
+    /// rider. The subject-lift mask (`subjectMaskData` frontal, Plan W2;
+    /// `sideOnSubjectMaskData` side-on, Plan AH) is preferred when present
+    /// and its aspect matches the photo — one acid tint over the whole
+    /// subject (Plan AG retired the rider/bike two-tone: the bike colour was
+    /// an absence, subject minus person, so every person-mask flaw rendered
+    /// as a wrong colour somewhere); nil (old positions, or a capture where
+    /// subject-lifting failed) renders the same single tone from the person
+    /// mask exactly as before.
     private func buildMaskOverlay(maskData: Data?, subjectMaskData: Data? = nil, photo: UIImage?) async -> UIImage? {
         guard let cgPhoto = photo?.cgImage else { return nil }
         return await Task.detached(priority: .userInitiated) { () -> UIImage? in

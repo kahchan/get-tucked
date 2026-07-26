@@ -73,6 +73,9 @@ struct CaptureView: View {
     // Untinted side-on segmentation matte (Plan O) — nil when segmentation
     // failed at capture, which never blocks save (presentational only).
     @State private var pendingSideOnMask: UIImage?
+    // Side-on subject-lift matte (Plan AH, rider+bike+bags) — mirrors
+    // pendingSideOnMask's presentational nil-on-failure contract.
+    @State private var pendingSideOnSubjectMask: UIImage?
     @State private var analysisError: AnalysisError?
     @State private var showingError = false
     // Q2: guards against silently discarding a completed analysis — gated
@@ -367,6 +370,7 @@ struct CaptureView: View {
         sideOnAssetIdentifier = nil
         pendingSideOnPose = nil
         pendingSideOnMask = nil
+        pendingSideOnSubjectMask = nil
         sideOnTapPoints = []
         sideOnPixelsPerCmValue = nil
         savedPositionID = nil
@@ -476,6 +480,7 @@ struct CaptureView: View {
         if let analysis = try? await AnalysisEngine.analyseSideOn(image: image, pixelsPerCm: pixelsPerCm) {
             pendingSideOnPose = analysis.pose
             pendingSideOnMask = analysis.maskImage
+            pendingSideOnSubjectMask = analysis.subjectMaskImage
         }
         await waitForMinimumAnalysingDisplay(since: stepEnteredAt)
         step = .reveal
@@ -597,6 +602,9 @@ struct CaptureView: View {
         }
         if let sideOnMask = pendingSideOnMask?.cgImage {
             position.sideOnMaskData = MatteRenderer.downscaledMaskPNGData(mask: sideOnMask)
+        }
+        if let cg = pendingSideOnSubjectMask?.cgImage {
+            position.sideOnSubjectMaskData = MatteRenderer.downscaledMaskPNGData(mask: cg)
         }
         position.sideOnPhotoIdentifier = sideOnAssetIdentifier
         // Always persist the bytes too, not just when there's no PHAsset
