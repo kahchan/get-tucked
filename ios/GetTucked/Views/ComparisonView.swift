@@ -179,15 +179,12 @@ struct ComparisonView: View {
                                         onSwipeCycle: cycleOutlineSegment
                                     )
                                     .overlay(alignment: .topTrailing) {
+                                        // Row is trailing-anchored (.overlay(alignment: .topTrailing)
+                                        // below) with A/B as the last two children — the PHOTO
+                                        // chip leads the row, so appearing/disappearing only grows
+                                        // or shrinks the row from its leading edge and never moves
+                                        // A/B, which stay pinned to the trailing edge either way.
                                         HStack(spacing: Theme.Space.xs) {
-                                            LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA && layerAArmed) {
-                                                cancelDrawInIfNeeded()
-                                                showLayerA.toggle()
-                                            }
-                                            LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB && layerBArmed) {
-                                                cancelDrawInIfNeeded()
-                                                showLayerB.toggle()
-                                            }
                                             // AE3: only meaningful on the OUTLINE tab — PHOTO tab
                                             // already shows the photo as the primary content.
                                             if showOutline {
@@ -200,6 +197,14 @@ struct ComparisonView: View {
                                                         showPhotoUnderlay.toggle()
                                                     }
                                                 }
+                                            }
+                                            LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA && layerAArmed) {
+                                                cancelDrawInIfNeeded()
+                                                showLayerA.toggle()
+                                            }
+                                            LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB && layerBArmed) {
+                                                cancelDrawInIfNeeded()
+                                                showLayerB.toggle()
                                             }
                                         }
                                         .padding(Theme.Space.sm)
