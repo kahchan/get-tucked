@@ -1,6 +1,10 @@
 # Plan AF — Default the live capture to 2× zoom
 
-**Status:** PLAN — awaiting Kah's go-ahead.
+**Status:** IMPLEMENTED 2026-07-26 (commit 07268be, 299 tests green). Device-chain +
+visual-2× derivation (4.0 not 2.0 on ultra-wide systems, unit-tested for wide/dual/
+dual-wide/triple), 1×/2× HUD toggle default 2×, copy truth pass. On-device camera pass
+outstanding (no simulator): preview + captured photo both 2×, triple-cam lands on 4.0,
+5–6 m frontal passes the 0.35 gate, wheel/bar disagreement shrinks vs 1×.
 **Trigger:** Kah, 2026-07-26: the "Stand back 5–6m, zoom in 2–3×" coaching (Plan W3,
 SetTheSceneView) "makes little sense with our camera controls" — correct, and worse
 than nonsense: the live capture pipeline (`LiveCameraView` ~563) uses
