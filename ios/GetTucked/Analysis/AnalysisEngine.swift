@@ -56,7 +56,7 @@ enum AnalysisError: LocalizedError {
         case .noPersonDetected: "No rider found. Step back so your full body is visible."
         case .multiplePersonsDetected: "More than one person detected. Ask helpers to step aside."
         case .personClipsFrame: "Part of your body is cut off. Step back or recompose."
-        case .personTooSmallInFrame: "You're too far away. Step closer — or zoom in from where you are — so your body fills the frame."
+        case .personTooSmallInFrame: "You're too far away. Step closer — or tap 2× if you're on 1× — so your body fills the frame."
         case .segmentationFailed: "Couldn't compute a segmentation mask."
         case .scaleNotCalibrated: "Scale reference not set. Tap both ends of your handlebars first."
         case .poseNotDetected: "Couldn't detect body pose. Make sure your full body is visible."

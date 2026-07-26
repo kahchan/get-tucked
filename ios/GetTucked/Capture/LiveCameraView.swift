@@ -203,6 +203,9 @@ struct LiveCameraView: View {
     /// parent (bottom stack in portrait, trailing rail in landscape).
     private var controlStack: some View {
         Group {
+            ZoomToggleChip(isAt2x: session.zoomIsAt2x) {
+                session.toggleZoom()
+            }
             CaptureButton(enabled: session.allPassed) {
                 session.capturePhoto { image in
                     captureFlash = true
@@ -288,6 +291,28 @@ private struct GhostToggleButton: View {
                 .padding(.vertical, 8)
                 .background(Theme.Palette.bg0.opacity(0.72))
                 .overlay(Rectangle().stroke(isOn ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// AF2's explicit 1×/2× stop — two honest stops, no continuous pinch, so the
+/// scale story (and the "we zoom to 2× for you" copy) stays simple and true.
+/// Per-capture only, matching `GhostToggleButton`'s chip styling.
+private struct ZoomToggleChip: View {
+    let isAt2x: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(isAt2x ? "2×" : "1×")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(isAt2x ? Theme.Palette.acc : Theme.Palette.fg3)
+                .kerning(0.5)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Theme.Palette.bg0.opacity(0.72))
+                .overlay(Rectangle().stroke(isAt2x ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -469,6 +494,55 @@ struct CameraPreviewLayer: UIViewRepresentable {
     }
 }
 
+// MARK: - Zoom factor derivation (Plan AF1/AF2)
+
+/// Pure math for turning a *visual* zoom multiplier (1x / 2x, as a user
+/// understands "zoom") into the `AVCaptureDevice.videoZoomFactor` that
+/// actually produces it — kept free of `AVCaptureDevice` instances so it's
+/// unit-testable without hardware.
+enum ZoomFactorDerivation {
+    /// Tried in order until one exists on the phone. Virtual multi-cam types
+    /// first — on those, driving `videoZoomFactor` engages the real
+    /// telephoto (or a high-quality sensor crop on 48MP wides) rather than a
+    /// naive digital crop of a single fixed lens; the plain wide is the last
+    /// resort for older/cheaper devices that have nothing else.
+    static let deviceTypeFallbackChain: [AVCaptureDevice.DeviceType] = [
+        .builtInTripleCamera, .builtInDualCamera, .builtInDualWideCamera, .builtInWideAngleCamera
+    ]
+
+    static func preferredDeviceType(from available: Set<AVCaptureDevice.DeviceType>) -> AVCaptureDevice.DeviceType? {
+        deviceTypeFallbackChain.first(where: available.contains)
+    }
+
+    /// The `videoZoomFactor` for a given *visual* multiplier, on a device
+    /// whose constituent lenses are described by `hasUltraWideConstituent`
+    /// and `switchOverFactors`.
+    ///
+    /// On a virtual multi-cam device, `videoZoomFactor == 1.0` always
+    /// selects the WIDEST constituent lens. On a triple-camera (or
+    /// dual-wide) iPhone that widest lens is the ULTRA-wide — the 0.5x lens
+    /// as users understand it — not the "normal" wide. So on those devices
+    /// factor 1.0 is already a 0.5x-as-the-user-understands-it shot, and
+    /// `virtualDeviceSwitchOverVideoZoomFactors[0]` (the factor at which the
+    /// session hands off from ultra-wide to wide) IS "visual 1x". Visual 2x
+    /// is always double whatever "visual 1x" resolves to. On a plain dual
+    /// (wide+tele) or wide-only device there's no ultra-wide constituent, so
+    /// factor 1.0 already means "wide, as the user understands 1x" and
+    /// visual 2x is a plain 2.0.
+    static func factor(
+        forVisualMultiplier multiplier: Double,
+        hasUltraWideConstituent: Bool,
+        switchOverFactors: [CGFloat]
+    ) -> CGFloat {
+        let visualOneX: CGFloat = hasUltraWideConstituent ? (switchOverFactors.first ?? 2.0) : 1.0
+        return visualOneX * CGFloat(multiplier)
+    }
+
+    static func clamped(_ factor: CGFloat, min minFactor: CGFloat, max maxFactor: CGFloat) -> CGFloat {
+        Swift.min(Swift.max(factor, minFactor), maxFactor)
+    }
+}
+
 // MARK: - Camera session
 
 // Not @MainActor: AVFoundation requires startRunning() / stopRunning() on a
@@ -484,6 +558,10 @@ final class CameraSession: NSObject, ObservableObject {
     // Which way the phone is physically held — always .portrait unless
     // OrientationLock permits landscape (Plan L4).
     @Published var orientationBucket: OrientationBucket = .portrait
+    // AF2: defaults to the visual-2x floor per AF1 — the fallback chain's
+    // whole point (flattening near-wheel inflation) only holds if 2x is what
+    // most captures actually use.
+    @Published var zoomIsAt2x = true
 
     // LEVEL + PERP are physically enforced and gate the shutter. BG is advisory —
     // a low-contrast background degrades the matte but shouldn't dead-lock capture.
@@ -494,6 +572,7 @@ final class CameraSession: NSObject, ObservableObject {
     private let motionManager = CMMotionManager()
     private var captureCompletion: ((UIImage) -> Void)?
     private var bike: Bike?
+    private var device: AVCaptureDevice?
 
     // AVFoundation session must be configured and run on a dedicated serial queue.
     private let sessionQueue = DispatchQueue(label: "com.gettucked.camera.session", qos: .userInitiated)
@@ -560,8 +639,22 @@ final class CameraSession: NSObject, ObservableObject {
             }
         }
 
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+        // Prefer a virtual multi-cam device (Plan AF1) — on those, driving
+        // videoZoomFactor engages the real telephoto/quality crop rather than
+        // a naive digital crop of a single fixed lens. Discover what this
+        // phone actually has rather than assuming, since only some models
+        // carry a triple or dual-wide camera.
+        let availableTypes = Set(
+            AVCaptureDevice.DiscoverySession(
+                deviceTypes: ZoomFactorDerivation.deviceTypeFallbackChain,
+                mediaType: .video,
+                position: .back
+            ).devices.map(\.deviceType)
+        )
+        guard let deviceType = ZoomFactorDerivation.preferredDeviceType(from: availableTypes),
+              let device = AVCaptureDevice.default(deviceType, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else { return }
+        self.device = device
 
         captureSession.beginConfiguration()
         captureSession.sessionPreset = .photo
@@ -580,6 +673,45 @@ final class CameraSession: NSObject, ObservableObject {
 
         captureSession.commitConfiguration()
         captureSession.startRunning()
+
+        // AF1's 2x default. Hardcoded rather than reading `zoomIsAt2x` here:
+        // this runs once at session start (before the HUD's toggle can have
+        // fired), and `zoomIsAt2x` is a `@Published` property that's only
+        // safe to read from the main thread, not this session queue.
+        applyZoom(visualMultiplier: 2.0, to: device)
+    }
+
+    /// `videoZoomFactor` applies at the AVCaptureDevice level, which the
+    /// photo-output connection reads from directly — so the captured still
+    /// inherits whatever the preview shows. Not yet confirmed on-device.
+    private func applyZoom(visualMultiplier: Double, to device: AVCaptureDevice) {
+        let hasUltraWide = device.constituentDevices.contains { $0.deviceType == .builtInUltraWideCamera }
+        let switchOverFactors = device.virtualDeviceSwitchOverVideoZoomFactors.map { CGFloat(truncating: $0) }
+        let raw = ZoomFactorDerivation.factor(
+            forVisualMultiplier: visualMultiplier,
+            hasUltraWideConstituent: hasUltraWide,
+            switchOverFactors: switchOverFactors
+        )
+        let clamped = ZoomFactorDerivation.clamped(
+            raw, min: device.minAvailableVideoZoomFactor, max: device.maxAvailableVideoZoomFactor
+        )
+        guard (try? device.lockForConfiguration()) != nil else { return }
+        device.videoZoomFactor = clamped
+        device.unlockForConfiguration()
+    }
+
+    /// AF2: the explicit 1×/2× toggle. Per-capture only — no persistence,
+    /// so every fresh capture session starts back at the 2× default. Reads
+    /// `zoomIsAt2x` here on the caller's thread (always main, from a SwiftUI
+    /// button action) rather than inside the dispatched block, for the same
+    /// reason `capturePhoto` reads `orientationBucket` up front.
+    func toggleZoom() {
+        zoomIsAt2x.toggle()
+        let multiplier = zoomIsAt2x ? 2.0 : 1.0
+        sessionQueue.async { [weak self] in
+            guard let self, let device = self.device else { return }
+            self.applyZoom(visualMultiplier: multiplier, to: device)
+        }
     }
 
     // MARK: - CMMotionManager for level + perp

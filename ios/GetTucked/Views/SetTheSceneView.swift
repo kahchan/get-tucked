@@ -11,8 +11,10 @@ struct SetTheSceneView: View {
         ("⊡", "Plain, high-contrast background"),
         ("⊙", "Camera at hub height"),
         // Plan W3: shooting from farther away with optical zoom flattens the
-        // near-wheel perspective error a close-up shot bakes in.
-        ("↔", "Stand back 5–6m, zoom in 2–3×"),
+        // near-wheel perspective error a close-up shot bakes in. Plan AF1
+        // made the 2x actually happen in-app, so this can promise it rather
+        // than ask the user to do something the camera had no control for.
+        ("↔", "Stand back 5–6m — we zoom to 2× for you"),
     ]
 
     private let avoidItems: [(icon: String, text: String)] = [
