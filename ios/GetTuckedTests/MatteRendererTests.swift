@@ -481,6 +481,106 @@ final class MatteRendererTests: XCTestCase {
         XCTAssertEqual(rgbaPixel(eroded, x: 100, y: 30), [255, 0, 0, 255])
     }
 
+    // MARK: - AE2: subject-mask threshold plumbing
+
+    func testTwoToneOverlayPixelsSubjectDefaultThresholdRecoversBelowOldPlainThreshold() {
+        // Subject byte 110 sits between the AE2 default (102) and the old
+        // plain 128 — must now count as subject foreground (bike, since
+        // person reads background here) at the default, proving the
+        // hardened default is actually 102, not still 128.
+        let subject: [UInt8] = [110]
+        let person: [UInt8] = [0]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(255))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(255))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [bike.r, bike.g, bike.b, bike.a])
+    }
+
+    func testTwoToneOverlayPixelsSubjectBelowAE2ThresholdStaysBackground() {
+        // Subject byte 90 is below even the lowered AE2 threshold (102) —
+        // must stay fully transparent regardless of the person mask.
+        let subject: [UInt8] = [90]
+        let person: [UInt8] = [255]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(255))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(255))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [0, 0, 0, 0])
+    }
+
+    func testTwoToneOverlayPixelsExplicitSubjectThresholdOverridesDefault() {
+        // Same byte 110 as above, but an explicit stricter threshold (128)
+        // pushes it back below the cutoff -> background.
+        let subject: [UInt8] = [110]
+        let person: [UInt8] = [0]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(255))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(255))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike, subjectThreshold: 128
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [0, 0, 0, 0])
+    }
+
+    func testTwoToneOverlayDegradePathHonoursCustomSubjectThreshold() {
+        // No person mask at all -> twoToneOverlay degrades to a single-tone
+        // subjectMask render; that fallback must still respect a
+        // non-default subjectThreshold rather than silently reverting to
+        // the old plain-128 tintedOverlay default (the visible matte must
+        // always match whatever threshold the area was counted with).
+        let subjectMask = makeMask(width: 1, height: 1, bytes: [110])
+        let rider = UIColor(red: 1, green: 0, blue: 0, alpha: 1)
+        let bike = UIColor(red: 0, green: 0, blue: 1, alpha: 1)
+
+        let withDefault = MatteRenderer.twoToneOverlay(
+            subjectMask: subjectMask, personMask: nil, riderColor: rider, bikeColor: bike, alpha: 1
+        )
+        XCTAssertEqual(rgbaPixel(withDefault!, x: 0, y: 0), [255, 0, 0, 255])
+
+        let withStricterThreshold = MatteRenderer.twoToneOverlay(
+            subjectMask: subjectMask, personMask: nil, riderColor: rider, bikeColor: bike, alpha: 1,
+            subjectThreshold: 128
+        )
+        XCTAssertEqual(rgbaPixel(withStricterThreshold!, x: 0, y: 0), [0, 0, 0, 0])
+    }
+
+    func testAnalysisMathCountForegroundPixelsHonoursSubjectMaskThreshold() {
+        // Mirrors AnalysisEngine's subject-mask count path: a byte that's
+        // background at the old plain 128 must read foreground at AE2's
+        // subjectMaskThreshold (102).
+        let bytes: [UInt8] = [110]
+        let count = bytes.withUnsafeBufferPointer { buf in
+            AnalysisMath.countForegroundPixels(
+                bytes: buf.baseAddress!, width: 1, height: 1, bytesPerRow: 1,
+                threshold: AnalysisMath.subjectMaskThreshold
+            )
+        }
+        XCTAssertEqual(count, 1)
+    }
+
     // MARK: - resizedMask (Plan W2)
 
     func testResizedMaskReturnsSameInstanceWhenAlreadyTargetSize() {

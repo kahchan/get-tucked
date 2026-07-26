@@ -76,17 +76,19 @@ enum MatteRenderer {
     /// resolution before calling this. Strides each buffer by its own
     /// `bytesPerRow`, same padding-safety reasoning as `overlayPixels`.
     /// `riderThreshold` is the AD5a-tunable knob on the person side of the
-    /// split; the subject side stays fixed at 128 — see AD5a's why-comment
-    /// on `ad5aRiderThreshold` for the tuning.
+    /// split; `subjectThreshold` is AE2's knob on the subject side (see
+    /// `AnalysisMath.subjectMaskThreshold`'s why-comment) — it must match
+    /// whatever threshold `AnalysisEngine` counted area with, or the matte
+    /// shown wouldn't match the cm² displayed.
     static func twoToneOverlayPixels(
         subjectBytes: UnsafePointer<UInt8>, subjectBytesPerRow: Int,
         personBytes: UnsafePointer<UInt8>, personBytesPerRow: Int,
         width: Int, height: Int,
         riderColor: (r: UInt8, g: UInt8, b: UInt8, a: UInt8),
         bikeColor: (r: UInt8, g: UInt8, b: UInt8, a: UInt8),
-        riderThreshold: UInt8 = ad5aRiderThreshold
+        riderThreshold: UInt8 = ad5aRiderThreshold,
+        subjectThreshold: UInt8 = AnalysisMath.subjectMaskThreshold
     ) -> [UInt8] {
-        let subjectThreshold: UInt8 = 128
         var out = [UInt8](repeating: 0, count: width * height * 4)
         for y in 0 ..< height {
             let subjectRow = y * subjectBytesPerRow
@@ -216,13 +218,14 @@ enum MatteRenderer {
     /// resolution, where a 1-2px radius would do nothing.
     static func twoToneOverlay(
         subjectMask: CGImage, personMask: CGImage?, riderColor: UIColor, bikeColor: UIColor, alpha: CGFloat,
-        riderThreshold: UInt8 = ad5aRiderThreshold, personErosionFraction: CGFloat = ad5aPersonErosionFraction
+        riderThreshold: UInt8 = ad5aRiderThreshold, personErosionFraction: CGFloat = ad5aPersonErosionFraction,
+        subjectThreshold: UInt8 = AnalysisMath.subjectMaskThreshold
     ) -> UIImage? {
         guard let personMask,
               let resampledPerson = resizedMask(personMask, toWidth: subjectMask.width, height: subjectMask.height),
               let subjectData = subjectMask.dataProvider?.data, let subjectBytes = CFDataGetBytePtr(subjectData)
         else {
-            return tintedOverlay(mask: subjectMask, color: riderColor, alpha: alpha)
+            return tintedOverlay(mask: subjectMask, color: riderColor, alpha: alpha, threshold: subjectThreshold)
         }
 
         let width = subjectMask.width
@@ -239,7 +242,7 @@ enum MatteRenderer {
             personForSplit = resampledPerson
         }
         guard let personData = personForSplit.dataProvider?.data, let personBytes = CFDataGetBytePtr(personData) else {
-            return tintedOverlay(mask: subjectMask, color: riderColor, alpha: alpha)
+            return tintedOverlay(mask: subjectMask, color: riderColor, alpha: alpha, threshold: subjectThreshold)
         }
 
         var riderR: CGFloat = 0, riderG: CGFloat = 0, riderB: CGFloat = 0
@@ -261,7 +264,7 @@ enum MatteRenderer {
             personBytes: personBytes, personBytesPerRow: personForSplit.bytesPerRow,
             width: width, height: height,
             riderColor: riderPremultiplied, bikeColor: bikePremultiplied,
-            riderThreshold: riderThreshold
+            riderThreshold: riderThreshold, subjectThreshold: subjectThreshold
         )
 
         guard let context = CGContext(
@@ -278,7 +281,7 @@ enum MatteRenderer {
         return UIImage(cgImage: cgImage)
     }
 
-    static func tintedOverlay(mask: CGImage, color: UIColor, alpha: CGFloat) -> UIImage? {
+    static func tintedOverlay(mask: CGImage, color: UIColor, alpha: CGFloat, threshold: UInt8 = 128) -> UIImage? {
         guard let data = mask.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
         let width = mask.width
         let height = mask.height
@@ -295,7 +298,7 @@ enum MatteRenderer {
 
         let rgba = overlayPixels(
             bytes: bytes, width: width, height: height, bytesPerRow: mask.bytesPerRow,
-            premultipliedForeground: premultiplied
+            premultipliedForeground: premultiplied, threshold: threshold
         )
 
         guard let context = CGContext(

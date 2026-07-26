@@ -9,6 +9,19 @@ enum AnalysisMath {
     /// reflecting segmentation + scale noise.
     static let uncertaintyFraction = 0.03
 
+    /// AE2 sweep (plan-ae-matte-refinement-and-calibration-ux.md, matte-lab
+    /// `--ae2`): the subject mask's float→byte decode threshold, applied both
+    /// where it's counted for area (here) and where it's split for the
+    /// two-tone render (`MatteRenderer.twoToneOverlayPixels`), so the visible
+    /// matte always matches the measured area. Swept {0.2, 0.3, 0.4, 0.5}
+    /// (byte ~{51, 77, 102, 128}) across the four Part-1 fixtures: 0.4
+    /// recovers part of the previously-untinted tire/fork tread with no
+    /// visible background bleed at the true body/bike edge, and is the
+    /// *lowest* threshold whose area delta stays under 2% on every fixture
+    /// (+1.09% to +1.29%; 0.3 already exceeds 2% on three of the four). 0.5
+    /// (the old implicit default) is the conservative end of that range.
+    static let subjectMaskThreshold: UInt8 = 102
+
     // MARK: - Scale
 
     /// Pixel distance between two handlebar taps given in unit coords (0–1).

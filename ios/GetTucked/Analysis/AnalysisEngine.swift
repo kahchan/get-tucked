@@ -209,8 +209,12 @@ struct AnalysisEngine {
         // Area drives off the subject mask (rider+bike+bags — what the wind
         // actually sees, spec §2) when available, else the person mask —
         // same fallback shape as every other optional enhancement here.
+        // Subject and person masks decode at different thresholds (AE2) —
+        // see AnalysisMath.subjectMaskThreshold's why-comment.
         let areaMask = subjectMask ?? mask
-        let foregroundCount = countForegroundPixels(mask: areaMask)
+        let foregroundCount = countForegroundPixels(
+            mask: areaMask, threshold: subjectMask != nil ? AnalysisMath.subjectMaskThreshold : 128
+        )
 
         // §2.2 fix: Vision mask resolution ≠ source resolution in general.
         // Rescale pixelsPerCm into mask space so area and scale share pixel units.
@@ -546,15 +550,17 @@ struct AnalysisEngine {
 
     // MARK: - Pixel count
 
-    private static func countForegroundPixels(mask: CGImage) -> Int {
+    private static func countForegroundPixels(mask: CGImage, threshold: UInt8 = 128) -> Int {
         guard let dataProvider = mask.dataProvider,
               let data = dataProvider.data,
               let bytes = CFDataGetBytePtr(data) else { return 0 }
         // Vision person segmentation: 255 = foreground, 0 = background.
-        // Threshold of 128 tolerates soft edges. Must stride by mask.bytesPerRow,
-        // not scan the buffer linearly — see AnalysisMath.countForegroundPixels.
+        // Threshold of 128 tolerates soft edges (102 for the subject mask —
+        // AE2, see AnalysisMath.subjectMaskThreshold). Must stride by
+        // mask.bytesPerRow, not scan the buffer linearly — see
+        // AnalysisMath.countForegroundPixels.
         return AnalysisMath.countForegroundPixels(
-            bytes: bytes, width: mask.width, height: mask.height, bytesPerRow: mask.bytesPerRow
+            bytes: bytes, width: mask.width, height: mask.height, bytesPerRow: mask.bytesPerRow, threshold: threshold
         )
     }
 
