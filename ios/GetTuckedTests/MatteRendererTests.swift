@@ -336,6 +336,151 @@ final class MatteRendererTests: XCTestCase {
         XCTAssertEqual(fraction ?? -1, 0.5, accuracy: overlayAcc)
     }
 
+    // MARK: - AD5a: hardened rider threshold on twoToneOverlayPixels
+
+    func testTwoToneOverlayPixelsHaloBandBelowHardenedThresholdIsBike() {
+        // Person byte 160 is the soft-upsampled-mask halo value: below the
+        // AD5a hardened default (200) but above the old plain-128 threshold
+        // that used to misclassify bike-contact pixels as rider.
+        let subject: [UInt8] = [255]
+        let person: [UInt8] = [160]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(255))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(255))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [bike.r, bike.g, bike.b, bike.a])
+    }
+
+    func testTwoToneOverlayPixelsCorePersonPixelStaysRiderAtHardenedThreshold() {
+        let subject: [UInt8] = [255]
+        let person: [UInt8] = [255]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(255))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(255))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [rider.r, rider.g, rider.b, rider.a])
+    }
+
+    func testTwoToneOverlayPixelsExplicitLegacyThresholdStillClassifiesHaloAsRider() {
+        // Documents the pre-AD5a behaviour this fix replaces: at a plain
+        // 128 threshold, the same halo pixel (160) used to read as rider.
+        let subject: [UInt8] = [255]
+        let person: [UInt8] = [160]
+        let rider = (r: UInt8(10), g: UInt8(20), b: UInt8(30), a: UInt8(255))
+        let bike = (r: UInt8(200), g: UInt8(150), b: UInt8(20), a: UInt8(255))
+
+        let rgba = subject.withUnsafeBufferPointer { subjectBuf in
+            person.withUnsafeBufferPointer { personBuf in
+                MatteRenderer.twoToneOverlayPixels(
+                    subjectBytes: subjectBuf.baseAddress!, subjectBytesPerRow: 1,
+                    personBytes: personBuf.baseAddress!, personBytesPerRow: 1,
+                    width: 1, height: 1, riderColor: rider, bikeColor: bike, riderThreshold: 128
+                )
+            }
+        }
+        XCTAssertEqual(rgba, [rider.r, rider.g, rider.b, rider.a])
+    }
+
+    // MARK: - AD5a: twoToneOverlay end-to-end (hardened threshold + erosion)
+
+    private func makeMask(width: Int, height: Int, bytes: [UInt8]) -> CGImage {
+        let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        )!
+        bytes.withUnsafeBytes { ptr in
+            context.data?.copyMemory(from: ptr.baseAddress!, byteCount: bytes.count)
+        }
+        return context.makeImage()!
+    }
+
+    private func rgbaPixel(_ image: UIImage, x: Int, y: Int) -> [UInt8]? {
+        guard let cg = image.cgImage, let data = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
+        let offset = y * cg.bytesPerRow + x * 4
+        return [bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]]
+    }
+
+    func testTwoToneOverlayDefaultHardensHaloBandToBikeButKeepsCorePersonAsRider() {
+        // 6x1 subject mask, all foreground. Person mask: a core rider block
+        // (255) at x=0...2, and a soft halo band (160) over "bike" pixels at
+        // x=3...5 — the exact shape of the contact-point halo (grips,
+        // saddle/top tube, cranks) the AD5a defaults are tuned to clear.
+        let width = 6, height = 1
+        let subjectBytes: [UInt8] = Array(repeating: 255, count: width)
+        let personBytes: [UInt8] = [255, 255, 255, 160, 160, 160]
+        let subjectMask = makeMask(width: width, height: height, bytes: subjectBytes)
+        let personMask = makeMask(width: width, height: height, bytes: personBytes)
+
+        let rider = UIColor(red: 1, green: 0, blue: 0, alpha: 1)
+        let bike = UIColor(red: 0, green: 0, blue: 1, alpha: 1)
+        let overlay = MatteRenderer.twoToneOverlay(
+            subjectMask: subjectMask, personMask: personMask, riderColor: rider, bikeColor: bike, alpha: 1
+        )!
+
+        XCTAssertEqual(rgbaPixel(overlay, x: 1, y: 0), [255, 0, 0, 255])
+        XCTAssertEqual(rgbaPixel(overlay, x: 4, y: 0), [0, 0, 255, 255])
+    }
+
+    func testTwoToneOverlayErosionShavesAPersonFringe() {
+        // A roughly square canvas — NOT an elongated strip — because
+        // CIMorphologyMinimum has an extreme-aspect-ratio quirk (verified
+        // empirically while tuning this test): on a very thin/wide image it
+        // can erase its ENTIRE output past a small radius, a Core Image
+        // artifact of the synthetic test shape, never seen on the real
+        // (near-square) subject/person masks this renders in production.
+        // Wide-enough person block so a proportional erosion radius has
+        // clean margin on both sides; subject mask covers the whole canvas
+        // so the rider/bike split is driven purely by the (possibly
+        // eroded) person mask.
+        let width = 200, height = 60
+        let subjectBytes = [UInt8](repeating: 255, count: width * height)
+        var personBytes = [UInt8](repeating: 0, count: width * height)
+        for y in 0 ..< height {
+            for x in 40 ..< 160 {
+                personBytes[y * width + x] = 255
+            }
+        }
+        let subjectMask = makeMask(width: width, height: height, bytes: subjectBytes)
+        let personMask = makeMask(width: width, height: height, bytes: personBytes)
+
+        let rider = UIColor(red: 1, green: 0, blue: 0, alpha: 1)
+        let bike = UIColor(red: 0, green: 0, blue: 1, alpha: 1)
+
+        // No erosion: a pixel 2px inside the person block's edge still reads rider.
+        let uneroded = MatteRenderer.twoToneOverlay(
+            subjectMask: subjectMask, personMask: personMask, riderColor: rider, bikeColor: bike, alpha: 1,
+            riderThreshold: 128, personErosionFraction: 0
+        )!
+        XCTAssertEqual(rgbaPixel(uneroded, x: 42, y: 30), [255, 0, 0, 255])
+
+        // A 1.5%-of-width erosion radius (3px) shaves that same near-edge
+        // pixel to background -> bike, while the deep interior (60px from
+        // either edge) stays rider.
+        let eroded = MatteRenderer.twoToneOverlay(
+            subjectMask: subjectMask, personMask: personMask, riderColor: rider, bikeColor: bike, alpha: 1,
+            riderThreshold: 128, personErosionFraction: 0.015
+        )!
+        XCTAssertEqual(rgbaPixel(eroded, x: 42, y: 30), [0, 0, 255, 255])
+        XCTAssertEqual(rgbaPixel(eroded, x: 100, y: 30), [255, 0, 0, 255])
+    }
+
     // MARK: - resizedMask (Plan W2)
 
     func testResizedMaskReturnsSameInstanceWhenAlreadyTargetSize() {

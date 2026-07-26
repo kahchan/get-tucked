@@ -8,6 +8,21 @@ import UIKit
 /// instead of `.renderingMode(.template)` which stencils on alpha and tints
 /// the whole frame for a no-alpha grayscale mask.
 enum MatteRenderer {
+    /// AD5a-tuned defaults (plan-ad-subject-mask-formats.md): swept rider
+    /// threshold {128, 160, 200, 230} x person-mask erosion radius {0, 0.25%,
+    /// 0.5%, 1.0% of subject width} against the four Part-1 fixtures in
+    /// tools/matte-lab. Raising the threshold to 200 clears bike-contact
+    /// halos (grips/hoods, saddle/top tube between the thighs, cranks at the
+    /// feet) with no visible new overshoot on thin rider parts; 230 starts
+    /// nibbling fingertips/helmet edge. Erosion overshot at EVERY nonzero
+    /// radius tested — a uniform amber ring around the whole rider
+    /// silhouette (person and subject masks agree almost exactly at the
+    /// true body/background edge, so shrinking person there, not just at
+    /// bike contact, immediately shows) — so it stays wired up via
+    /// `CIMorphologyMinimum` for future re-tuning but defaults to a no-op.
+    static let ad5aRiderThreshold: UInt8 = 200
+    static let ad5aPersonErosionFraction: CGFloat = 0
+
     /// Pure pixel pass: foreground mask bytes → premultiplied RGBA, background → fully transparent.
     /// Strides by `bytesPerRow` (mirrors `AnalysisMath.countForegroundPixels`) — a linear scan
     /// would read trailing row padding as pixels.
@@ -57,23 +72,27 @@ enum MatteRenderer {
     /// foreground at that pixel (subject ∩ person = rider), `bikeColor`
     /// otherwise (subject − person = bike/bags/wheels). Both buffers must
     /// already be the same `width`/`height` — `twoToneOverlay` below handles
-    /// resampling the person mask to the subject mask's resolution before
-    /// calling this. Strides each buffer by its own `bytesPerRow`, same
-    /// padding-safety reasoning as `overlayPixels`.
+    /// resampling (and, AD5a, eroding) the person mask to the subject mask's
+    /// resolution before calling this. Strides each buffer by its own
+    /// `bytesPerRow`, same padding-safety reasoning as `overlayPixels`.
+    /// `riderThreshold` is the AD5a-tunable knob on the person side of the
+    /// split; the subject side stays fixed at 128 — see AD5a's why-comment
+    /// on `ad5aRiderThreshold` for the tuning.
     static func twoToneOverlayPixels(
         subjectBytes: UnsafePointer<UInt8>, subjectBytesPerRow: Int,
         personBytes: UnsafePointer<UInt8>, personBytesPerRow: Int,
         width: Int, height: Int,
         riderColor: (r: UInt8, g: UInt8, b: UInt8, a: UInt8),
         bikeColor: (r: UInt8, g: UInt8, b: UInt8, a: UInt8),
-        threshold: UInt8 = 128
+        riderThreshold: UInt8 = ad5aRiderThreshold
     ) -> [UInt8] {
+        let subjectThreshold: UInt8 = 128
         var out = [UInt8](repeating: 0, count: width * height * 4)
         for y in 0 ..< height {
             let subjectRow = y * subjectBytesPerRow
             let personRow = y * personBytesPerRow
-            for x in 0 ..< width where subjectBytes[subjectRow + x] >= threshold {
-                let isRider = personBytes[personRow + x] >= threshold
+            for x in 0 ..< width where subjectBytes[subjectRow + x] >= subjectThreshold {
+                let isRider = personBytes[personRow + x] >= riderThreshold
                 let color = isRider ? riderColor : bikeColor
                 let offset = (y * width + x) * 4
                 out[offset] = color.r
@@ -94,6 +113,12 @@ enum MatteRenderer {
     /// of, which reads as "—" rather than a misleading 0%. Strides each
     /// buffer by its own bytesPerRow, same padding-safety reasoning as
     /// `twoToneOverlayPixels`.
+    ///
+    /// Deliberately NOT AD5a-tuned: stays a plain 128/128 split even though
+    /// `twoToneOverlayPixels` hardens the person side to `ad5aRiderThreshold`
+    /// for the visual matte. This is a measurement-ish diagnostic number
+    /// (Z4) — silently changing what it means to make the pixels prettier
+    /// is off-limits.
     static func bikeCoverageFraction(
         subjectBytes: UnsafePointer<UInt8>, subjectBytesPerRow: Int,
         personBytes: UnsafePointer<UInt8>, personBytesPerRow: Int,
@@ -153,25 +178,69 @@ enum MatteRenderer {
         return context.makeImage()
     }
 
+    /// Erodes `mask` by `radiusPx` — AD5a's fix for the resampled person
+    /// mask's soft halo clearing the rider threshold on bike pixels that
+    /// touch the body. `CIMorphologyMinimum` is the inverse of
+    /// `outlineMask`'s `CIMorphologyMaximum` dilate, same crop-back-to-extent
+    /// pattern. Returns nil (caller falls back to the un-eroded mask) on any
+    /// Core Image failure — erosion is a presentation nicety, never a hard
+    /// requirement the way the subject mask itself is.
+    ///
+    /// Empirically, `CIMorphologyMinimum` has a radius cliff on EXTREME
+    /// aspect-ratio images (a 20:1 strip can erase to all-background past a
+    /// small radius) — irrelevant for real subject/person masks (normal
+    /// photo aspect ratios), but worth knowing if `ad5aPersonErosionFraction`
+    /// is ever re-tuned upward: sanity-check against a real fixture in
+    /// tools/matte-lab, not just a synthetic square.
+    private static func erodedMask(_ mask: CGImage, radiusPx: CGFloat) -> CGImage? {
+        let ciImage = CIImage(cgImage: mask)
+        guard let filter = CIFilter(name: "CIMorphologyMinimum") else { return nil }
+        filter.setValue(ciImage, forKey: kCIInputImageKey)
+        filter.setValue(radiusPx, forKey: kCIInputRadiusKey)
+        guard let output = filter.outputImage else { return nil }
+        return CIContext().createCGImage(
+            output, from: ciImage.extent, format: .L8, colorSpace: CGColorSpaceCreateDeviceGray()
+        )
+    }
+
     /// Two-tone composite (Plan W2): rider pixels (subject ∩ person) tint
     /// `riderColor`, bike/bags pixels (subject − person) tint `bikeColor`.
     /// `personMask` nil, or a decode/resample failure, degrades to a
     /// single-tone `subjectMask` overlay in `riderColor` — old positions
     /// (no stored subject mask at all) never reach this function; they go
-    /// straight to `tintedOverlay` at the call site instead.
+    /// straight to `tintedOverlay` at the call site instead. `riderThreshold`
+    /// and `personErosionFraction` are the AD5a split-quality knobs (see
+    /// `ad5aRiderThreshold`'s why-comment) — `personErosionFraction` is a
+    /// fraction of `subjectMask.width`, not an absolute pixel count, because
+    /// the person mask has just been upsampled to that (up to ~4032px)
+    /// resolution, where a 1-2px radius would do nothing.
     static func twoToneOverlay(
-        subjectMask: CGImage, personMask: CGImage?, riderColor: UIColor, bikeColor: UIColor, alpha: CGFloat
+        subjectMask: CGImage, personMask: CGImage?, riderColor: UIColor, bikeColor: UIColor, alpha: CGFloat,
+        riderThreshold: UInt8 = ad5aRiderThreshold, personErosionFraction: CGFloat = ad5aPersonErosionFraction
     ) -> UIImage? {
         guard let personMask,
               let resampledPerson = resizedMask(personMask, toWidth: subjectMask.width, height: subjectMask.height),
-              let subjectData = subjectMask.dataProvider?.data, let subjectBytes = CFDataGetBytePtr(subjectData),
-              let personData = resampledPerson.dataProvider?.data, let personBytes = CFDataGetBytePtr(personData)
+              let subjectData = subjectMask.dataProvider?.data, let subjectBytes = CFDataGetBytePtr(subjectData)
         else {
             return tintedOverlay(mask: subjectMask, color: riderColor, alpha: alpha)
         }
 
         let width = subjectMask.width
         let height = subjectMask.height
+
+        // Skip the erosion pass entirely at the default (no-op) fraction —
+        // no extra full-size intermediate buffer beyond what resizedMask
+        // already produced.
+        let personForSplit: CGImage
+        if personErosionFraction > 0,
+           let eroded = erodedMask(resampledPerson, radiusPx: personErosionFraction * CGFloat(width)) {
+            personForSplit = eroded
+        } else {
+            personForSplit = resampledPerson
+        }
+        guard let personData = personForSplit.dataProvider?.data, let personBytes = CFDataGetBytePtr(personData) else {
+            return tintedOverlay(mask: subjectMask, color: riderColor, alpha: alpha)
+        }
 
         var riderR: CGFloat = 0, riderG: CGFloat = 0, riderB: CGFloat = 0
         riderColor.getRed(&riderR, green: &riderG, blue: &riderB, alpha: nil)
@@ -189,9 +258,10 @@ enum MatteRenderer {
 
         let rgba = twoToneOverlayPixels(
             subjectBytes: subjectBytes, subjectBytesPerRow: subjectMask.bytesPerRow,
-            personBytes: personBytes, personBytesPerRow: resampledPerson.bytesPerRow,
+            personBytes: personBytes, personBytesPerRow: personForSplit.bytesPerRow,
             width: width, height: height,
-            riderColor: riderPremultiplied, bikeColor: bikePremultiplied
+            riderColor: riderPremultiplied, bikeColor: bikePremultiplied,
+            riderThreshold: riderThreshold
         )
 
         guard let context = CGContext(
