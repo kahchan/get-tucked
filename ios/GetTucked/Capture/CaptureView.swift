@@ -959,6 +959,18 @@ private struct RevealStep: View {
                                     )
                                     .cascadeIn(index: 7, trigger: rowsVisible)
                                 }
+                                #if DEBUG
+                                // Plan AD3: the subject lift (rider+bike+bags)
+                                // degrades to the person-only mask silently in
+                                // release — surface why here so a nil is
+                                // diagnosable during development instead of
+                                // just "no amber tint, no idea why".
+                                if let reason = result.subjectLiftFailureReason {
+                                    MetricRow(key: "Subject lift", value: reason.logDescription,
+                                              valueColor: Theme.Palette.amb)
+                                        .cascadeIn(index: 8, trigger: rowsVisible)
+                                }
+                                #endif
                             }
                             .padding(.horizontal, Theme.Space.screenMargin)
                         }

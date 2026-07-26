@@ -1,5 +1,46 @@
 import UIKit
 import Vision
+import os
+
+private let subjectLiftLogger = Logger(subsystem: "com.gettucked.app", category: "SubjectLift")
+
+/// Plan AD3: `segmentSubject` never blocks (always returns an optional mask),
+/// but a week of silent nils hid a total feature failure — this pins down
+/// *why* on every nil so the failure is diagnosable instead of invisible.
+enum SubjectLiftFailure: Error, Equatable {
+    case requestFailed
+    case noInstances
+    case unexpectedMaskFormat(OSType)
+    case noRiderInstance
+    case scaledMaskFailed
+    case decodeFailed
+
+    /// `OSType`/FourCC codes aren't printable by default — spell them out
+    /// for the log line (e.g. `kCVPixelFormatType_OneComponent8` -> "L008").
+    var logDescription: String {
+        switch self {
+        case .requestFailed: "requestFailed"
+        case .noInstances: "noInstances"
+        case .unexpectedMaskFormat(let format): "unexpectedMaskFormat(\(Self.fourCC(format)))"
+        case .noRiderInstance: "noRiderInstance"
+        case .scaledMaskFailed: "scaledMaskFailed"
+        case .decodeFailed: "decodeFailed"
+        }
+    }
+
+    private static func fourCC(_ type: OSType) -> String {
+        let bytes: [UInt8] = [24, 16, 8, 0].map { UInt8((type >> $0) & 0xff) }
+        return String(bytes: bytes, encoding: .ascii) ?? String(type)
+    }
+}
+
+/// `segmentSubject`'s result: `mask` and `failureReason` are mutually
+/// exclusive (never both non-nil) — a struct instead of a bare optional so
+/// the "why" travels with every nil instead of being discarded at the call site.
+struct SubjectLiftOutcome {
+    let mask: CGImage?
+    let failureReason: SubjectLiftFailure?
+}
 
 enum AnalysisError: LocalizedError {
     case noPersonDetected
@@ -38,6 +79,10 @@ struct AnalysisResult {
     /// falls back to `maskImage`/person-only for `frontalAreaCm2` and every
     /// other consumer exactly as it did before this field existed.
     let subjectMaskImage: UIImage?
+    /// Plan AD3: why `subjectMaskImage` is nil, or nil itself when the lift
+    /// succeeded. Diagnostic only — transient, never persisted (no SwiftData
+    /// field), surfaced only in DEBUG builds' reveal UI and the error log.
+    let subjectLiftFailureReason: SubjectLiftFailure?
     let headOnPose: HeadOnPoseMetrics?
     /// Set when the computed shoulder width is outside a plausible human
     /// range — usually a mis-tapped scale reference, not an unusual rider.
@@ -152,8 +197,14 @@ struct AnalysisEngine {
         let mask = try await segmentPerson(cgImage: cgImage)
         // Plan W2: subject-lifting is best-effort — nil (never throws) on
         // any failure, in which case area/rendering fall back to the
-        // person-only mask exactly as they did before this existed.
-        let subjectMask = await segmentSubject(cgImage: cgImage)
+        // person-only mask exactly as they did before this existed. Plan
+        // AD3: the reason travels alongside so a nil is diagnosable, not
+        // silent — logged below and threaded into AnalysisResult.
+        let subjectLift = await segmentSubject(cgImage: cgImage)
+        let subjectMask = subjectLift.mask
+        if let reason = subjectLift.failureReason {
+            subjectLiftLogger.error("segmentSubject failed: \(reason.logDescription, privacy: .public)")
+        }
 
         // Area drives off the subject mask (rider+bike+bags — what the wind
         // actually sees, spec §2) when available, else the person mask —
@@ -194,6 +245,7 @@ struct AnalysisEngine {
             foregroundPixelCount: foregroundCount,
             maskImage: maskUI,
             subjectMaskImage: subjectMaskUI,
+            subjectLiftFailureReason: subjectLift.failureReason,
             headOnPose: headOnPose,
             scaleWarning: scaleWarning,
             wheelCheckDisagreementFraction: wheelCheckDisagreementFraction
@@ -303,7 +355,15 @@ struct AnalysisEngine {
         )
     }
 
-    private static func cgImageFromPixelBuffer(_ buffer: CVPixelBuffer, sourceSize: CGSize) throws -> CGImage {
+    /// Decodes a Vision mask buffer to an 8-bit gray `CGImage`. Plan AD2 (H2):
+    /// the two Vision requests this engine uses hand back two different
+    /// pixel formats — `segmentPerson`'s `OneComponent8` is already an 8-bit
+    /// gray byte-per-pixel layout, but `segmentSubject`'s
+    /// `generateScaledMaskForImage` is `OneComponent32Float` (0.0–1.0 soft
+    /// mask); reading that through an 8-bit `CGContext` (the pre-AD2 bug)
+    /// reads one byte in four of a float, i.e. byte-salad. Branch on the
+    /// buffer's actual format instead of assuming.
+    static func cgImageFromPixelBuffer(_ buffer: CVPixelBuffer, sourceSize: CGSize) throws -> CGImage {
         CVPixelBufferLockBaseAddress(buffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
 
@@ -314,18 +374,60 @@ struct AnalysisEngine {
         }
         let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
         let colorSpace = CGColorSpaceCreateDeviceGray()
-        guard let context = CGContext(
-            data: baseAddress,
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: bytesPerRow,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.none.rawValue
-        ), let image = context.makeImage() else {
+
+        switch CVPixelBufferGetPixelFormatType(buffer) {
+        case kCVPixelFormatType_OneComponent8:
+            // segmentPerson's output — already 8-bit gray, byte layout
+            // matches a CGContext directly, no conversion needed.
+            guard let context = CGContext(
+                data: baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ), let image = context.makeImage() else {
+                throw AnalysisError.segmentationFailed
+            }
+            return image
+
+        case kCVPixelFormatType_OneComponent32Float:
+            // generateScaledMaskForImage's output — one Float32 (0.0–1.0)
+            // per pixel. Convert into a fresh 8-bit buffer rather than
+            // pointing a CGContext at the float bytes directly.
+            let floatsPerRow = bytesPerRow / MemoryLayout<Float32>.size
+            let floats = baseAddress.assumingMemoryBound(to: Float32.self)
+            var gray = [UInt8](repeating: 0, count: width * height)
+            for y in 0 ..< height {
+                let row = y * floatsPerRow
+                for x in 0 ..< width {
+                    let clamped = min(max(floats[row + x], 0), 1)
+                    gray[y * width + x] = UInt8((clamped * 255).rounded())
+                }
+            }
+            guard let context = CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: width,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else {
+                throw AnalysisError.segmentationFailed
+            }
+            gray.withUnsafeBytes { ptr in
+                context.data?.copyMemory(from: ptr.baseAddress!, byteCount: gray.count)
+            }
+            guard let image = context.makeImage() else {
+                throw AnalysisError.segmentationFailed
+            }
+            return image
+
+        default:
             throw AnalysisError.segmentationFailed
         }
-        return image
     }
 
     /// Subject-lift matte (Plan W2): the foreground-instance ("subject
@@ -337,7 +439,7 @@ struct AnalysisEngine {
     /// the rider-anchored connected union (Plan A1), not a blanket union of
     /// every instance — a disconnected car/coat/spare-wheel in frame must
     /// stay excluded.
-    private static func segmentSubject(cgImage: CGImage) async -> CGImage? {
+    static func segmentSubject(cgImage: CGImage) async -> SubjectLiftOutcome {
         let instanceRequest = VNGenerateForegroundInstanceMaskRequest()
         let rectRequest = VNDetectHumanRectanglesRequest()
         rectRequest.upperBodyOnly = false
@@ -345,11 +447,20 @@ struct AnalysisEngine {
         do {
             try handler.perform([instanceRequest, rectRequest])
         } catch {
-            return nil
+            return SubjectLiftOutcome(mask: nil, failureReason: .requestFailed)
         }
-        guard let result = instanceRequest.results?.first, !result.allInstances.isEmpty else { return nil }
-        guard let instanceBoxes = instanceBoundingBoxes(mask: result.instanceMask), !instanceBoxes.isEmpty else {
-            return nil
+        guard let result = instanceRequest.results?.first, !result.allInstances.isEmpty else {
+            return SubjectLiftOutcome(mask: nil, failureReason: .noInstances)
+        }
+
+        let instanceBoxes: [Int: CGRect]
+        switch instanceBoundingBoxes(mask: result.instanceMask) {
+        case .success(let boxes) where !boxes.isEmpty:
+            instanceBoxes = boxes
+        case .success:
+            return SubjectLiftOutcome(mask: nil, failureReason: .noInstances)
+        case .failure(let reason):
+            return SubjectLiftOutcome(mask: nil, failureReason: reason)
         }
 
         // Rider anchor: the largest detected human rectangle, or frame-centre
@@ -364,35 +475,49 @@ struct AnalysisEngine {
         }
 
         guard let riderInstance = AnalysisMath.riderInstance(instanceBoxes: instanceBoxes, riderBox: riderBox) else {
-            return nil
+            return SubjectLiftOutcome(mask: nil, failureReason: .noRiderInstance)
         }
         let selected = AnalysisMath.connectedInstances(riderInstance: riderInstance, instanceBoxes: instanceBoxes)
 
         guard let buffer = try? result.generateScaledMaskForImage(forInstances: selected, from: handler) else {
-            return nil
+            return SubjectLiftOutcome(mask: nil, failureReason: .scaledMaskFailed)
         }
-        return try? cgImageFromPixelBuffer(buffer, sourceSize: CGSize(width: cgImage.width, height: cgImage.height))
+        guard let mask = try? cgImageFromPixelBuffer(buffer, sourceSize: CGSize(width: cgImage.width, height: cgImage.height)) else {
+            return SubjectLiftOutcome(mask: nil, failureReason: .decodeFailed)
+        }
+        return SubjectLiftOutcome(mask: mask, failureReason: nil)
     }
 
-    /// Scans the (low-res) per-instance mask once and returns each instance's
+    /// Scans the per-instance label mask once and returns each instance's
     /// bounding box, converted to Vision's normalised bottom-left-origin
     /// convention so it's directly comparable to
-    /// `VNDetectedObjectObservation.boundingBox`.
-    private static func instanceBoundingBoxes(mask: CVPixelBuffer) -> [Int: CGRect]? {
+    /// `VNDetectedObjectObservation.boundingBox`. Plan AD2 (H1): the real
+    /// buffer is a UInt8 label map (0 = background, N = instance), not the
+    /// Float32 this used to (wrongly) assume — reading label bytes as floats
+    /// packs 4 bytes into 1 denormal that rounds to 0, so every pixel read as
+    /// background and this returned nil on every image. `.failure` carries
+    /// the reason for AD3 instead of a bare nil.
+    static func instanceBoundingBoxes(mask: CVPixelBuffer) -> Result<[Int: CGRect], SubjectLiftFailure> {
+        let format = CVPixelBufferGetPixelFormatType(mask)
+        guard format == kCVPixelFormatType_OneComponent8 else {
+            return .failure(.unexpectedMaskFormat(format))
+        }
+
         CVPixelBufferLockBaseAddress(mask, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(mask, .readOnly) }
         let w = CVPixelBufferGetWidth(mask)
         let h = CVPixelBufferGetHeight(mask)
         let rowBytes = CVPixelBufferGetBytesPerRow(mask)
-        guard let base = CVPixelBufferGetBaseAddress(mask) else { return nil }
-        let floats = base.assumingMemoryBound(to: Float32.self)
-        let floatsPerRow = rowBytes / MemoryLayout<Float32>.size
+        guard let base = CVPixelBufferGetBaseAddress(mask) else {
+            return .failure(.noInstances)
+        }
+        let bytes = base.assumingMemoryBound(to: UInt8.self)
 
         var minX: [Int: Int] = [:], maxX: [Int: Int] = [:], minY: [Int: Int] = [:], maxY: [Int: Int] = [:]
         for y in 0 ..< h {
-            let row = y * floatsPerRow
+            let row = y * rowBytes
             for x in 0 ..< w {
-                let value = Int(floats[row + x].rounded())
+                let value = Int(bytes[row + x])
                 guard value != 0 else { continue }
                 minX[value] = min(minX[value] ?? x, x)
                 maxX[value] = max(maxX[value] ?? x, x)
@@ -400,7 +525,7 @@ struct AnalysisEngine {
                 maxY[value] = max(maxY[value] ?? y, y)
             }
         }
-        guard !minX.isEmpty else { return nil }
+        guard !minX.isEmpty else { return .success([:]) }
 
         var boxes: [Int: CGRect] = [:]
         for (instance, x0) in minX {
@@ -416,7 +541,7 @@ struct AnalysisEngine {
                 width: xFrac1 - xFrac0, height: yTopFrac1 - yTopFrac0
             )
         }
-        return boxes
+        return .success(boxes)
     }
 
     // MARK: - Pixel count
