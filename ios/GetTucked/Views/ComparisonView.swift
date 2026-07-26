@@ -31,6 +31,10 @@ struct ComparisonView: View {
     // at a time rather than always looking at both overlaid.
     @State private var showLayerA = true
     @State private var showLayerB = true
+    // AE3: OUTLINE-only underlay, off by default (today's look) — dims each
+    // visible layer's photo in behind its own outline, so it follows that
+    // layer's own A/B chip rather than getting a chip of its own to hide.
+    @State private var showPhotoUnderlay = false
 
     // R1: the outline draw-in ceremony. A then B, staggered ~0.35s apart;
     // plays once per screen visit (toggling PHOTO/OUTLINE or A/B never
@@ -168,6 +172,7 @@ struct ComparisonView: View {
                                     GhostCompareOverlay(
                                         layerA: overlayLayerA, layerB: overlayLayerB, showOutline: showOutline,
                                         showLayerA: showLayerA, showLayerB: showLayerB,
+                                        showPhotoUnderlay: showPhotoUnderlay,
                                         drawInProgressA: reduceMotion ? 1 : drawInProgressA,
                                         drawInProgressB: reduceMotion ? 1 : drawInProgressB,
                                         onGestureBegan: cancelDrawInIfNeeded,
@@ -182,6 +187,19 @@ struct ComparisonView: View {
                                             LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB && layerBArmed) {
                                                 cancelDrawInIfNeeded()
                                                 showLayerB.toggle()
+                                            }
+                                            // AE3: only meaningful on the OUTLINE tab — PHOTO tab
+                                            // already shows the photo as the primary content.
+                                            if showOutline {
+                                                LayerToggleChip(
+                                                    label: "PHOTO", color: Theme.Palette.fg2,
+                                                    isOn: showPhotoUnderlay, width: 54
+                                                ) {
+                                                    cancelDrawInIfNeeded()
+                                                    withAnimation(reduceMotion ? nil : Theme.Motion.entrance()) {
+                                                        showPhotoUnderlay.toggle()
+                                                    }
+                                                }
                                             }
                                         }
                                         .padding(Theme.Space.sm)
@@ -526,6 +544,20 @@ private struct PoseEvidenceRows: View {
     }
 }
 
+// MARK: - Photo underlay visibility (Plan AE3)
+
+/// Pure chip-state → opacity mapping for the OUTLINE tab's dimmed photo
+/// underlay — kept free of the view so it's directly testable. Internal
+/// (not `private`) so `GetTuckedTests` can reach it via `@testable import`.
+enum GhostCompareUnderlay {
+    /// 0 unless both the OUTLINE tab and the PHOTO chip are on — the photo
+    /// never shows on the PHOTO tab (it's already the primary content
+    /// there) or when the underlay chip itself is off (today's default look).
+    static func photoOpacity(showOutline: Bool, showPhotoUnderlay: Bool) -> Double {
+        showOutline && showPhotoUnderlay ? 0.35 : 0
+    }
+}
+
 // MARK: - Ghost-compare overlay (frontal only, v1)
 
 /// One position's precomputed overlay material — built once, off-main, by
@@ -563,6 +595,10 @@ private struct GhostCompareOverlay: View {
     let showOutline: Bool
     let showLayerA: Bool
     let showLayerB: Bool
+    // AE3: OUTLINE-only underlay — each visible layer's photo dims in behind
+    // its own outline; gated on `showOutline` in `layerView` below, so this
+    // has no effect on the PHOTO tab (which already shows the photo itself).
+    let showPhotoUnderlay: Bool
     // R1: 0→1 outline draw-in progress, owned and animated by ComparisonView
     // (caller-owned animation, same pattern as SkeletonOverlay's `progress`).
     let drawInProgressA: Double
@@ -575,6 +611,7 @@ private struct GhostCompareOverlay: View {
     var onSwipeCycle: (Int) -> Void = { _ in }
 
     @State private var isZoomed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
@@ -632,27 +669,41 @@ private struct GhostCompareOverlay: View {
             sharedAnchorScreenPoint: fit.anchorScreenPoint, screenPointsPerCm: fit.screenPointsPerCm
         )
         if placement.frameSize.width > 0, placement.frameSize.height > 0 {
-            if showOutline, !layer.contours.isEmpty {
-                // R1.2: the traced boundary draws on, in the same frame the
-                // raster ring would otherwise occupy — SkeletonOverlay is
-                // the in-repo reference for trim+progress, caller-owned
-                // animation.
-                ContourDrawView(contours: layer.contours, color: layer.strokeColor, progress: drawInProgress)
-                    .frame(width: placement.frameSize.width, height: placement.frameSize.height)
-                    .position(placement.center)
-            } else if let image = showOutline ? layer.outlineImage : layer.photoImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .frame(width: placement.frameSize.width, height: placement.frameSize.height)
-                    .position(placement.center)
-                    // OUTLINE rings don't occlude each other, so full
-                    // opacity; PHOTO is a deliberate soft double-exposure.
-                    // An untraceable OUTLINE layer (fragmented matte) wipes
-                    // in via scanReveal on the same stagger instead of the
-                    // vector draw — same graceful-degrade shape as every
-                    // other optional visual in this app.
-                    .opacity(showOutline ? 1 : 0.55)
-                    .scanReveal(progress: showOutline ? drawInProgress : 1)
+            ZStack {
+                // AE3: dimmed photo underlay, OUTLINE tab only — a plain
+                // opacity fade (not tied to `drawInProgress`) so it never
+                // competes with the R1 draw-in ceremony's outline trim.
+                if showOutline, let photo = layer.photoImage {
+                    Image(uiImage: photo)
+                        .resizable()
+                        .frame(width: placement.frameSize.width, height: placement.frameSize.height)
+                        .position(placement.center)
+                        .opacity(GhostCompareUnderlay.photoOpacity(showOutline: showOutline, showPhotoUnderlay: showPhotoUnderlay))
+                        .animation(reduceMotion ? nil : Theme.Motion.entrance(), value: showPhotoUnderlay)
+                        .allowsHitTesting(false)
+                }
+                if showOutline, !layer.contours.isEmpty {
+                    // R1.2: the traced boundary draws on, in the same frame the
+                    // raster ring would otherwise occupy — SkeletonOverlay is
+                    // the in-repo reference for trim+progress, caller-owned
+                    // animation.
+                    ContourDrawView(contours: layer.contours, color: layer.strokeColor, progress: drawInProgress)
+                        .frame(width: placement.frameSize.width, height: placement.frameSize.height)
+                        .position(placement.center)
+                } else if let image = showOutline ? layer.outlineImage : layer.photoImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .frame(width: placement.frameSize.width, height: placement.frameSize.height)
+                        .position(placement.center)
+                        // OUTLINE rings don't occlude each other, so full
+                        // opacity; PHOTO is a deliberate soft double-exposure.
+                        // An untraceable OUTLINE layer (fragmented matte) wipes
+                        // in via scanReveal on the same stagger instead of the
+                        // vector draw — same graceful-degrade shape as every
+                        // other optional visual in this app.
+                        .opacity(showOutline ? 1 : 0.55)
+                        .scanReveal(progress: showOutline ? drawInProgress : 1)
+                }
             }
         }
     }
@@ -698,6 +749,10 @@ private struct LayerToggleChip: View {
     let label: String
     let color: Color
     let isOn: Bool
+    // AE3: the PHOTO chip's label doesn't fit the original 28pt square, so
+    // width is overridable — everything else (stroke, mono label, fill
+    // logic) stays identical across every chip.
+    var width: CGFloat = 28
     let action: () -> Void
 
     var body: some View {
@@ -705,7 +760,7 @@ private struct LayerToggleChip: View {
             Text(label)
                 .font(Theme.mono(11, weight: .bold))
                 .foregroundStyle(isOn ? color : Theme.Palette.fg4)
-                .frame(width: 28, height: 28)
+                .frame(width: width, height: 28)
                 .background(Theme.Palette.bg0.opacity(0.72))
                 .overlay(Rectangle().stroke(isOn ? color : Theme.Palette.line, lineWidth: 1))
         }
