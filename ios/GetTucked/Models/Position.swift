@@ -38,6 +38,16 @@ final class Position {
     // photo instead of a matte.
     var sideOnMaskData: Data?
 
+    // Side-on subject-lift matte (Plan AH, SchemaV8) — rider+bike+bags as
+    // one instance-connected union, mirroring subjectMaskData's role for the
+    // frontal side. Drives the side-on matte's subject-preferred/person-
+    // fallback rendering (PositionDetailView.buildMaskOverlay) when present;
+    // nil for positions captured before Plan AH or when subject-lifting
+    // failed on this capture, both of which degrade to sideOnMaskData/
+    // person-only exactly as before. Presentational only (Plan O) — never
+    // feeds frontalAreaCm2 or any other number.
+    var sideOnSubjectMaskData: Data?
+
     // Head-on photo asset identifier (PHAsset local ID)
     var headOnPhotoIdentifier: String?
 

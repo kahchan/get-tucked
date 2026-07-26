@@ -15,7 +15,7 @@ struct GetTuckedApp: App {
     // "Failed to cast model" fatal (seen after Plan V, when V5 became a
     // snapshot — see commit 7d7f311).
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema(versionedSchema: SchemaV7.self)
+        let schema = Schema(versionedSchema: SchemaV8.self)
         let configuration = ModelConfiguration(schema: schema)
         return try! ModelContainer(
             for: schema,

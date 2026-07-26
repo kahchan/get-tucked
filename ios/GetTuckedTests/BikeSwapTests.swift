@@ -12,7 +12,7 @@ final class BikeSwapTests: XCTestCase {
     private var context: ModelContext!
 
     override func setUpWithError() throws {
-        let schema = Schema(versionedSchema: SchemaV7.self)
+        let schema = Schema(versionedSchema: SchemaV8.self)
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         container = try ModelContainer(for: schema, configurations: [configuration])
         context = ModelContext(container)
