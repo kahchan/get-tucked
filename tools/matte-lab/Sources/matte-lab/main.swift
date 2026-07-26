@@ -259,19 +259,99 @@ func personMaskGray(_ buffer: CVPixelBuffer) -> (gray: [UInt8], w: Int, h: Int, 
     return (gray, w, h, fg)
 }
 
-// Nearest-neighbour resample of a packed gray buffer to a new size.
-func resampleGray(_ gray: [UInt8], w: Int, h: Int, toW: Int, toH: Int) -> [UInt8] {
-    if w == toW && h == toH { return gray }
+// CGContext .high-interpolation resample of a packed gray buffer — mirrors
+// MatteRenderer.resizedMask exactly (production's "current bilinear" path),
+// so AE1's comparison is against what the app actually does, not an
+// approximation of it.
+func resamplePersonBilinear(_ gray: [UInt8], w: Int, h: Int, toW: Int, toH: Int) -> [UInt8] {
+    guard w != toW || h != toH else { return gray }
+    guard let source = grayToCGImage(gray, width: w, height: h),
+          let context = CGContext(
+              data: nil, width: toW, height: toH, bitsPerComponent: 8,
+              bytesPerRow: toW, space: CGColorSpaceCreateDeviceGray(),
+              bitmapInfo: CGImageAlphaInfo.none.rawValue
+          )
+    else { return gray }
+    context.interpolationQuality = .high
+    context.draw(source, in: CGRect(x: 0, y: 0, width: toW, height: toH))
+    guard let resized = context.makeImage(),
+          let data = resized.dataProvider?.data, let bytes = CFDataGetBytePtr(data)
+    else { return gray }
     var out = [UInt8](repeating: 0, count: toW * toH)
+    let bpr = resized.bytesPerRow
     for y in 0 ..< toH {
-        let sy = min(h - 1, y * h / toH)
         for x in 0 ..< toW {
-            let sx = min(w - 1, x * w / toW)
-            out[y * toW + x] = gray[sy * w + sx]
+            out[y * toW + x] = bytes[y * bpr + x]
         }
     }
     return out
 }
+
+// MARK: - AE1a: edge-preserving upsample, guided by the full-res photo
+//
+// CIEdgePreserveUpsampleFilter's actual parameter names (confirmed via
+// CIFilter.attributes on this Mac, not assumed from docs): `inputImage` is
+// the GUIDE (the high-res image whose edges steer the upsample) and
+// `inputSmallImage` is the thing being upsampled. Output lands at the
+// guide's extent, which is why callers pass the full-res photo as the guide
+// — its extent is exactly the subject-mask resolution we need the person
+// mask brought up to.
+func resamplePersonEdgePreserve(_ gray: [UInt8], w: Int, h: Int, guide: CGImage) -> [UInt8]? {
+    guard let smallImage = grayToCGImage(gray, width: w, height: h) else { return nil }
+    let smallCI = CIImage(cgImage: smallImage)
+    let guideCI = CIImage(cgImage: guide)
+    guard let filter = CIFilter(name: "CIEdgePreserveUpsampleFilter") else { return nil }
+    filter.setValue(guideCI, forKey: kCIInputImageKey)
+    filter.setValue(smallCI, forKey: "inputSmallImage")
+    guard let output = filter.outputImage else { return nil }
+    let context = CIContext()
+    guard let cg = context.createCGImage(
+        output, from: guideCI.extent, format: .L8, colorSpace: CGColorSpaceCreateDeviceGray()
+    ),
+    let data = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(data)
+    else { return nil }
+    let outW = cg.width, outH = cg.height, bpr = cg.bytesPerRow
+    var out = [UInt8](repeating: 0, count: outW * outH)
+    for y in 0 ..< outH {
+        for x in 0 ..< outW {
+            out[y * outW + x] = bytes[y * bpr + x]
+        }
+    }
+    return out
+}
+
+/// Mean/min/max of a gray buffer over a square window — used to compare
+/// person-mask confidence between the fork-between-legs gap and true torso
+/// (AE1b evidence: is the bridged blob mid-confidence, or does it read as
+/// confidently as the body?).
+func sampleWindowStats(_ gray: [UInt8], w: Int, h: Int, centerX: Int, centerY: Int, radius: Int) -> (min: UInt8, mean: Double, max: UInt8)? {
+    let x0 = max(0, centerX - radius), x1 = min(w - 1, centerX + radius)
+    let y0 = max(0, centerY - radius), y1 = min(h - 1, centerY + radius)
+    guard x0 <= x1, y0 <= y1 else { return nil }
+    var minV: UInt8 = 255, maxV: UInt8 = 0
+    var sum = 0
+    var n = 0
+    for y in y0 ... y1 {
+        for x in x0 ... x1 {
+            let v = gray[y * w + x]
+            minV = min(minV, v)
+            maxV = max(maxV, v)
+            sum += Int(v)
+            n += 1
+        }
+    }
+    guard n > 0 else { return nil }
+    return (minV, Double(sum) / Double(n), maxV)
+}
+
+/// Fork-between-legs vs true-torso sample points, eyeballed off the AD5a
+/// composites (fractions of subject-mask width/height, origin top-left) —
+/// only defined for the fixtures where the defect is visible; unlisted
+/// images skip the AE1b sample dump but still get composites.
+let ae1SamplePoints: [String: (forkGap: (CGFloat, CGFloat), torso: (CGFloat, CGFloat))] = [
+    "IMG_0674.JPG": (forkGap: (0.49, 0.545), torso: (0.466, 0.365)),
+    "IMG_0676.JPG": (forkGap: (0.493, 0.49), torso: (0.466, 0.35)),
+]
 
 // MARK: - Person-mask erosion (AD5a) — CIMorphologyMinimum, the inverse of the
 // production outlineMask's CIMorphologyMaximum dilate. `radius` is in PIXELS
@@ -308,7 +388,7 @@ func erodeGray(_ gray: [UInt8], w: Int, h: Int, radius: Double) -> [UInt8] {
 /// person side of the split.
 func buildTwoToneComposite(
     baseImage: CGImage, subjectBytes: UnsafePointer<UInt8>, subjectBytesPerRow: Int,
-    personGray: [UInt8], width: Int, height: Int, riderThreshold: UInt8
+    personGray: [UInt8], width: Int, height: Int, riderThreshold: UInt8, subjectThreshold: UInt8 = 128
 ) -> (composite: CGImage?, coverageBike: Int, coverageSubject: Int) {
     var base = [UInt8](repeating: 0, count: width * height * 4)
     if let ctx = CGContext(data: &base, width: width, height: height, bitsPerComponent: 8,
@@ -323,7 +403,7 @@ func buildTwoToneComposite(
         let subjectRow = y * subjectBytesPerRow
         let personRow = y * width
         for x in 0 ..< width {
-            guard subjectBytes[subjectRow + x] >= 128 else { continue }
+            guard subjectBytes[subjectRow + x] >= subjectThreshold else { continue }
             coverageSubject += 1
             let isRider = personGray[personRow + x] >= riderThreshold
             let color: (Double, Double, Double) = isRider ? (60, 230, 90) : (232, 150, 30)
@@ -355,11 +435,13 @@ let labelPalette: [(UInt8, UInt8, UInt8)] = [
 
 let args = CommandLine.arguments
 guard args.count >= 2 else {
-    print("usage: matte-lab <image-path> [--sweep]")
+    print("usage: matte-lab <image-path> [--sweep] [--ae1] [--ae2]")
     exit(2)
 }
 let imagePath = args[1]
 let sweepMode = args.contains("--sweep")
+let ae1Mode = args.contains("--ae1")
+let ae2Mode = args.contains("--ae2")
 let imageName = (imagePath as NSString).lastPathComponent
 let toolDir = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -532,7 +614,7 @@ if let subj = scaledSubjectImage,
     let sw = subj.width, sh = subj.height, sbpr = subj.bytesPerRow
     subjW = sw; subjH = sh
     // resample person to subject resolution (mirrors MatteRenderer.resizedMask)
-    personR = resampleGray(person.gray, w: person.w, h: person.h, toW: sw, toH: sh)
+    personR = resamplePersonBilinear(person.gray, w: person.w, h: person.h, toW: sw, toH: sh)
     let (comp, bike, subjCount) = buildTwoToneComposite(
         baseImage: cgImage, subjectBytes: subjBytes, subjectBytesPerRow: sbpr,
         personGray: personR, width: sw, height: sh, riderThreshold: 128
@@ -573,6 +655,109 @@ if sweepMode, let subj = scaledSubjectImage,
                 writePNG(comp, to: sweepDir.appendingPathComponent(name).path)
             }
         }
+    }
+}
+
+// (6) AE1a — bilinear vs edge-preserving upsample of the person mask, at the
+// current production rider threshold (200). Success = fork/head-tube pixels
+// between the legs flip amber; failure signal = wrist/ankle/helmet loss or
+// halo artifacts. See plans/plan-ae-matte-refinement-and-calibration-ux.md.
+if ae1Mode, let subj = scaledSubjectImage,
+   let subjData = subj.dataProvider?.data, let subjBytes = CFDataGetBytePtr(subjData) {
+    let ae1Dir = outputDir.appendingPathComponent("ae1")
+    try? FileManager.default.createDirectory(at: ae1Dir, withIntermediateDirectories: true)
+    let riderThreshold: UInt8 = 200
+
+    let (bilinearComp, bilinearBike, bilinearSubj) = buildTwoToneComposite(
+        baseImage: cgImage, subjectBytes: subjBytes, subjectBytesPerRow: subj.bytesPerRow,
+        personGray: personR, width: subjW, height: subjH, riderThreshold: riderThreshold
+    )
+    if let bilinearComp {
+        writePNG(bilinearComp, to: ae1Dir.appendingPathComponent("bilinear-t200.png").path)
+    }
+    print(String(format: "\n[AE1] bilinear      t=200  bike share=%.1f%%", 100 * Double(bilinearBike) / Double(max(1, bilinearSubj))))
+
+    if let personEdge = resamplePersonEdgePreserve(person.gray, w: person.w, h: person.h, guide: cgImage) {
+        let (edgeComp, edgeBike, edgeSubj) = buildTwoToneComposite(
+            baseImage: cgImage, subjectBytes: subjBytes, subjectBytesPerRow: subj.bytesPerRow,
+            personGray: personEdge, width: subjW, height: subjH, riderThreshold: riderThreshold
+        )
+        if let edgeComp {
+            writePNG(edgeComp, to: ae1Dir.appendingPathComponent("edgepreserve-t200.png").path)
+        }
+        print(String(format: "[AE1] edge-preserve t=200  bike share=%.1f%%", 100 * Double(edgeBike) / Double(max(1, edgeSubj))))
+
+        if args.contains("--ae1debug") {
+            let scanX = Int(0.49 * CGFloat(subjW))
+            print("[AE1 debug] vertical scanline at x=\(scanX) (fraction 0.49), bilinear person values, y fraction 0.35->0.75")
+            for yFrac in stride(from: 0.35, through: 0.75, by: 0.02) {
+                let y = Int(yFrac * Double(subjH))
+                let vBi = personR[y * subjW + scanX]
+                let vEdge = personEdge[y * subjW + scanX]
+                print(String(format: "  yFrac=%.2f y=%4d  bilinear=%3d  edgePreserve=%3d", yFrac, y, vBi, vEdge))
+            }
+        }
+        if let points = ae1SamplePoints[imageName] {
+            let forkX = Int(points.forkGap.0 * CGFloat(subjW)), forkY = Int(points.forkGap.1 * CGFloat(subjH))
+            let torsoX = Int(points.torso.0 * CGFloat(subjW)), torsoY = Int(points.torso.1 * CGFloat(subjH))
+            let radius = max(8, subjW / 200)
+            print("[AE1b] person-mask confidence (window radius \(radius)px)")
+            if let s = sampleWindowStats(personR, w: subjW, h: subjH, centerX: forkX, centerY: forkY, radius: radius) {
+                print(String(format: "  fork-gap  bilinear:      min=%3d mean=%6.1f max=%3d", s.min, s.mean, s.max))
+            }
+            if let s = sampleWindowStats(personEdge, w: subjW, h: subjH, centerX: forkX, centerY: forkY, radius: radius) {
+                print(String(format: "  fork-gap  edge-preserve: min=%3d mean=%6.1f max=%3d", s.min, s.mean, s.max))
+            }
+            if let s = sampleWindowStats(personR, w: subjW, h: subjH, centerX: torsoX, centerY: torsoY, radius: radius) {
+                print(String(format: "  torso     bilinear:      min=%3d mean=%6.1f max=%3d", s.min, s.mean, s.max))
+            }
+            if let s = sampleWindowStats(personEdge, w: subjW, h: subjH, centerX: torsoX, centerY: torsoY, radius: radius) {
+                print(String(format: "  torso     edge-preserve: min=%3d mean=%6.1f max=%3d", s.min, s.mean, s.max))
+            }
+        } else {
+            print("[AE1b] no sample points registered for \(imageName) — composite-only eyeball")
+        }
+    } else {
+        print("[AE1] edge-preserve upsample FAILED (filter unavailable or empty output)")
+    }
+}
+
+// (7) AE2 — subject-mask decode threshold sweep. Subject bytes are already
+// the full continuous 0-255 decode (Vision's 0.0-1.0 float × 255, no
+// threshold baked in yet — see AnalysisEngine.cgImageFromPixelBuffer), so
+// re-thresholding here re-uses the same decoded buffer rather than re-running
+// Vision. Person side stays at production's current bilinear resample +
+// rider threshold 200 — AE2 isolates the subject-side knob only.
+if ae2Mode, let subj = scaledSubjectImage,
+   let subjData = subj.dataProvider?.data, let subjBytes = CFDataGetBytePtr(subjData) {
+    let ae2Dir = outputDir.appendingPathComponent("ae2")
+    try? FileManager.default.createDirectory(at: ae2Dir, withIntermediateDirectories: true)
+
+    func subjectForegroundCount(threshold: UInt8) -> Int {
+        var count = 0
+        for y in 0 ..< subjH {
+            let row = y * subj.bytesPerRow
+            for x in 0 ..< subjW where subjBytes[row + x] >= threshold { count += 1 }
+        }
+        return count
+    }
+
+    let subjectThresholds: [(frac: Double, byte: UInt8)] = [(0.2, 51), (0.3, 77), (0.4, 102), (0.5, 128)]
+    let baselineCount = subjectForegroundCount(threshold: 128)
+    print("\n[AE2] subject-mask threshold sweep (baseline = 0.5 / byte 128, count=\(baselineCount))")
+    for (frac, byte) in subjectThresholds {
+        let count = subjectForegroundCount(threshold: byte)
+        let deltaPct = baselineCount > 0 ? 100 * (Double(count) - Double(baselineCount)) / Double(baselineCount) : 0
+        let (comp, bike, subjCount) = buildTwoToneComposite(
+            baseImage: cgImage, subjectBytes: subjBytes, subjectBytesPerRow: subj.bytesPerRow,
+            personGray: personR, width: subjW, height: subjH, riderThreshold: 200, subjectThreshold: byte
+        )
+        let name = String(format: "ae2-subj%.1f-byte%03d.png", frac, byte)
+        print(String(format: "  threshold=%.1f (byte %3d)  count=%7d  area delta=%+.2f%%  -> %@", frac, byte, count, deltaPct, name))
+        if let comp {
+            writePNG(comp, to: ae2Dir.appendingPathComponent(name).path)
+        }
+        _ = (bike, subjCount)  // composite's own bike-share not the AE2 metric of interest; count above is
     }
 }
 
