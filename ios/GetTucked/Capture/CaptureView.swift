@@ -375,25 +375,17 @@ struct CaptureView: View {
 
     /// Off-main so RevealStep's scan wipe (N2) never blocks on pixel work —
     /// the mask tint composite is pure CPU work with no main-actor requirement.
-    /// Two-tone (Plan W2) when subject-lifting succeeded on this capture —
-    /// rider acid-yellow, bike/bags amber; single-tone acid-yellow fallback
-    /// otherwise, matching pre-W2 exactly.
+    /// One acid tint over the subject mask when subject-lifting succeeded on
+    /// this capture; the person mask otherwise — same colour either way
+    /// (Plan AG retired the rider/bike two-tone as structurally untrustworthy,
+    /// see plan doc).
     private func buildRevealMaskOverlay(for result: AnalysisResult) {
         guard let personMask = result.maskImage.cgImage else { return }
         let subjectMask = result.subjectMaskImage?.cgImage
         let overlayBinding = $revealMaskOverlay
         let riderColor = UIColor(Theme.Palette.acc)
-        let bikeColor = UIColor(Theme.Palette.amb)
         Task.detached(priority: .userInitiated) {
-            let overlay: UIImage?
-            if let subjectMask {
-                overlay = MatteRenderer.twoToneOverlay(
-                    subjectMask: subjectMask, personMask: personMask,
-                    riderColor: riderColor, bikeColor: bikeColor, alpha: 0.5
-                )
-            } else {
-                overlay = MatteRenderer.tintedOverlay(mask: personMask, color: riderColor, alpha: 0.5)
-            }
+            let overlay = MatteRenderer.tintedOverlay(mask: subjectMask ?? personMask, color: riderColor, alpha: 0.5)
             await MainActor.run {
                 overlayBinding.wrappedValue = overlay
             }

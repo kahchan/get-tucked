@@ -511,10 +511,13 @@ struct PositionDetailView: View {
     /// Skips silently — no toggle offered — when there's no stored mask or
     /// when the mask and photo disagree on aspect ratio (Plan I5): a
     /// mismatched composite would tint the wrong region rather than hug the
-    /// rider. `subjectMaskData` (Plan W2, frontal only) two-tones the
-    /// overlay — rider acid-yellow, bike/bags amber — when present and its
-    /// aspect matches the photo; nil (old positions, or side-on which has no
-    /// subject mask at all) renders single-tone exactly as before.
+    /// rider. `subjectMaskData` (Plan W2, frontal only) is preferred when
+    /// present and its aspect matches the photo — one acid tint over the
+    /// whole subject (Plan AG retired the rider/bike two-tone: the bike
+    /// colour was an absence, subject minus person, so every person-mask
+    /// flaw rendered as a wrong colour somewhere); nil (old positions, or
+    /// side-on which has no subject mask at all) renders the same single
+    /// tone from the person mask exactly as before.
     private func buildMaskOverlay(maskData: Data?, subjectMaskData: Data? = nil, photo: UIImage?) async -> UIImage? {
         guard let cgPhoto = photo?.cgImage else { return nil }
         return await Task.detached(priority: .userInitiated) { () -> UIImage? in
@@ -523,11 +526,7 @@ struct PositionDetailView: View {
                    maskWidth: subjectMask.width, maskHeight: subjectMask.height,
                    sourceWidth: cgPhoto.width, sourceHeight: cgPhoto.height
                ) {
-                let personMask = maskData.flatMap { UIImage(data: $0)?.cgImage }
-                return MatteRenderer.twoToneOverlay(
-                    subjectMask: subjectMask, personMask: personMask,
-                    riderColor: UIColor(Theme.Palette.acc), bikeColor: UIColor(Theme.Palette.amb), alpha: 0.5
-                )
+                return MatteRenderer.tintedOverlay(mask: subjectMask, color: UIColor(Theme.Palette.acc), alpha: 0.5)
             }
             guard let maskData, let mask = UIImage(data: maskData), let cgMask = mask.cgImage else { return nil }
             guard AnalysisMath.maskMatchesSourceAspect(

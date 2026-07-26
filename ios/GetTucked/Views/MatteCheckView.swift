@@ -15,6 +15,11 @@ private enum SegMode: String, CaseIterable {
     // unlike FOREGROUND, which unions every instance including a coat on the
     // wall or a leaning spare wheel.
     case subject = "SUBJECT"
+    // Plan AG retired this split from the shipping UI (structurally
+    // untrustworthy — the bike colour is an absence, subject minus person),
+    // but it's still the reference implementation, so DEBUG keeps it
+    // inspectable here rather than only in tools/matte-lab.
+    case twoTone = "TWO-TONE"
 }
 
 struct MatteCheckView: View {
@@ -26,6 +31,7 @@ struct MatteCheckView: View {
     @State private var foregroundCoverage: Double?
     @State private var subjectMatte: UIImage?
     @State private var subjectCoverage: Double?
+    @State private var twoToneMatte: UIImage?
     @State private var mode: SegMode = .person
     @State private var showingMatte = false
     @State private var running = false
@@ -36,6 +42,7 @@ struct MatteCheckView: View {
         case .person: personMatte
         case .foreground: foregroundMatte
         case .subject: subjectMatte
+        case .twoTone: twoToneMatte
         }
     }
 
@@ -135,14 +142,34 @@ struct MatteCheckView: View {
         foregroundCoverage = nil
         subjectMatte = nil
         subjectCoverage = nil
+        twoToneMatte = nil
         showingMatte = false
         failed = false
         running = true
         let personFailed = await segmentPerson(image)
         let foregroundFailed = await segmentForeground(image)
         let subjectFailed = await segmentSubject(image)
+        buildTwoToneMatte(photo: image)
         failed = personFailed && foregroundFailed && subjectFailed
         running = false
+    }
+
+    /// Composites the retired rider/bike split (Plan AG) onto the source
+    /// photo for DEBUG inspection only — `MatteRenderer.twoToneOverlay`
+    /// already resamples the person mask to the subject mask's resolution,
+    /// so the only new work here is flattening overlay onto photo for
+    /// display. No-op (silently) when either mask failed to segment.
+    private func buildTwoToneMatte(photo: UIImage) {
+        guard let subjectCG = subjectMatte?.cgImage, let personCG = personMatte?.cgImage,
+              let overlay = MatteRenderer.twoToneOverlay(
+                  subjectMask: subjectCG, personMask: personCG,
+                  riderColor: UIColor(Theme.Palette.acc), bikeColor: UIColor(Theme.Palette.amb), alpha: 0.5
+              ) else { return }
+        let renderer = UIGraphicsImageRenderer(size: photo.size)
+        twoToneMatte = renderer.image { _ in
+            photo.draw(in: CGRect(origin: .zero, size: photo.size))
+            overlay.draw(in: CGRect(origin: .zero, size: photo.size))
+        }
     }
 
     private func segmentPerson(_ image: UIImage) async -> Bool {
