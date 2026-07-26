@@ -8,12 +8,32 @@ the half-res person model reads the fork/head-tube gap at **confidence 255, iden
 true torso** — the detail was never in the source. "Bike wins the overlap" therefore
 needs AD5b (person seg on a tight subject crop) or acceptance — STOP-AND-DISCUSS with
 Kah before any further attempt. Evidence: tools/matte-lab/output/*/ae1/.
+**AE1 follow-up (Opus investigation, same day): root cause CONFIRMED as amodal
+completion** — the person model bridges the rider across the thin fork occluder at its
+native resolution (head-tube gap reads solid 255 like torso; confidence collapses lower
+down the fork, matching exactly what renders acid vs amber). Alignment explicitly ruled
+out (silhouette-edge overlay tracks the rider everywhere else). Candidates tested on the
+frontals: **(a) AD5b crop-based person seg — WORKS** (head-tube confidence 255 → ~116,
+fork flips amber at threshold 200, bike share 27→36% / 20→26%, side-on fixtures
+unchanged, no crop-border artifacts; composites in output/*/af/afcrop-t200.png,
+independently eyeballed); (b) VNGeneratePersonInstanceMaskRequest — FAILS
+(inconsistent: fixes 0674, worsens 0676); (c) bike as separable foreground instance —
+FAILS (always one fused instance). **Recommendation: implement AD5b** — scope is
+AnalysisEngine only (crop person seg to padded subject bbox, paste mask back to
+full-frame coords, keep full-frame seg as the subject-nil fallback); MatteRenderer
+unchanged. Awaiting Kah's go.
 **AE2 outcome: APPLIED — subject threshold 0.5 → 0.4 (byte 102).** Lowest threshold
 passing the <2%-everywhere gate (area +1.09–1.29% across fixtures), recovers tire tread,
 zero visible background bleed (edge-crop verified). Constant + sweep table live in
 AnalysisMath.subjectMaskThreshold; count and render paths share it; Z4 coverage row
 untouched. 277 tests green after AE1/AE2.
-AE3/AE4/AE5 in flight with a second coder.
+**AE3/AE4/AE5: IMPLEMENTED** (second coder, same day) — 285 tests green on the combined
+tree, committed b2091c7/b83be8c/9897edf/c4d11db (local). Device-verification outstanding:
+gesture feel of aim-and-release, the pinch-cancels-aim latency (MagnificationGesture
+reports non-1 only after slight movement — a perfectly stationary two-finger touch-down
+may not cancel instantly), loupe magnification on device, PHOTO chip styling in situ.
+Hint copy while placing appends "— drag to aim, lift to place" to each step's target
+prompt; fine-tune copy unchanged.
 **Trigger:** first on-device pass with the working two-tone matte (2026-07-26, Paul
 Tall 7240 / Paul Tucked 6178 cm²). Four observations, all Kah-confirmed:
 bike should win the rider-overlap pixels ("amber on top") and the subject threshold

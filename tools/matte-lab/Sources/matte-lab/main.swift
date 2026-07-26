@@ -431,6 +431,98 @@ let labelPalette: [(UInt8, UInt8, UInt8)] = [
     (255, 220, 96),   // yellow
 ]
 
+// MARK: - Plan AF experiments (root-cause diagnostic + candidate fixes)
+//
+// All read-only harness work; no production code touched. Three additions:
+//   --afdiag        precise person-mask value grid over the fork/head-tube gap
+//                   + a silhouette-edge overlay on the photo (alignment check)
+//   --afcrop        AD5b: person seg on a tight subject-bbox crop, pasted back
+//   --afinstance    VNGeneratePersonInstanceMaskRequest as the person side
+
+/// Subject-mask foreground bbox in TOP-LEFT-origin fractions of the full frame.
+/// Walks the decoded subject gray image at the given threshold.
+func subjectBBoxFractions(subjectImage: CGImage, threshold: UInt8) -> (x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat)? {
+    guard let data = subjectImage.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
+    let w = subjectImage.width, h = subjectImage.height, bpr = subjectImage.bytesPerRow
+    var minX = w, minY = h, maxX = -1, maxY = -1
+    for y in 0 ..< h {
+        let row = y * bpr
+        for x in 0 ..< w where bytes[row + x] >= threshold {
+            if x < minX { minX = x }; if x > maxX { maxX = x }
+            if y < minY { minY = y }; if y > maxY { maxY = y }
+        }
+    }
+    guard maxX >= 0 else { return nil }
+    return (CGFloat(minX) / CGFloat(w), CGFloat(minY) / CGFloat(h),
+            CGFloat(maxX + 1) / CGFloat(w), CGFloat(maxY + 1) / CGFloat(h))
+}
+
+/// Runs VNGeneratePersonSegmentationRequest(.accurate) on an already-cropped
+/// CGImage and returns its native-resolution gray person mask.
+func personSegGray(on image: CGImage) -> (gray: [UInt8], w: Int, h: Int)? {
+    let h = VNImageRequestHandler(cgImage: image, options: [:])
+    let req = VNGeneratePersonSegmentationRequest()
+    req.qualityLevel = .accurate
+    req.outputPixelFormat = kCVPixelFormatType_OneComponent8
+    do { try h.perform([req]) } catch { return nil }
+    guard let res = req.results?.first, let pm = personMaskGray(res.pixelBuffer) else { return nil }
+    return (pm.gray, pm.w, pm.h)
+}
+
+/// Places a crop-space gray mask into a full-frame buffer at subject resolution.
+/// bbox is TOP-LEFT-origin fractions; the crop mask is first resampled to the
+/// bbox's pixel size at subject resolution, then copied in. Everything outside
+/// the bbox stays background (0) — correct, since the subject mask is ~0 there.
+func pasteCropMaskFullFrame(cropGray: [UInt8], cropW: Int, cropH: Int,
+                            bbox: (x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat),
+                            subjW: Int, subjH: Int) -> [UInt8] {
+    var full = [UInt8](repeating: 0, count: subjW * subjH)
+    let ox = Int((bbox.x0 * CGFloat(subjW)).rounded())
+    let oy = Int((bbox.y0 * CGFloat(subjH)).rounded())
+    let bw = Int((bbox.x1 * CGFloat(subjW)).rounded()) - ox
+    let bh = Int((bbox.y1 * CGFloat(subjH)).rounded()) - oy
+    guard bw > 0, bh > 0 else { return full }
+    let resized = resamplePersonBilinear(cropGray, w: cropW, h: cropH, toW: bw, toH: bh)
+    for y in 0 ..< bh {
+        let fy = oy + y
+        if fy < 0 || fy >= subjH { continue }
+        for x in 0 ..< bw {
+            let fx = ox + x
+            if fx < 0 || fx >= subjW { continue }
+            full[fy * subjW + fx] = resized[y * bw + x]
+        }
+    }
+    return full
+}
+
+/// Silhouette-edge overlay: draws the person mask boundary (threshold-crossing
+/// at 128) as bright magenta over the photo, so the mask edge can be checked
+/// against the true rider silhouette away from the fork (alignment proof).
+func silhouetteOverlay(photo: CGImage, personGray: [UInt8], w: Int, h: Int, threshold: UInt8 = 128) -> CGImage? {
+    var base = [UInt8](repeating: 0, count: w * h * 4)
+    if let ctx = CGContext(data: &base, width: w, height: h, bitsPerComponent: 8,
+                           bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                           bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+        ctx.draw(photo, in: CGRect(x: 0, y: 0, width: w, height: h))
+    }
+    func fg(_ x: Int, _ y: Int) -> Bool {
+        guard x >= 0, x < w, y >= 0, y < h else { return false }
+        return personGray[y * w + x] >= threshold
+    }
+    let t = max(1, w / 600)  // edge line thickness, resolution-independent
+    for y in 0 ..< h {
+        for x in 0 ..< w {
+            let here = fg(x, y)
+            let edge = here != fg(x + t, y) || here != fg(x, y + t) || here != fg(x - t, y) || here != fg(x, y - t)
+            if edge {
+                let off = (y * w + x) * 4
+                base[off] = 255; base[off + 1] = 0; base[off + 2] = 255; base[off + 3] = 255
+            }
+        }
+    }
+    return rgbaToCGImage(base, width: w, height: h)
+}
+
 // MARK: - Main
 
 let args = CommandLine.arguments
@@ -442,6 +534,9 @@ let imagePath = args[1]
 let sweepMode = args.contains("--sweep")
 let ae1Mode = args.contains("--ae1")
 let ae2Mode = args.contains("--ae2")
+let afDiagMode = args.contains("--afdiag")
+let afCropMode = args.contains("--afcrop")
+let afInstanceMode = args.contains("--afinstance")
 let imageName = (imagePath as NSString).lastPathComponent
 let toolDir = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -758,6 +853,138 @@ if ae2Mode, let subj = scaledSubjectImage,
             writePNG(comp, to: ae2Dir.appendingPathComponent(name).path)
         }
         _ = (bike, subjCount)  // composite's own bike-share not the AE2 metric of interest; count above is
+    }
+}
+
+// MARK: - AF experiments (Plan AF root-cause + candidate fixes)
+
+let subjectProdThreshold: UInt8 = 102   // production (AE2) subject decode threshold
+
+// (AFDIAG) precise person-mask value grid over the fork/head-tube gap +
+// silhouette-edge alignment overlay. personR is the production bilinear
+// resample of the person mask to subject resolution.
+if afDiagMode, subjW > 0, !personR.isEmpty {
+    let afDir = outputDir.appendingPathComponent("af")
+    try? FileManager.default.createDirectory(at: afDir, withIntermediateDirectories: true)
+
+    print("\n[AFDIAG] person-mask (bilinear→subject res) value grid, top-left-origin fractions")
+    print("        rows = y frac, cols = x frac; value is resampled person confidence 0-255")
+    let xs = stride(from: 0.42, through: 0.58, by: 0.02)
+    let ys = stride(from: 0.40, through: 0.64, by: 0.02)
+    var header = "  yfrac \\ x:"
+    for xf in xs { header += String(format: "  %.2f", xf) }
+    print(header)
+    for yf in ys {
+        let y = Int(yf * Double(subjH))
+        var line = String(format: "  %.2f      ", yf)
+        for xf in xs {
+            let x = Int(xf * Double(subjW))
+            line += String(format: "  %3d ", personR[y * subjW + x])
+        }
+        print(line)
+    }
+
+    if let overlay = silhouetteOverlay(photo: cgImage, personGray: personR, w: subjW, h: subjH) {
+        writePNG(overlay, to: afDir.appendingPathComponent("silhouette-edge.png").path)
+        print("[AFDIAG] wrote silhouette-edge.png (magenta = person>=128 boundary over photo)")
+    }
+}
+
+// (AFCROP) AD5b — person seg on a tight subject-bbox crop, pasted back.
+if afCropMode, let subj = scaledSubjectImage,
+   let subjData = subj.dataProvider?.data, let subjBytes = CFDataGetBytePtr(subjData) {
+    let afDir = outputDir.appendingPathComponent("af")
+    try? FileManager.default.createDirectory(at: afDir, withIntermediateDirectories: true)
+
+    guard let bboxTight = subjectBBoxFractions(subjectImage: subj, threshold: subjectProdThreshold) else {
+        print("\n[AFCROP] could not compute subject bbox — skipping")
+        exit(0)
+    }
+    let pad: CGFloat = 0.03
+    let bbox = (x0: max(0, bboxTight.x0 - pad), y0: max(0, bboxTight.y0 - pad),
+                x1: min(1, bboxTight.x1 + pad), y1: min(1, bboxTight.y1 + pad))
+    let srcW = cgImage.width, srcH = cgImage.height
+    let cropRect = CGRect(x: bbox.x0 * CGFloat(srcW), y: bbox.y0 * CGFloat(srcH),
+                          width: (bbox.x1 - bbox.x0) * CGFloat(srcW),
+                          height: (bbox.y1 - bbox.y0) * CGFloat(srcH))
+    print(String(format: "\n[AFCROP] subject bbox frac=(%.3f,%.3f)-(%.3f,%.3f) padded, crop=%dx%d px",
+                 bbox.x0, bbox.y0, bbox.x1, bbox.y1, Int(cropRect.width), Int(cropRect.height)))
+
+    guard let cropped = cgImage.cropping(to: cropRect),
+          let cropSeg = personSegGray(on: cropped) else {
+        print("[AFCROP] crop or person seg failed — skipping"); exit(0)
+    }
+    print("[AFCROP] crop person mask native res = \(cropSeg.w)x\(cropSeg.h)")
+    let fullPerson = pasteCropMaskFullFrame(cropGray: cropSeg.gray, cropW: cropSeg.w, cropH: cropSeg.h,
+                                            bbox: bbox, subjW: subjW, subjH: subjH)
+
+    for threshold: UInt8 in [128, 200] {
+        let (comp, bike, subjCount) = buildTwoToneComposite(
+            baseImage: cgImage, subjectBytes: subjBytes, subjectBytesPerRow: subj.bytesPerRow,
+            personGray: fullPerson, width: subjW, height: subjH,
+            riderThreshold: threshold, subjectThreshold: subjectProdThreshold)
+        let share = subjCount > 0 ? 100 * Double(bike) / Double(subjCount) : 0
+        print(String(format: "[AFCROP] crop-person t=%3d  bike share=%.1f%%", threshold, share))
+        if let comp { writePNG(comp, to: afDir.appendingPathComponent(String(format: "afcrop-t%03d.png", threshold)).path) }
+    }
+    // fork/head-tube confidence under the crop model (top-left fractions)
+    for (label, xf, yf) in [("headtube", 0.49, 0.46), ("forkcrown", 0.49, 0.49), ("upperfork", 0.49, 0.53)] {
+        let x = Int(xf * Double(subjW)), y = Int(yf * Double(subjH))
+        if let s = sampleWindowStats(fullPerson, w: subjW, h: subjH, centerX: x, centerY: y, radius: max(8, subjW / 200)) {
+            print(String(format: "[AFCROP] %@ (%.2f,%.2f) crop-person: min=%3d mean=%6.1f max=%3d", label, xf, yf, s.min, s.mean, s.max))
+        }
+    }
+    if let overlay = silhouetteOverlay(photo: cgImage, personGray: fullPerson, w: subjW, h: subjH) {
+        writePNG(overlay, to: afDir.appendingPathComponent("afcrop-silhouette.png").path)
+    }
+}
+
+// (AFINSTANCE) VNGeneratePersonInstanceMaskRequest as the person side.
+if afInstanceMode, let subj = scaledSubjectImage,
+   let subjData = subj.dataProvider?.data, let subjBytes = CFDataGetBytePtr(subjData) {
+    let afDir = outputDir.appendingPathComponent("af")
+    try? FileManager.default.createDirectory(at: afDir, withIntermediateDirectories: true)
+
+    let piRequest = VNGeneratePersonInstanceMaskRequest()
+    do { try handler.perform([piRequest]) } catch {
+        print("\n[AFINSTANCE] request threw: \(error)"); exit(0)
+    }
+    guard let piResult = piRequest.results?.first else {
+        print("\n[AFINSTANCE] no person-instance observation returned"); exit(0)
+    }
+    print("\n[AFINSTANCE] allInstances=\(Array(piResult.allInstances).sorted())")
+    describePixelBuffer("personInstanceMask", piResult.instanceMask)
+    do {
+        let scaled = try piResult.generateScaledMaskForImage(forInstances: piResult.allInstances, from: handler)
+        let (img, _, _) = maskBufferToGray(scaled)
+        guard let img, let data = img.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else {
+            print("[AFINSTANCE] decode failed"); exit(0)
+        }
+        // to a packed gray at subject res (scaled mask is at source/subject res)
+        let pw = img.width, ph = img.height, pbpr = img.bytesPerRow
+        var piGray = [UInt8](repeating: 0, count: pw * ph)
+        for y in 0 ..< ph { for x in 0 ..< pw { piGray[y * pw + x] = bytes[y * pbpr + x] } }
+        let piResampled = resamplePersonBilinear(piGray, w: pw, h: ph, toW: subjW, toH: subjH)
+        for threshold: UInt8 in [128, 200] {
+            let (comp, bike, subjCount) = buildTwoToneComposite(
+                baseImage: cgImage, subjectBytes: subjBytes, subjectBytesPerRow: subj.bytesPerRow,
+                personGray: piResampled, width: subjW, height: subjH,
+                riderThreshold: threshold, subjectThreshold: subjectProdThreshold)
+            let share = subjCount > 0 ? 100 * Double(bike) / Double(subjCount) : 0
+            print(String(format: "[AFINSTANCE] instance-person t=%3d  bike share=%.1f%%", threshold, share))
+            if let comp { writePNG(comp, to: afDir.appendingPathComponent(String(format: "afinstance-t%03d.png", threshold)).path) }
+        }
+        for (label, xf, yf) in [("headtube", 0.49, 0.46), ("forkcrown", 0.49, 0.49), ("upperfork", 0.49, 0.53)] {
+            let x = Int(xf * Double(subjW)), y = Int(yf * Double(subjH))
+            if let s = sampleWindowStats(piResampled, w: subjW, h: subjH, centerX: x, centerY: y, radius: max(8, subjW / 200)) {
+                print(String(format: "[AFINSTANCE] %@ (%.2f,%.2f) instance-person: min=%3d mean=%6.1f max=%3d", label, xf, yf, s.min, s.mean, s.max))
+            }
+        }
+        if let overlay = silhouetteOverlay(photo: cgImage, personGray: piResampled, w: subjW, h: subjH) {
+            writePNG(overlay, to: afDir.appendingPathComponent("afinstance-silhouette.png").path)
+        }
+    } catch {
+        print("[AFINSTANCE] generateScaledMaskForImage threw: \(error)")
     }
 }
 
