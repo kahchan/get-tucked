@@ -608,6 +608,12 @@ struct CaptureView: View {
         position.sideOnPhotoData = sideOnImage?.compressedForStorage()
         position.metrics = metrics
         context.insert(position)
+        // Save before reading persistentModelID: a freshly-inserted model
+        // carries a *temporary* ID that SwiftData remaps to a permanent one
+        // on the next autosave. Capturing it pre-save means "VIEW ANALYSIS"
+        // navigates with the temporary ID, which no longer matches the
+        // @Query once autosave fires — the "Position not found" screen.
+        try? context.save()
         savedPositionID = position.persistentModelID
         onSaved(position.id)
         step = .done

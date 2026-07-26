@@ -868,8 +868,14 @@ private struct SoloEffortRow: View {
     let areaCm2: Double
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage("effortSpeedKmh") private var speedKmh: Double = 30
+    // Read persisted only to seed the live @State on appear (so the chip and
+    // watts reflect a speed committed on Compare); SpeedControl owns writing
+    // it back.
+    @AppStorage("effortSpeedKmh") private var persistedSpeedKmh: Double = 30
     @AppStorage("effortInputsConfirmed") private var inputsConfirmed = false
+    // Live value bound to SpeedControl below — drives both the chip and the
+    // watts figure so they update as the slider drags, not just on commit.
+    @State private var speedKmh: Double = 30
     // The speed control (a shared value with Compare) is set on the Compare
     // screen too; this chip surfaces it here so the number isn't a dead end
     // (Plan AC3). Collapsed by default.
@@ -906,17 +912,18 @@ private struct SoloEffortRow: View {
                 }
 
                 if editing {
-                    // Writes the shared speed live; committing (release) flips
-                    // inputsConfirmed, dropping "assumed" here and on Compare.
-                    Slider(value: $speedKmh, in: 10...60, step: 1) { released in
-                        if !released { inputsConfirmed = true }
-                    }
-                    .tint(Theme.Palette.acc)
-                    .padding(.top, Theme.Space.xs)
+                    // Same speed control as Compare's TIME IMPACT (typed
+                    // field + wide slider), writing the shared value; a commit
+                    // on either flips inputsConfirmed, dropping "assumed" here
+                    // and on Compare. Label hidden — the chip above already
+                    // names it.
+                    SpeedControl(speedKmh: $speedKmh, showLabel: false)
+                        .padding(.top, Theme.Space.xs)
                 }
             }
             .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.bottom, editing ? Theme.Space.sm : 0)
+            .onAppear { speedKmh = persistedSpeedKmh }
 
             Rectangle()
                 .fill(Theme.Palette.line2)

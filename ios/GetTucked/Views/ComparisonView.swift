@@ -824,7 +824,7 @@ private struct TimeImpactSection: View {
     let areaB: Double
     let isDistinguishable: Bool
 
-    private enum Field: Hashable { case speed, distance }
+    private enum Field: Hashable { case distance }
 
     private enum DistancePreset: Double, CaseIterable {
         case c100 = 100, c200 = 200, c400 = 400, c1000 = 1000
@@ -832,12 +832,9 @@ private struct TimeImpactSection: View {
     }
 
     // Persisted user-level (not per-bike, per Plan S2) so the section works
-    // with zero typing on repeat visits. Speed defaults to a representative
-    // flat-road cruise (matches the Cd worked-example/marketing-site
-    // baseline) rather than an empty/unset state — an estimate should be on
-    // screen immediately, with `inputsConfirmed` below tracking whether it's
-    // still running on that guess or on the rider's own numbers.
-    @AppStorage("effortSpeedKmh") private var persistedSpeedKmh: Double = 30
+    // with zero typing on repeat visits — the speed itself lives inside
+    // `SpeedControl` (shared with the single screen); this section only
+    // reads `inputsConfirmed` to frame the estimate.
     // True once the rider has actually committed a value to the speed field —
     // distinct from the value itself, since a rider could deliberately enter
     // exactly the default and that's still a confirmed number, not a guess.
@@ -845,14 +842,10 @@ private struct TimeImpactSection: View {
     // sentence.
     @AppStorage("effortInputsConfirmed") private var inputsConfirmed = false
 
-    // Live-typed text, committed to the @AppStorage value above on blur
-    // (this app's numeric-field convention) rather than on every keystroke.
-    @State private var speedText = ""
-    // AB10: the one live value driving both the slider's thumb position and
-    // the output band — the slider commits into it continuously (live drag),
-    // the text field only on blur (`commitSpeed`), matching "both controls
-    // count as a commit" without making the band recompute on every
-    // keystroke (this app's numeric-field convention).
+    // The one live value driving both the SpeedControl's slider/field and
+    // this section's output band. SpeedControl seeds it from the persisted
+    // value on appear and writes it live during drag / on commit; the band
+    // recompute reads it here so it updates as the slider moves (AB10).
     @State private var speedKmh: Double = 30
     @State private var selectedPreset: DistancePreset? = .c100
     @State private var customDistanceText = ""
@@ -889,16 +882,6 @@ private struct TimeImpactSection: View {
             }
         }
         .padding(.bottom, Theme.Space.lg)
-        .onAppear {
-            speedText = String(Int(persistedSpeedKmh))
-            speedKmh = persistedSpeedKmh
-        }
-        .onChange(of: focusedField) { oldValue, _ in
-            switch oldValue {
-            case .speed: commitSpeed()
-            case .distance, nil: break
-            }
-        }
     }
 
     // MARK: - Output
@@ -1059,17 +1042,7 @@ private struct TimeImpactSection: View {
             }
 
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
-                VStack(alignment: .leading, spacing: 4) {
-                    FieldLabel("FLAT-ROAD SPEED (KM/H)")
-                    MonoField(placeholder: "30", text: $speedText, numericOnly: true)
-                        .focused($focusedField, equals: .speed)
-                    // AB10: alongside the type-in field, both bound to the
-                    // same value — the field commits on blur, the slider
-                    // live-updates the band during drag and persists on
-                    // release (either counts as a commit).
-                    WideSlider(value: $speedKmh, range: 10...60, step: 1, onCommit: commitSpeedFromSlider)
-                        .padding(.top, Theme.Space.xs)
-                }
+                SpeedControl(speedKmh: $speedKmh)
                 Text("The speed you'd hold on a flat, calm road, not a ridden average (that bundles hills, stops and wind).")
                     .font(Theme.mono(10))
                     .foregroundStyle(Theme.Palette.fg4)
@@ -1093,75 +1066,6 @@ private struct TimeImpactSection: View {
         return Double(customDistanceText)
     }
 
-    private func commitSpeed() {
-        guard let value = Double(speedText), (10...60).contains(value) else { return }
-        speedKmh = value
-        persistedSpeedKmh = value
-        inputsConfirmed = true
-    }
-
-    /// AB10: the slider's own commit, fired on release — syncs the text
-    /// field to match so the two controls never visibly disagree once the
-    /// gesture ends.
-    private func commitSpeedFromSlider() {
-        persistedSpeedKmh = speedKmh
-        inputsConfirmed = true
-        speedText = String(Int(speedKmh))
-    }
-}
-
-// MARK: - Wide-hit-zone speed slider (Plan AB10)
-
-/// A stock `Slider`'s thumb is a small target; this trades it for a
-/// full-width, ≥44pt-tall drag zone (the whole track is the hit target, not
-/// just a knob) — the ask was "a LOT wider than a stock thumb." Value
-/// commits live as the finger moves (drives the so-what band during drag);
-/// `onCommit` fires once on release, mirroring the text field's
-/// commit-on-blur so either control counts as "a commit."
-private struct WideSlider: View {
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    let step: Double
-    var onCommit: () -> Void = {}
-
-    private var fraction: CGFloat {
-        guard range.upperBound > range.lowerBound else { return 0 }
-        return CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound))
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            let width = max(proxy.size.width, 1)
-            let thumbX = min(width, max(0, width * fraction))
-            ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(Theme.Palette.line)
-                    .frame(height: 2)
-                Rectangle()
-                    .fill(Theme.Palette.acc)
-                    .frame(width: thumbX, height: 2)
-                Rectangle()
-                    .fill(Theme.Palette.acc)
-                    .frame(width: 3, height: 18)
-                    .offset(x: thumbX - 1.5)
-            }
-            .frame(maxHeight: .infinity)
-            // The full-width `contentShape`, not just the visible track, is
-            // the actual drag target — this is the "wider than a stock
-            // thumb" part.
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in
-                        let clampedX = min(max(0, drag.location.x), width)
-                        let raw = range.lowerBound + Double(clampedX / width) * (range.upperBound - range.lowerBound)
-                        value = (raw / step).rounded() * step
-                    }
-                    .onEnded { _ in onCommit() }
-            )
-        }
-        .frame(height: Theme.Control.iconTapTarget) // 44pt — HIG's own minimum, reused as the "much wider" hit zone
-    }
 }
 
 // MARK: - Delta hero

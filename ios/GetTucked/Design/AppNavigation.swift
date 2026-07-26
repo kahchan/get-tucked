@@ -287,6 +287,9 @@ private struct PositionDetailWrapper: View {
                 .foregroundStyle(Theme.Palette.fg2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Theme.Palette.bg0)
+                // Without this the system nav bar's back chevron shows
+                // alongside the app's floating BackButton — two backs.
+                .hideNavBar()
         }
     }
 }
@@ -307,6 +310,7 @@ private struct ComparisonWrapper: View {
                 .foregroundStyle(Theme.Palette.fg2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Theme.Palette.bg0)
+                .hideNavBar()
         }
     }
 }
