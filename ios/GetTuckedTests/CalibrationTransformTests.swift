@@ -138,4 +138,31 @@ final class CalibrationTransformTests: XCTestCase {
         XCTAssertGreaterThan(clamped.width, -10_000)
         XCTAssertGreaterThan(clamped.height, -10_000)
     }
+
+    // MARK: - loupeWindowPx (Plan AE4)
+
+    func testLoupeWindowPxAtBaseZoomIsTheOriginalEightPercent() {
+        let window = CalibrationTransform.loupeWindowPx(minSourceDimension: 1000, zoomScale: 1)
+        XCTAssertEqual(window, 80, accuracy: acc)
+    }
+
+    func testLoupeWindowPxShrinksInProportionToZoom() {
+        // Large enough source that the 3x-zoom window still clears the
+        // minimum-px floor, isolating the proportional-shrink behaviour.
+        let window = CalibrationTransform.loupeWindowPx(minSourceDimension: 3000, zoomScale: 3)
+        XCTAssertEqual(window, 240.0 / 3.0, accuracy: acc)
+    }
+
+    func testLoupeWindowPxClampsToMinimumAtExtremeZoom() {
+        let window = CalibrationTransform.loupeWindowPx(minSourceDimension: 1000, zoomScale: 100, minimumPx: 40)
+        XCTAssertEqual(window, 40, accuracy: acc)
+    }
+
+    func testLoupeWindowPxIgnoresZoomBelowOne() {
+        // Pinch-out below 1x is clamped by `minZoom` elsewhere in the view,
+        // but the helper itself should never *grow* the window past the
+        // base 8% window for a sub-1 zoom that slips through.
+        let window = CalibrationTransform.loupeWindowPx(minSourceDimension: 1000, zoomScale: 0.5)
+        XCTAssertEqual(window, 80, accuracy: acc)
+    }
 }

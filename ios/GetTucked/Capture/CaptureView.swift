@@ -1463,8 +1463,9 @@ private struct TapCalibrationStep: View {
 
     // Live finger position while a tap is being *placed* (before it commits on
     // release) — drives the preview loupe so the user sees exactly where the
-    // point will land (skill §1/§2/§10). `nil` when not placing, or once the
-    // gesture crosses the pan threshold and becomes a pan instead.
+    // point will land (skill §1/§2/§10), for however long the aim drag lasts
+    // (Plan AE5: no distance cancel). `nil` when not placing, both points are
+    // already down, or a second finger lands to pinch mid-aim.
     @State private var pendingPlacement: CGPoint?
 
     // Whether the optional wheel-verification taps are being collected —
@@ -1479,15 +1480,15 @@ private struct TapCalibrationStep: View {
 
     private let minZoom: CGFloat = 1
     private let maxZoom: CGFloat = 8
-    // Movement past this (points) reclassifies a placement as a pan — matches
-    // the pan gesture's `minimumDistance` so tap-to-place and drag-to-pan share
-    // one boundary (skill §10 cancel-by-dragging-away). Raised from 10 to 30
-    // (Plan W5) so a pinch's incidental centroid drift (`DragGesture` picks
-    // this up too, since pan and pinch run `.simultaneously`) mostly stays
-    // under it and never registers as a deliberate pan, while a real
-    // two-finger pan — which moves much further — still does. The
-    // `clampedPanOffset` commit in `backgroundGesture` is the hard guarantee
-    // against drift either way.
+    // `backgroundGesture`'s pan `minimumDistance` — only relevant once both
+    // points are placed (Plan AE5 gates pan's *effect* to `!canPlaceMore`;
+    // placement itself no longer has a distance-based cancel, see
+    // `placementGesture`). Raised from 10 to 30 (Plan W5) so a pinch's
+    // incidental centroid drift (`DragGesture` picks this up too, since pan
+    // and pinch run `.simultaneously`) mostly stays under it and never
+    // registers as a deliberate pan, while a real two-finger pan — which
+    // moves much further — still does. The `clampedPanOffset` commit in
+    // `backgroundGesture` is the hard guarantee against drift either way.
     private let panThreshold: CGFloat = 30
 
     var body: some View {
@@ -1608,18 +1609,25 @@ private struct TapCalibrationStep: View {
             .animation(Theme.Motion.entrance(Theme.Motion.fast), value: bannerText)
     }
 
+    // Plan AE5: the target-specific prompts (which physical point to tap)
+    // stay put — this only teaches the *mechanic* now that placement is a
+    // full aim-drag rather than a tap. Only shown while `canPlaceMore`; once
+    // both points are down there's nothing left to place, so the hint
+    // reverts to the fine-tune/pinch-zoom copy.
+    private static let placingMechanicHint = " — drag to aim, lift to place"
+
     private var bannerText: String {
         if verifyingWheel {
             return wheelTapPoints.isEmpty
-                ? "Tap where the front tire touches the ground"
+                ? "Tap where the front tire touches the ground" + Self.placingMechanicHint
                 : wheelTapPoints.count == 1
-                ? "Now tap the top of the front tire"
+                ? "Now tap the top of the front tire" + Self.placingMechanicHint
                 : "Pinch to zoom, drag a point to fine-tune"
         }
         return tapPoints.count == 0
-            ? primaryTapPrompts.first
+            ? primaryTapPrompts.first + Self.placingMechanicHint
             : tapPoints.count == 1
-            ? primaryTapPrompts.second
+            ? primaryTapPrompts.second + Self.placingMechanicHint
             : "Pinch to zoom, drag a point to fine-tune"
     }
 
@@ -1766,35 +1774,41 @@ private struct TapCalibrationStep: View {
         verifyingWheel ? wheelTapPoints.count < 2 : tapPoints.count < 2
     }
 
-    /// Placement with forgiveness (skill §10): preview the landing point in the
-    /// loupe on touch-down, commit on release, and cancel if the finger crossed
-    /// the pan threshold (that gesture was a pan, handled simultaneously by
-    /// `backgroundGesture`). Runs simultaneously with pan; for a plain tap
-    /// (<`panThreshold`) only this fires, so the point commits on lift.
+    /// Placement aims, it doesn't pan (Plan AE5): while a point is still
+    /// pending, the loupe tracks the finger for the whole gesture — any
+    /// distance, any speed — and the point commits at wherever it lifts, so
+    /// a slow careful aim can no longer drift past a threshold and vanish.
+    /// A second finger landing (pinch) cancels the aim instead of committing
+    /// a point at an unintended spot; `pinchDelta` (driven by
+    /// `backgroundGesture`'s `MagnificationGesture`, which runs
+    /// simultaneously) is the signal for that. Once both points are down,
+    /// `canPlaceMore` is false and this whole gesture is inert — one-finger
+    /// pan (`backgroundGesture`) takes back over.
     private func placementGesture(viewport: CalibrationTransform.Viewport) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                guard canPlaceMore,
-                      hypot(value.translation.width, value.translation.height) <= panThreshold
+                guard CalibrationTransform.placementIsLive(canPlaceMore: canPlaceMore, pinchActive: pinchDelta != 1)
                 else { pendingPlacement = nil; return }
-                let unit = CalibrationTransform.unitPoint(forScreen: value.location, in: viewport)
-                pendingPlacement = (0...1).contains(unit.x) && (0...1).contains(unit.y) ? value.location : nil
+                pendingPlacement = value.location
             }
             .onEnded { value in
                 defer { pendingPlacement = nil }
-                guard canPlaceMore,
-                      hypot(value.translation.width, value.translation.height) <= panThreshold
-                else { return }
+                let unit = CalibrationTransform.unitPoint(forScreen: value.location, in: viewport)
+                guard CalibrationTransform.shouldCommitPlacement(
+                    canPlaceMore: canPlaceMore, pinchActive: pinchDelta != 1, releaseUnit: unit
+                ) else { return }
                 handleTap(location: value.location, viewport: viewport)
             }
     }
 
-    /// Pinch-to-zoom + pan on the image itself. `panThreshold` as the pan
-    /// drag's `minimumDistance` lets a plain tap (placing a point via
-    /// `placementGesture`) stay below it and commit as a placement — see
-    /// that constant's doc for why it was raised from 10 (Plan W5). The
-    /// `clampedPanOffset` commit below is the hard guarantee against drift
-    /// either way.
+    /// Pinch-to-zoom + pan on the image itself. Pan is gated to the
+    /// fine-tuning phase (`!canPlaceMore`, Plan AE5) so a one-finger drag
+    /// while still placing is never ambiguous with panning — SwiftUI has no
+    /// conditional-attach for gestures composed with `.simultaneously`, so
+    /// the `DragGesture` still technically recognises the touch while
+    /// placing, but its `.updating`/`.onEnded` are no-ops during that phase,
+    /// leaving `placementGesture` as the only thing that reacts to it.
+    /// Two-finger pinch-zoom stays live throughout via `MagnificationGesture`.
     private func backgroundGesture(viewport: CalibrationTransform.Viewport) -> some Gesture {
         let magnify = MagnificationGesture()
             .updating($pinchDelta) { value, state, _ in state = value }
@@ -1806,8 +1820,12 @@ private struct TapCalibrationStep: View {
                 )
             }
         let pan = DragGesture(minimumDistance: panThreshold)
-            .updating($panDelta) { value, state, _ in state = value.translation }
+            .updating($panDelta) { value, state, _ in
+                guard !canPlaceMore else { return }
+                state = value.translation
+            }
             .onEnded { value in
+                guard !canPlaceMore else { return }
                 let newOffset = CGSize(
                     width: panOffset.width + value.translation.width,
                     height: panOffset.height + value.translation.height
@@ -1861,7 +1879,7 @@ private struct TapCalibrationStep: View {
     /// floating above the fingertip so the fingertip doesn't occlude it.
     private func loupe(forScreenPoint screen: CGPoint, in viewport: CalibrationTransform.Viewport) -> some View {
         let unit = CalibrationTransform.unitPoint(forScreen: screen, in: viewport)
-        return Image(uiImage: loupeCrop(forUnit: unit))
+        return Image(uiImage: loupeCrop(forUnit: unit, zoomScale: viewport.zoomScale))
             .resizable()
             .aspectRatio(contentMode: .fill)
             .frame(width: 110, height: 110)
@@ -1871,10 +1889,10 @@ private struct TapCalibrationStep: View {
             .shadow(radius: 6)
     }
 
-    private func loupeCrop(forUnit unit: CGPoint) -> UIImage {
+    private func loupeCrop(forUnit unit: CGPoint, zoomScale: CGFloat) -> UIImage {
         guard let cg = image.cgImage else { return image }
         let w = CGFloat(cg.width), h = CGFloat(cg.height)
-        let windowPx = min(w, h) * 0.08
+        let windowPx = CalibrationTransform.loupeWindowPx(minSourceDimension: min(w, h), zoomScale: zoomScale)
         let cx = min(max(unit.x, 0), 1) * w
         let cy = min(max(unit.y, 0), 1) * h
         let rect = CGRect(x: cx - windowPx / 2, y: cy - windowPx / 2, width: windowPx, height: windowPx)

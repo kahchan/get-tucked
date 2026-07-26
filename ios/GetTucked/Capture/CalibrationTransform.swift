@@ -102,4 +102,35 @@ enum CalibrationTransform {
             )
         )
     }
+
+    /// Side length (source-image px) of the loupe's crop window, given the
+    /// shorter source dimension and the current pinch-zoom. At 1x this is the
+    /// original fixed 8% window; as the user zooms in, dividing by `zoomScale`
+    /// keeps the loupe a constant magnification *boost over what's already on
+    /// screen* (Plan AE4) instead of the window staying fixed while the photo
+    /// behind it grows — which used to make the loupe show LESS detail than
+    /// the zoomed screen at high zoom. Floored so extreme zoom can't collapse
+    /// the window to a handful of source pixels.
+    static func loupeWindowPx(minSourceDimension: CGFloat, zoomScale: CGFloat, minimumPx: CGFloat = 40) -> CGFloat {
+        max(minimumPx, minSourceDimension * 0.08 / max(zoomScale, 1))
+    }
+
+    /// Whether a placement drag's live aim (loupe-follows-finger) should keep
+    /// tracking at this instant (Plan AE5). False once both points are down
+    /// (nothing left to place), or the moment a second finger lands to pinch —
+    /// a pinch mid-aim is a zoom gesture, not a placement, so the preview
+    /// point should vanish rather than keep following finger one's drift.
+    static func placementIsLive(canPlaceMore: Bool, pinchActive: Bool) -> Bool {
+        canPlaceMore && !pinchActive
+    }
+
+    /// Whether a placement drag should commit its point on release (Plan
+    /// AE5): still placing, wasn't hijacked by a mid-aim pinch, and the
+    /// finger lifted over the image (not the letterbox/pillarbox padding).
+    /// No distance/translation check — a slow, careful aim of any length
+    /// still commits; only pinching or releasing off-image cancels it.
+    static func shouldCommitPlacement(canPlaceMore: Bool, pinchActive: Bool, releaseUnit: CGPoint) -> Bool {
+        placementIsLive(canPlaceMore: canPlaceMore, pinchActive: pinchActive)
+            && (0...1).contains(releaseUnit.x) && (0...1).contains(releaseUnit.y)
+    }
 }
