@@ -9,6 +9,14 @@ extension View {
         self
         #endif
     }
+
+    /// Drop shadow for HUD glyphs sitting directly over the live camera feed,
+    /// where palette contrast against a scrim is meaningless against a bright
+    /// or cluttered scene (Plan AI4) — a shadow holds legibility regardless
+    /// of what's behind it.
+    func hudText() -> some View {
+        shadow(color: .black.opacity(0.6), radius: 2, y: 1)
+    }
 }
 
 /// Standard in-app nav header row (not system NavigationView title).
@@ -38,7 +46,7 @@ struct NavHeader<Trailing: View>: View {
                     .foregroundStyle(Theme.Palette.fg)
                 if let subtitle {
                     Text(subtitle)
-                        .font(Theme.mono(11))
+                        .font(Theme.mono(12))
                         .foregroundStyle(Theme.Palette.fg3)
                 }
             }
@@ -161,7 +169,7 @@ struct SegmentedToggleBar: View {
                 tab(labels[index], selected: selectedIndex == index) { selectedIndex = index }
             }
         }
-        .frame(height: 40)
+        .frame(minHeight: 40)
         // R2: rapid tab-tapping should re-target the live underline
         // position, not cross-fade two fixed-duration eases.
         .animation(reduceMotion ? nil : Theme.Motion.interactive(0.3), value: selectedIndex)
@@ -172,7 +180,14 @@ struct SegmentedToggleBar: View {
             Text(label)
                 .font(Theme.mono(11, weight: selected ? .bold : .regular))
                 .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Height comes from the label plus this padding, never from the
+                // parent: a greedy `maxHeight: .infinity` here used to be
+                // clamped by a fixed bar height, so once the bar relaxed to a
+                // `minHeight` floor the tabs stretched to fill whatever space
+                // the screen had going spare (Kah, on-device: the sort bar ate
+                // half the positions list).
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
                 .overlay(alignment: .bottom) {
                     if selected {
                         Rectangle()
@@ -199,7 +214,7 @@ struct EmptyStateView: View {
             Spacer()
             Text(message)
                 .font(Theme.mono(13))
-                .foregroundStyle(Theme.Palette.fg4)
+                .foregroundStyle(Theme.Palette.fg2)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Theme.Space.screenMargin)
 

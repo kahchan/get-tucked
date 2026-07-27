@@ -164,13 +164,13 @@ private struct BikePickerRow: View {
                     .font(Theme.mono(14, weight: .bold))
                     .foregroundStyle(Theme.Palette.fg)
                 Text("\(Int(bike.handlebarWidthMm)) MM · \(bike.bikeType.displayName.uppercased())")
-                    .font(Theme.mono(11))
+                    .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
             }
             Spacer()
         }
         .padding(.horizontal, Theme.Space.screenMargin)
-        .frame(height: Theme.Control.listRowHeight)
+        .frame(minHeight: Theme.Control.listRowHeight)
         .contentShape(Rectangle())
     }
 }

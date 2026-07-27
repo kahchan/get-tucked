@@ -269,6 +269,29 @@ enum AnalysisMath {
         return "Front wheel reads \(pct)% smaller than its spec size — check your taps and the bike's bar width."
     }
 
+    // MARK: - Advisory merge (Plan AI3)
+
+    /// Collapses A/B advisories that say the identical thing into one "A and
+    /// B: …" line instead of printing the same ~40-word sentence twice
+    /// (Plan AI diagnosis) — a differing pair, or a pair with only one side
+    /// present, still gets its own prefixed line. Pure and order-preserving
+    /// so callers can build `(side, text)` pairs in whatever order they
+    /// already render.
+    static func mergedAdvisories(_ sided: [(side: String, text: String)]) -> [String] {
+        var seen = Set<Int>()
+        var result: [String] = []
+        for (index, entry) in sided.enumerated() {
+            guard !seen.contains(index) else { continue }
+            if let matchIndex = sided[(index + 1)...].firstIndex(where: { $0.text == entry.text }) {
+                seen.insert(matchIndex)
+                result.append("\(entry.side) and \(sided[matchIndex].side): \(entry.text)")
+            } else {
+                result.append("\(entry.side): \(entry.text)")
+            }
+        }
+        return result
+    }
+
     // MARK: - Bike coverage (Plan Z4) — subject-lift diagnostic
 
     /// Display copy for the "Bike coverage" diagnostic row —

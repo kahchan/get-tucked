@@ -51,8 +51,8 @@ struct BikeListView: View {
                 SectionDivider()
                 VStack(alignment: .leading, spacing: Theme.Space.sm) {
                     Text("DEBUG")
-                        .font(Theme.mono(9, weight: .bold))
-                        .foregroundStyle(Theme.Palette.fg4)
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg3)
                         .kerning(1.2)
                     HeaderLink("MATTE CHECK") { path.append(.matteCheck) }
                     HeaderLink("RESET ALL DATA") { showResetConfirm = true }
@@ -92,7 +92,7 @@ private struct BikeRow: View {
                     .font(Theme.mono(14, weight: .bold))
                     .foregroundStyle(Theme.Palette.fg)
                 Text("\(Int(bike.handlebarWidthMm)) MM · \(bike.bikeType.displayName.uppercased())")
-                    .font(Theme.mono(11))
+                    .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
             }
             Spacer()
@@ -102,7 +102,7 @@ private struct BikeRow: View {
                 .kerning(0.5)
         }
         .padding(.horizontal, Theme.Space.screenMargin)
-        .frame(height: Theme.Control.listRowHeight)
+        .frame(minHeight: Theme.Control.listRowHeight)
         .contentShape(Rectangle())
     }
 }

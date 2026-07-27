@@ -36,7 +36,7 @@ private struct AccentButtonStyle: ButtonStyle {
                 .font(Theme.mono(14, weight: .bold))
                 .offset(x: configuration.isPressed ? 3 : 0)
         }
-        .foregroundStyle(enabled ? Color.black : Theme.Palette.fg4)
+        .foregroundStyle(enabled ? Color.black : Theme.Palette.fg3)
         .padding(.horizontal, Theme.Space.md)
         .frame(maxWidth: .infinity)
         .frame(height: Theme.Control.accentButtonHeight)
@@ -106,7 +106,7 @@ struct MetricRow: View {
                     .font(Theme.mono(15, weight: .bold))
                     .foregroundStyle(valueColor)
             }
-            .frame(height: Theme.Control.metricRowHeight)
+            .frame(minHeight: Theme.Control.metricRowHeight)
 
             Rectangle()
                 .fill(Theme.Palette.line2)
@@ -340,6 +340,16 @@ struct StatusPill: View {
         }
     }
 
+    // The dot is a decorative graphic and can sit below the text contrast
+    // floor at rest (`fg4`); the label beside it is real text and must not.
+    private var labelColor: Color {
+        switch state {
+        case .unknown: Theme.Palette.fg3
+        case .warning: Theme.Palette.amb
+        case .ok:      Theme.Palette.acc
+        }
+    }
+
     var body: some View {
         HStack(spacing: 5) {
             Circle()
@@ -347,16 +357,18 @@ struct StatusPill: View {
                 .frame(width: 5, height: 5)
                 .opacity(dotOpacity)
             Text(label.uppercased())
-                .font(Theme.mono(11))
-                .foregroundStyle(dotColor)
+                .font(Theme.mono(12))
+                .foregroundStyle(labelColor)
                 .kerning(0.3)
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
+        .background(Theme.Palette.bg0.opacity(0.72))
         .overlay(
             Rectangle()
                 .stroke(borderColor, lineWidth: Theme.Control.hairline)
         )
+        .hudText()
         .animation(Theme.Motion.entrance(), value: state)
         .onChange(of: state) { oldValue, newValue in
             guard newValue == .ok, oldValue != .ok else { return }
@@ -407,7 +419,7 @@ struct DetailDisclosure<Content: View>: View {
                     Spacer()
                 }
                 .padding(.horizontal, Theme.Space.md)
-                .frame(height: 40)
+                .frame(minHeight: 40)
                 .background(Theme.Palette.bg1)
                 .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline))
                 .contentShape(Rectangle())
@@ -458,7 +470,7 @@ struct FacingChip: View {
                     Text("◂").font(Theme.mono(10))
                 }
                 Text(isConfident ? "FRONT" : "FRONT?")
-                    .font(Theme.mono(10, weight: .bold))
+                    .font(Theme.mono(11, weight: .bold))
                     .kerning(0.5)
                 if facing == .right {
                     Text("▸").font(Theme.mono(10))

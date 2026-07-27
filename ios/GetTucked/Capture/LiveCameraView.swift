@@ -50,6 +50,17 @@ struct LiveCameraView: View {
                 CameraPreviewLayer(session: session.captureSession, rotationAngle: session.orientationBucket.videoRotationAngle)
                     .ignoresSafeArea()
 
+                // Scrims, not solid fills (Plan AI4) — the feed must stay
+                // visible through the HUD, so legibility comes from a
+                // gradient plus per-glyph shadow (`hudText()`), never an
+                // opaque backdrop.
+                CameraScrim(edge: .top)
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea()
+                CameraScrim(edge: .bottom)
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea()
+
                 // Ghost alignment overlay (Plan P2) — capture-time only,
                 // never enters the Inspect PHOTO/MASK/BONES ladder. Fades in
                 // at Motion.fast; already static so Reduce Motion has
@@ -111,6 +122,7 @@ struct LiveCameraView: View {
                 .padding(.top, Theme.Space.sm)
             Spacer()
             VStack(spacing: Theme.Space.lg) {
+                blockedReasonSlot
                 StatusPillRow(
                     levelOK: session.levelOK,
                     perpOK: session.perpOK,
@@ -136,6 +148,7 @@ struct LiveCameraView: View {
             HStack {
                 Spacer()
                 VStack(spacing: Theme.Space.lg) {
+                    blockedReasonSlot
                     StatusPillRow(
                         levelOK: session.levelOK,
                         perpOK: session.perpOK,
@@ -170,9 +183,10 @@ struct LiveCameraView: View {
                     showingTips = true
                 } label: {
                     Text("TIPS")
-                        .font(Theme.mono(11, weight: .bold))
-                        .foregroundStyle(Theme.Palette.fg3)
+                        .font(Theme.mono(12, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg2)
                         .kerning(0.5)
+                        .hudText()
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, Theme.Space.sm)
@@ -191,11 +205,31 @@ struct LiveCameraView: View {
                     .foregroundStyle(Theme.Palette.fg)
                     .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.iconTapTarget)
                     .contentShape(Rectangle())
+                    .hudText()
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, Theme.Space.lg)
         .padding(.top, Theme.Space.md)
+    }
+
+    /// Why the shutter is greyed out (Plan AI4). It sits ABOVE the status
+    /// pills and always occupies a line, visible or not: level/perp flicker
+    /// in and out constantly while a rider is lining the shot up, and a row
+    /// that appears and disappears below the pills reflowed the whole bottom
+    /// stack — moving the shutter out from under a finger already on its way
+    /// down (Kah, on-device). The blank string reserves the exact line height
+    /// without a magic number, so nothing moves as the reason comes and goes.
+    private var blockedReasonSlot: some View {
+        let reason = CaptureGate.blockedReason(levelOK: session.levelOK, perpOK: session.perpOK)
+        return Text(reason ?? " ")
+            .font(Theme.mono(12, weight: .bold))
+            .foregroundStyle(Theme.Palette.amb)
+            .kerning(0.5)
+            .hudText()
+            .opacity(reason == nil ? 0 : 1)
+            .animation(Theme.Motion.entrance(Theme.Motion.fast), value: reason)
+            .accessibilityHidden(reason == nil)
     }
 
     /// Capture button + optional library/skip links — identical content in
@@ -221,9 +255,10 @@ struct LiveCameraView: View {
             if let onSkip {
                 Button(action: onSkip) {
                     Text(skipLabel.uppercased())
-                        .font(Theme.mono(11, weight: .bold))
-                        .foregroundStyle(Theme.Palette.fg3)
+                        .font(Theme.mono(12, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg2)
                         .kerning(0.5)
+                        .hudText()
                 }
                 .buttonStyle(.plain)
             }
@@ -233,6 +268,28 @@ struct LiveCameraView: View {
 
 // MARK: - HUD sub-views
 
+/// A translucent-to-transparent gradient pinned to one edge of the frame —
+/// the alternative to a solid backdrop (Plan AI4: Kah explicitly does not
+/// want a solid fill over the camera). The feed stays fully visible through
+/// the transparent end; only the edge nearest the HUD text darkens.
+private struct CameraScrim: View {
+    enum Edge { case top, bottom }
+    let edge: Edge
+
+    private var startOpacity: Double { 0.75 }
+    private var height: CGFloat { edge == .top ? 150 : 240 }
+
+    var body: some View {
+        LinearGradient(
+            colors: [Theme.Palette.bg0.opacity(startOpacity), Theme.Palette.bg0.opacity(0)],
+            startPoint: edge == .top ? .top : .bottom,
+            endPoint: edge == .top ? .bottom : .top
+        )
+        .frame(height: height)
+        .frame(maxHeight: .infinity, alignment: edge == .top ? .top : .bottom)
+    }
+}
+
 private struct BikeChip: View {
     let name: String
 
@@ -240,8 +297,8 @@ private struct BikeChip: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text("SHOOTING ON")
-                    .font(Theme.mono(8))
-                    .foregroundStyle(Theme.Palette.fg4)
+                    .font(Theme.mono(11))
+                    .foregroundStyle(Theme.Palette.fg2)
                     .kerning(1)
                 Text(name.uppercased())
                     .font(Theme.heading(13))
@@ -255,6 +312,7 @@ private struct BikeChip: View {
         .padding(.vertical, 8)
         .background(Theme.Palette.bg0.opacity(0.72))
         .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+        .hudText()
     }
 }
 
@@ -272,6 +330,7 @@ private struct StepLabelChip: View {
             .padding(.vertical, 8)
             .background(Theme.Palette.bg0.opacity(0.72))
             .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: 1))
+            .hudText()
     }
 }
 
@@ -284,13 +343,14 @@ private struct GhostToggleButton: View {
     var body: some View {
         Button(action: action) {
             Text(isOn ? "GHOST" : "GHOST OFF")
-                .font(Theme.mono(11, weight: .bold))
+                .font(Theme.mono(12, weight: .bold))
                 .foregroundStyle(isOn ? Theme.Palette.acc : Theme.Palette.fg3)
                 .kerning(0.5)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(Theme.Palette.bg0.opacity(0.72))
                 .overlay(Rectangle().stroke(isOn ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1))
+                .hudText()
         }
         .buttonStyle(.plain)
     }
@@ -306,13 +366,14 @@ private struct ZoomToggleChip: View {
     var body: some View {
         Button(action: action) {
             Text(isAt2x ? "2×" : "1×")
-                .font(Theme.mono(11, weight: .bold))
+                .font(Theme.mono(12, weight: .bold))
                 .foregroundStyle(isAt2x ? Theme.Palette.acc : Theme.Palette.fg3)
                 .kerning(0.5)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(Theme.Palette.bg0.opacity(0.72))
                 .overlay(Rectangle().stroke(isAt2x ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1))
+                .hudText()
         }
         .buttonStyle(.plain)
     }
@@ -330,9 +391,10 @@ private struct LibraryFallbackLink: View {
     var body: some View {
         PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
             Text(isLoading ? "LOADING…" : "OR CHOOSE FROM LIBRARY")
-                .font(Theme.mono(11, weight: .bold))
-                .foregroundStyle(Theme.Palette.fg3)
+                .font(Theme.mono(12, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg2)
                 .kerning(0.5)
+                .hudText()
         }
         .buttonStyle(.plain)
         .allowsHitTesting(!isLoading)
@@ -363,9 +425,11 @@ private struct LevelLine: View {
             let offset = offsetFraction * (geo.size.width * 0.35)
 
             ZStack(alignment: .leading) {
-                // Rail
+                // Rail — white, not `Palette.line` (Plan AI4): `line`
+                // #262626 is invisible against a bright scene, and this rail
+                // has no scrim of its own to lift it.
                 Rectangle()
-                    .fill(Theme.Palette.line)
+                    .fill(Color.white.opacity(0.35))
                     .frame(height: 1)
                 // Indicator tick
                 Rectangle()
@@ -376,6 +440,7 @@ private struct LevelLine: View {
         }
         .frame(height: 16)
         .padding(.horizontal, Theme.Space.lg)
+        .hudText()
         .animation(.easeOut(duration: 0.1), value: deviationDeg)
     }
 }
@@ -540,6 +605,23 @@ enum ZoomFactorDerivation {
 
     static func clamped(_ factor: CGFloat, min minFactor: CGFloat, max maxFactor: CGFloat) -> CGFloat {
         Swift.min(Swift.max(factor, minFactor), maxFactor)
+    }
+}
+
+// MARK: - Blocked-shutter reason (Plan AI4)
+
+/// Pure text for why the shutter is currently disabled — kept free of
+/// `CameraSession` so it's unit-testable without AVFoundation/CoreMotion.
+/// Explains `CameraSession.allPassed`'s existing level/perp gate; does not
+/// change it.
+enum CaptureGate {
+    static func blockedReason(levelOK: Bool, perpOK: Bool) -> String? {
+        switch (levelOK, perpOK) {
+        case (true, true):   return nil
+        case (false, true):  return "Hold the phone level"
+        case (true, false):  return "Tilt the phone upright"
+        case (false, false): return "Hold the phone level and upright"
+        }
     }
 }
 

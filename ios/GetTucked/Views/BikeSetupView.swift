@@ -94,8 +94,8 @@ struct BikeSetupView: View {
                                 showHandlebarTip.toggle()
                             } label: {
                                 Text("?")
-                                    .font(Theme.mono(10))
-                                    .foregroundStyle(Theme.Palette.fg4)
+                                    .font(Theme.mono(11))
+                                    .foregroundStyle(Theme.Palette.fg3)
                                     .frame(width: 16, height: 16)
                                     .overlay(
                                         Rectangle()
@@ -108,7 +108,7 @@ struct BikeSetupView: View {
 
                         if showHandlebarTip {
                             Text(handlebarWidthTip)
-                                .font(Theme.mono(11))
+                                .font(Theme.mono(12))
                                 .foregroundStyle(Theme.Palette.fg3)
                                 .padding(.top, Theme.Space.xs)
                                 .padding(.horizontal, Theme.Space.screenMargin)

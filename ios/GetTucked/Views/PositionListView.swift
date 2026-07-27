@@ -13,8 +13,12 @@ struct PositionListView: View {
     // sets this (AppNavigationView), every entry point after that goes
     // straight to the camera.
     @AppStorage("hasSeenSetTheScene") private var hasSeenSetTheScene = false
+    // AI6: @Query's own sort is fixed at declaration (SwiftData can't vary
+    // it at runtime), so it stays capturedAt-descending here and the chosen
+    // order is applied afterward, in `sortedPositions`.
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
     @Query private var bikes: [Bike]
+    @AppStorage("positionListSort") private var sortOrder: PositionSortOrder = .newest
     // Selection is always available (no separate select mode) — each row's
     // checkbox and its open-for-detail action are independent tap targets,
     // so this can hold state across a trip to a position's detail and back.
@@ -28,10 +32,29 @@ struct PositionListView: View {
         selected.compactMap { id in positions.first { $0.id == id } }
     }
 
+    /// AI6: `positions` stays newest-first from the `@Query` itself; this
+    /// applies the rider's chosen display order on top, via the pure
+    /// `PositionSort` helper so the ordering logic is testable without
+    /// SwiftData.
+    private var sortedPositions: [Position] {
+        let byID = Dictionary(uniqueKeysWithValues: positions.map { ($0.id, $0) })
+        let entries = positions.map {
+            PositionSort.Entry(id: $0.id, capturedAt: $0.capturedAt, areaCm2: $0.metrics?.frontalAreaCm2)
+        }
+        return PositionSort.sorted(entries, order: sortOrder).compactMap { byID[$0.id] }
+    }
+
     private var subtitleHint: String? {
         guard positions.count >= 2 else { return nil }
         if selected.count == 1 { return "Reference set. Tap one more to compare." }
         return "Tap two to compare."
+    }
+
+    private var sortOrderIndexBinding: Binding<Int> {
+        Binding(
+            get: { sortOrder == .newest ? 0 : 1 },
+            set: { sortOrder = $0 == 0 ? .newest : .smallest }
+        )
     }
 
     var body: some View {
@@ -80,7 +103,7 @@ struct PositionListView: View {
                     // comparison's reference).
                     if let subtitleHint {
                         Text(subtitleHint)
-                            .font(Theme.mono(11))
+                            .font(Theme.mono(12))
                             .foregroundStyle(Theme.Palette.fg3)
                     }
                 }
@@ -93,6 +116,13 @@ struct PositionListView: View {
                 .padding(.bottom, Theme.Control.headerBottomPad)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 56)
+
+                // AI6: nothing to sort with fewer than 2 positions — same
+                // collapse rule as `subtitleHint` above it.
+                if positions.count >= 2 {
+                    SegmentedToggleBar(labels: ["NEWEST", "SMALLEST"], selectedIndex: sortOrderIndexBinding)
+                        .padding(.horizontal, Theme.Space.screenMargin)
+                }
 
                 SectionDivider()
 
@@ -113,7 +143,7 @@ struct PositionListView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(positions) { position in
+                            ForEach(sortedPositions) { position in
                                 PositionRow(
                                     position: position,
                                     isSelected: selected.contains(position.id),
@@ -180,6 +210,47 @@ struct PositionListView: View {
     }
 }
 
+// MARK: - Sort
+
+enum PositionSortOrder: String {
+    case newest
+    case smallest
+}
+
+/// AI6: pure sort over plain values, not `Position` — keeps the ordering
+/// logic testable without SwiftData, and lets `PositionListView` re-sort
+/// the fixed-order `@Query` result in a computed property.
+enum PositionSort {
+    struct Entry: Equatable {
+        let id: UUID
+        let capturedAt: Date
+        let areaCm2: Double?
+    }
+
+    static func sorted(_ entries: [Entry], order: PositionSortOrder) -> [Entry] {
+        switch order {
+        case .newest:
+            return entries.sorted { $0.capturedAt > $1.capturedAt }
+        case .smallest:
+            // Metric-less entries always sort last, regardless of date;
+            // among entries that do have an area, ties break on capturedAt
+            // descending so the order stays stable rather than arbitrary.
+            return entries.sorted { lhs, rhs in
+                switch (lhs.areaCm2, rhs.areaCm2) {
+                case let (l?, r?):
+                    return l != r ? l < r : lhs.capturedAt > rhs.capturedAt
+                case (nil, nil):
+                    return lhs.capturedAt > rhs.capturedAt
+                case (nil, _):
+                    return false
+                case (_, nil):
+                    return true
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Row
 
 /// Two independent tap targets, not one whose meaning depends on a mode:
@@ -193,6 +264,15 @@ private struct PositionRow: View {
     var isAtCapacity: Bool = false
     let onToggleSelect: () -> Void
     let onOpen: () -> Void
+
+    /// AI6: which bike made this position — brings the list in line with
+    /// `LeaderboardView.RankRow`, which already shows it. Falls back to the
+    /// bare date for positions whose bike was since deleted.
+    private var secondaryLine: String {
+        let date = position.capturedAt.formatted(date: .abbreviated, time: .omitted)
+        guard let bike = position.bike else { return date }
+        return "\(date) · \(bike.nickname)"
+    }
 
     var body: some View {
         HStack(spacing: Theme.Space.xs) {
@@ -212,9 +292,10 @@ private struct PositionRow: View {
                         Text(position.label)
                             .font(Theme.mono(14, weight: .bold))
                             .foregroundStyle(Theme.Palette.fg)
-                        Text(position.capturedAt.formatted(date: .abbreviated, time: .omitted))
-                            .font(Theme.mono(11))
+                        Text(secondaryLine)
+                            .font(Theme.mono(12))
                             .foregroundStyle(Theme.Palette.fg3)
+                            .lineLimit(1)
                     }
 
                     Spacer()
@@ -230,7 +311,7 @@ private struct PositionRow: View {
                     }
                 }
                 .padding(.trailing, Theme.Space.screenMargin)
-                .frame(height: Theme.Control.listRowHeight)
+                .frame(minHeight: Theme.Control.listRowHeight)
                 .contentShape(Rectangle())
             }
             .buttonStyle(RowPressStyle())

@@ -19,9 +19,13 @@ enum Theme {
         /// so lifted surfaces need a brighter border to still read separated.
         static let line3 = Color(hex: 0x333333)
         static let fg = Color(hex: 0xEEEEEE)     // primary text
-        static let fg2 = Color(hex: 0x999999)    // secondary text
-        static let fg3 = Color(hex: 0x777777)    // tertiary text
-        static let fg4 = Color(hex: 0x555555)    // dim labels
+        /// Measured against `bg0`. Every token used for text clears 4.5:1.
+        /// `fg4` is below that floor on purpose and must never carry text —
+        /// it is for placeholder glyphs, disabled graphics and inactive
+        /// strokes only.
+        static let fg2 = Color(hex: 0xB0B0B0)    // secondary text
+        static let fg3 = Color(hex: 0x8A8A8A)    // tertiary text — the floor for text
+        static let fg4 = Color(hex: 0x6A6A6A)    // NON-TEXT ONLY: placeholder glyphs, disabled graphics, inactive strokes
         static let acc = Color(hex: 0xD9F020)    // acid-yellow accent
         static let amb = Color(hex: 0xE8A020)    // amber warning
     }
@@ -106,7 +110,7 @@ enum Theme {
         static let fast: Double = 0.15      // press states, handle pops, banner text
         static let base: Double = 0.25      // step fades, toggles, list changes
         static let gentle: Double = 0.45    // photo fade-in, section entrances
-        static let sweep: Double = 0.90     // scan wipe across the matte
+        static let sweep: Double = 0.55     // scan wipe across the matte
         static let roll: Double = 0.80      // hero number count-up
         static let stagger: Double = 0.05   // per-row cascade offset
 

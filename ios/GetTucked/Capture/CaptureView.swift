@@ -735,7 +735,7 @@ private struct FacingRow: View {
                 Spacer()
                 FacingChip(derivedFacing: facing.facing, confidence: facing.confidence)
             }
-            .frame(height: Theme.Control.metricRowHeight)
+            .frame(minHeight: Theme.Control.metricRowHeight)
 
             Rectangle()
                 .fill(Theme.Palette.line2)
@@ -780,7 +780,6 @@ private struct RevealStep: View {
     @State private var labelVisible = false
     @State private var uncertaintyVisible = false
     @State private var rowsVisible = false
-    @State private var buttonsVisible = false
     // Frontal skeleton draw-on (Plan O4) — a quiet secondary beat that starts
     // once the sweep completes and finishes well before the number roll.
     @State private var skeletonProgress: Double = 0
@@ -870,6 +869,18 @@ private struct RevealStep: View {
                             .frame(maxHeight: screenProxy.size.height * 0.4)
                             .background(Theme.Palette.bg1)
                             .pinchZoomable()
+                            // `.simultaneousGesture`, not `.onTapGesture` — a plain
+                            // tap gesture stacked on top of pinchZoomable's own
+                            // gestures fights the double-tap-to-zoom recognizer for
+                            // exclusivity. Simultaneous recognition lets a tap snap
+                            // the ceremony forward without ever claiming priority
+                            // over pinch/pan/double-tap, so zoom stays intact; a
+                            // double-tap now also cancels the ceremony on its first
+                            // tap, which is harmless (cancelCeremony() is idempotent)
+                            // and arguably correct — any tap on the photo means the
+                            // user is done watching it play out.
+                            .contentShape(Rectangle())
+                            .simultaneousGesture(TapGesture().onEnded { cancelCeremony() })
                             .onAppear { beginCeremony() }
                             .onChange(of: maskOverlay) { _, _ in startSweepIfReady() }
                             // `.task` (not a bare `Task { }`) so SwiftUI cancels this
@@ -894,7 +905,8 @@ private struct RevealStep: View {
                                         font: Theme.mono(60, weight: .bold),
                                         color: Theme.Palette.acc,
                                         tracking: Theme.Typography.tracking(forSize: 60),
-                                        delay: 0.7,
+                                        duration: 0.6,
+                                        delay: 0.35,
                                         onComplete: { Haptics.confirm() }
                                     )
                                     Text("cm²")
@@ -909,7 +921,7 @@ private struct RevealStep: View {
                                         .foregroundStyle(Theme.Palette.fg3)
                                     if let scaleWarning = result.scaleWarning {
                                         Text(scaleWarning)
-                                            .font(Theme.mono(11))
+                                            .font(Theme.mono(12))
                                             .foregroundStyle(Theme.Palette.amb)
                                     }
                                     HowItWorksLink(path: $path)
@@ -985,12 +997,10 @@ private struct RevealStep: View {
                     GhostButton(label: "RETAKE", action: onRetake)
                         .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.top, Theme.Space.sm)
-                        .opacity(buttonsVisible ? 1 : 0)
 
                     AccentButton(label: "NAME POSITION", action: onContinue)
                         .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.vertical, Theme.Space.md)
-                        .opacity(buttonsVisible ? 1 : 0)
                 }
             }
         }
@@ -1071,25 +1081,23 @@ private struct RevealStep: View {
                 labelVisible = true
                 uncertaintyVisible = true
                 rowsVisible = true
-                buttonsVisible = true
             }
             return
         }
-        withAnimation(Theme.Motion.entrance().delay(0.5)) { labelVisible = true }
-        withAnimation(Theme.Motion.entrance().delay(1.5)) { uncertaintyVisible = true }
-        withAnimation(Theme.Motion.entrance().delay(1.9)) { buttonsVisible = true }
+        withAnimation(Theme.Motion.entrance().delay(0.15)) { labelVisible = true }
+        withAnimation(Theme.Motion.entrance().delay(0.55)) { uncertaintyVisible = true }
         startSweepIfReady()
     }
 
     /// `cascadeIn` (below) carries its own local `.animation(value:)`, which
     /// takes precedence over an ambient `withAnimation(...).delay()` wrapping
-    /// this flip — so the 1.6s hold has to be a real wait, not a delayed
+    /// this flip — so the 0.6s hold has to be a real wait, not a delayed
     /// animation, or the rows would cascade in almost immediately. Driven by
     /// the view's `.task` (not a bare `Task { }` from `beginCeremony`) so it's
     /// cancelled automatically if the user backs out mid-hold.
     private func revealRowsAfterHold() async {
         guard !reduceMotion else { return }
-        try? await Task.sleep(for: .seconds(1.6))
+        try? await Task.sleep(for: .seconds(0.6))
         guard !ceremonyCancelled else { return }
         rowsVisible = true
     }
@@ -1149,7 +1157,6 @@ private struct RevealStep: View {
         labelVisible = true
         uncertaintyVisible = true
         rowsVisible = true
-        buttonsVisible = true
     }
 }
 
@@ -1399,7 +1406,7 @@ private struct DropBarCaveatBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Space.sm) {
             Text(text)
-                .font(Theme.mono(11))
+                .font(Theme.mono(12))
                 .foregroundStyle(Theme.Palette.amb)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button("GOT IT", action: onDismiss)

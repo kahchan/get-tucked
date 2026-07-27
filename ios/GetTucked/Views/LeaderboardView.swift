@@ -81,7 +81,7 @@ private struct FilterBar: View {
                 } label: {
                     Text(option.label)
                         .font(Theme.mono(11, weight: selected ? .bold : .regular))
-                        .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg4)
+                        .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
                         .overlay(alignment: .bottom) {
@@ -144,7 +144,7 @@ private struct RankRow: View {
                     .foregroundStyle(Theme.Palette.fg)
                 if let bike = position.bike {
                     Text(bike.nickname.uppercased())
-                        .font(Theme.mono(11))
+                        .font(Theme.mono(12))
                         .foregroundStyle(Theme.Palette.fg3)
                 }
             }
@@ -168,7 +168,7 @@ private struct RankRow: View {
         // Q8.5: stays off Theme.Control.listRowHeight (60) — both sides of
         // this row carry two lines (label+bike, area+delta) rather than
         // PositionRow/BikeRow's one, and need the extra 4pt.
-        .frame(height: 64)
+        .frame(minHeight: 64)
         .overlay(alignment: .bottom) {
             if rank == 1 {
                 // Sweeps in left→right once each time a position pushes into

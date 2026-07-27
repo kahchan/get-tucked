@@ -27,12 +27,12 @@ struct HowItWorksView: View {
                                 // decision) — not the prototype's
                                 // rider-and-bike-only copy.
                                 lead: "We separate you, your bike, and your bags from everything behind you.",
-                                detail: "The background is thrown away: only your silhouette survives."
+                                detail: nil
                             )
                             MethodStep(
                                 number: "02", title: "Scale",
                                 lead: "Your handlebar width is a known ruler in the frame.",
-                                detail: "It converts pixels into real centimetres, no depth sensor required."
+                                detail: "Pixels become centimetres. No depth sensor needed."
                             )
                             MethodStep(
                                 number: "03", title: "Project",
@@ -129,12 +129,12 @@ private struct MethodStep: View {
             // sentence stays dimmer — a bright line to open each step, then
             // it settles.
             Text(lead)
-                .font(Theme.mono(11))
+                .font(Theme.mono(13))
                 .foregroundStyle(Theme.Palette.fg)
                 .fixedSize(horizontal: false, vertical: true)
             if let detail {
                 Text(detail)
-                    .font(Theme.mono(11))
+                    .font(Theme.mono(13))
                     .foregroundStyle(Theme.Palette.fg3)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -154,7 +154,7 @@ private struct FactColumn: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.sm) {
             Text(tag)
-                .font(Theme.mono(9, weight: .bold))
+                .font(Theme.mono(11, weight: .bold))
                 .foregroundStyle(color)
                 .kerning(1.2)
             ForEach(items, id: \.self) { item in
@@ -163,7 +163,7 @@ private struct FactColumn: View {
                         .font(Theme.mono(11, weight: .bold))
                         .foregroundStyle(color)
                     Text(item)
-                        .font(Theme.mono(11))
+                        .font(Theme.mono(13))
                         .foregroundStyle(Theme.Palette.fg2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -181,7 +181,7 @@ private struct NoiseFloorNote: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.sm) {
             Text("THE NOISE FLOOR")
-                .font(Theme.mono(9, weight: .bold))
+                .font(Theme.mono(11, weight: .bold))
                 .foregroundStyle(Theme.Palette.amb)
                 .kerning(1.2)
             // Plan AB9: varied off the "X, not Y" negation used elsewhere.
@@ -189,17 +189,12 @@ private struct NoiseFloorNote: View {
                 "Every reading carries a ±\(Int(AnalysisMath.uncertaintyFraction * 100))% margin, so " +
                 "re-shoot the same position to tell a real change from ordinary noise."
             )
-            .font(Theme.mono(10))
+            .font(Theme.mono(12))
             .foregroundStyle(Theme.Palette.fg2)
             // HANDOFF §2.4: the bar-width ruler sits forward of the torso, so
             // absolute area is slightly underestimated — this mostly cancels
-            // out when comparing two positions shot the same way.
-            Text(
-                "The handlebar ruler sits slightly forward of your torso, so the " +
-                "absolute number reads a touch low, though this mostly cancels out when comparing positions."
-            )
-            .font(Theme.mono(10))
-            .foregroundStyle(Theme.Palette.fg2)
+            // out when comparing two positions shot the same way. AI3: moved
+            // into TimeEstimateSection's shared Assumptions disclosure.
         }
         .padding(Theme.Space.md)
         .background(Theme.Palette.bg2)
@@ -222,29 +217,43 @@ private struct TimeEstimateSection: View {
 
             FormulaHero()
 
-            VStack(alignment: .leading, spacing: Theme.Space.md) {
-                Text(
-                    "We take your flat-road speed, work out the power it implies for the " +
-                    "larger position, then ask how fast that same power pushes the smaller " +
-                    "one. The time gap over your distance is the estimate."
-                )
-                .font(Theme.mono(10))
-                .foregroundStyle(Theme.Palette.fg2)
-                Text(
-                    "Fixed assumptions: drag coefficient \(EffortModel.assumedCd), rider + " +
-                    "bike + kit \(Int(EffortModel.assumedMassKg)) kg, rolling resistance " +
-                    "\(String(format: "%.3f", EffortModel.crr)), sea-level air. Flat course, no wind, equal effort."
-                )
-                .font(Theme.mono(10))
-                .foregroundStyle(Theme.Palette.fg2)
-                Text(
-                    "Slower riders gain more minutes, not fewer: an area cut buys roughly the " +
-                    "same percentage of speed at any pace, and a slower rider spends longer on " +
-                    "course for it to add up. Over a fixed distance, aero minutes favour the " +
-                    "patient."
-                )
-                .font(Theme.mono(10))
-                .foregroundStyle(Theme.Palette.fg2)
+            Text(
+                "We take your flat-road speed, work out the power it implies for the " +
+                "larger position, then ask how fast that same power pushes the smaller " +
+                "one. The time gap over your distance is the estimate."
+            )
+            .font(Theme.mono(12))
+            .foregroundStyle(Theme.Palette.fg2)
+
+            // AI3: paragraphs 2 and 3 (fixed assumptions, slower-riders-gain-more),
+            // plus NoiseFloorNote's handlebar-ruler caveat, live here verbatim —
+            // one shared Assumptions disclosure instead of three always-on
+            // paragraphs.
+            DetailDisclosure(label: "Assumptions") {
+                VStack(alignment: .leading, spacing: Theme.Space.md) {
+                    Text(
+                        "Fixed assumptions: drag coefficient \(EffortModel.assumedCd), rider + " +
+                        "bike + kit \(Int(EffortModel.assumedMassKg)) kg, rolling resistance " +
+                        "\(String(format: "%.3f", EffortModel.crr)), sea-level air. Flat course, no wind, equal effort."
+                    )
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg2)
+                    Text(
+                        "Slower riders gain more minutes, not fewer: an area cut buys roughly the " +
+                        "same percentage of speed at any pace, and a slower rider spends longer on " +
+                        "course for it to add up. Over a fixed distance, aero minutes favour the " +
+                        "patient."
+                    )
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg2)
+                    Text(
+                        "The handlebar ruler sits slightly forward of your torso, so the " +
+                        "absolute number reads a touch low, though this mostly cancels out when comparing positions."
+                    )
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg2)
+                }
+                .padding(Theme.Space.md)
             }
         }
     }
@@ -263,13 +272,12 @@ private struct FormulaHero: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedTerm: String?
 
-    private static let legend: [(glyph: String, meaning: String)] = [
-        ("v", "your speed"),
-        ("ρ", "air density"),
-        ("CdA", "frontal area × drag"),
-        ("Crr", "rolling resistance"),
-        ("m", "you + bike + kit"),
-        ("g", "gravity"),
+    // AI3: two-column grid (three rows of two) instead of six stacked rows,
+    // so pairing order still reads glyph-by-glyph left to right, top to bottom.
+    private static let legendRows: [[(glyph: String, meaning: String)]] = [
+        [("v", "your speed"), ("ρ", "air density")],
+        [("CdA", "frontal area × drag"), ("Crr", "rolling resistance")],
+        [("m", "you + bike + kit"), ("g", "gravity")],
     ]
 
     /// A glyph lights to `fg` when its term is selected; otherwise it keeps its
@@ -278,10 +286,46 @@ private struct FormulaHero: View {
         selectedTerm == term ? Theme.Palette.fg : resting
     }
 
+    /// One glyph/meaning cell of the legend grid. Shrinks the visible stack
+    /// to fit two per row; `contentShape` keeps the HIG tap target at
+    /// `Theme.Control.iconTapTarget` regardless of how tight the row reads.
+    @ViewBuilder
+    private func legendCell(_ symbol: (glyph: String, meaning: String)) -> some View {
+        Button {
+            let next: String? = selectedTerm == symbol.glyph ? nil : symbol.glyph
+            if reduceMotion {
+                selectedTerm = next
+            } else {
+                withAnimation(Theme.Motion.interactive()) { selectedTerm = next }
+            }
+        } label: {
+            HStack(spacing: Theme.Space.sm) {
+                // Leading rule marks the selected row; always 2pt so the row
+                // doesn't shift when it lights.
+                Rectangle()
+                    .fill(selectedTerm == symbol.glyph ? Theme.Palette.acc : Color.clear)
+                    .frame(width: 2)
+                Text(symbol.glyph)
+                    .font(Theme.mono(12, weight: .bold))
+                    .foregroundStyle(Theme.Palette.acc)
+                    .frame(width: 40, alignment: .leading)
+                Text(symbol.meaning)
+                    .font(Theme.mono(13))
+                    .foregroundStyle(Theme.Palette.fg2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // HIG minimum tap target, not the glyph's visual size.
+            .frame(minHeight: Theme.Control.iconTapTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.md) {
             Text("Power = speed × (air drag + rolling drag)")
-                .font(Theme.mono(11, weight: .bold))
+                .font(Theme.mono(12, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg2)
                 .kerning(0.2)
 
@@ -311,39 +355,16 @@ private struct FormulaHero: View {
             .fixedSize(horizontal: false, vertical: true)
 
             Text("CdA: your frontal area, the one thing you change.")
-                .font(Theme.mono(10, weight: .bold))
+                .font(Theme.mono(12, weight: .bold))
                 .foregroundStyle(Theme.Palette.acc)
 
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                ForEach(Self.legend, id: \.glyph) { symbol in
-                    Button {
-                        let next: String? = selectedTerm == symbol.glyph ? nil : symbol.glyph
-                        if reduceMotion {
-                            selectedTerm = next
-                        } else {
-                            withAnimation(Theme.Motion.interactive()) { selectedTerm = next }
+                ForEach(Self.legendRows.indices, id: \.self) { row in
+                    HStack(spacing: Theme.Space.md) {
+                        ForEach(Self.legendRows[row], id: \.glyph) { symbol in
+                            legendCell(symbol)
                         }
-                    } label: {
-                        HStack(spacing: Theme.Space.sm) {
-                            // Leading rule marks the selected row; always 2pt so
-                            // the row doesn't shift when it lights.
-                            Rectangle()
-                                .fill(selectedTerm == symbol.glyph ? Theme.Palette.acc : Color.clear)
-                                .frame(width: 2)
-                            Text(symbol.glyph)
-                                .font(Theme.mono(12, weight: .bold))
-                                .foregroundStyle(Theme.Palette.acc)
-                                .frame(width: 40, alignment: .leading)
-                            Text(symbol.meaning)
-                                .font(Theme.mono(13))
-                                .foregroundStyle(Theme.Palette.fg2)
-                            Spacer(minLength: 0)
-                        }
-                        // HIG minimum tap target, not the glyph's visual size.
-                        .frame(minHeight: Theme.Control.iconTapTarget)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
                 }
             }
 
@@ -353,7 +374,7 @@ private struct FormulaHero: View {
                 dismiss()
             } label: {
                 Text("see it on your own positions →")
-                    .font(Theme.mono(11, weight: .bold))
+                    .font(Theme.mono(12, weight: .bold))
                     .foregroundStyle(Theme.Palette.acc)
             }
             .buttonStyle(.plain)

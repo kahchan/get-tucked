@@ -36,13 +36,16 @@ struct ComparisonView: View {
     // layer's own A/B chip rather than getting a chip of its own to hide.
     @State private var showPhotoUnderlay = false
 
-    // R1: the outline draw-in ceremony. A then B, staggered ~0.35s apart;
-    // plays once per screen visit (toggling PHOTO/OUTLINE or A/B never
-    // replays it — that's inspection, not ceremony, same rule Plan P set
-    // for the capture ghost). `layerXArmed` is completion-driven (not
-    // derived from progress==1, which updates instantly under
-    // withAnimation) so the chips visibly lag the draw finishing, per §13's
-    // causality beat.
+    // R1: the outline draw-in ceremony. A then B, staggered ~0.2s apart
+    // (Plan AI5 — tightened from 0.35s); plays once per screen visit
+    // (toggling PHOTO/OUTLINE or A/B never replays it — that's inspection,
+    // not ceremony, same rule Plan P set for the capture ghost).
+    // `layerXArmed` is completion-driven (not derived from progress==1,
+    // which updates instantly under withAnimation) — Plan AI5 dropped it as
+    // a gate on the A/B chips (they now read `showLayerX` directly so
+    // they're correct from frame one), kept here for any future consumer
+    // that genuinely needs "the draw has finished" rather than "the layer
+    // is toggled on".
     @State private var drawInProgressA: Double = 0
     @State private var drawInProgressB: Double = 0
     @State private var layerAArmed = false
@@ -111,23 +114,28 @@ struct ComparisonView: View {
     // can't be shown. Un-warned values still render as rows in the
     // measurement-detail disclosure (ComparisonMeasurementDetail).
 
-    private func wheelCheckAdvisory(_ metrics: PositionMetrics?, side: String) -> String? {
-        guard let fraction = metrics?.wheelCheckDisagreementFraction,
-              let warning = AnalysisMath.wheelCheckWarning(fraction)
-        else { return nil }
-        return "\(side): \(warning)"
+    private func wheelCheckAdvisory(_ metrics: PositionMetrics?) -> String? {
+        guard let fraction = metrics?.wheelCheckDisagreementFraction else { return nil }
+        return AnalysisMath.wheelCheckWarning(fraction)
     }
 
-    private func shoulderWidthAdvisory(_ metrics: PositionMetrics?, side: String) -> String? {
-        guard let cm = metrics?.shoulderWidthCm, let warning = AnalysisMath.shoulderWidthWarning(cm) else { return nil }
-        return "\(side): \(warning)"
+    private func shoulderWidthAdvisory(_ metrics: PositionMetrics?) -> String? {
+        guard let cm = metrics?.shoulderWidthCm else { return nil }
+        return AnalysisMath.shoulderWidthWarning(cm)
     }
 
+    // Plan AI3: identical A/B advisories (the common case — the same taps
+    // usually mis-measure the same way on both sides) collapse into one "A
+    // and B: …" line via AnalysisMath.mergedAdvisories instead of printing
+    // the same sentence twice.
     private var advisoryLines: [String] {
-        [
-            shoulderWidthAdvisory(metricsA, side: "A"), shoulderWidthAdvisory(metricsB, side: "B"),
-            wheelCheckAdvisory(metricsA, side: "A"), wheelCheckAdvisory(metricsB, side: "B"),
+        let sided: [(side: String, text: String)] = [
+            shoulderWidthAdvisory(metricsA).map { (side: "A", text: $0) },
+            shoulderWidthAdvisory(metricsB).map { (side: "B", text: $0) },
+            wheelCheckAdvisory(metricsA).map { (side: "A", text: $0) },
+            wheelCheckAdvisory(metricsB).map { (side: "B", text: $0) },
         ].compactMap { $0 }
+        return AnalysisMath.mergedAdvisories(sided)
     }
 
     private var hasAnyAdvisory: Bool {
@@ -139,7 +147,7 @@ struct ComparisonView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                NavHeader(title: "COMPARE", subtitle: "Same kit, same position as the reference shot?")
+                NavHeader(title: "COMPARE")
                 SectionDivider()
 
                 ScrollView {
@@ -150,7 +158,7 @@ struct ComparisonView: View {
                             Rectangle().fill(Theme.Palette.line).frame(width: 1)
                             PositionPanel(position: positionB, side: "B")
                         }
-                        .frame(height: 130)
+                        .frame(minHeight: 130)
                         .cascadeIn(index: 0, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
 
                         SectionDivider()
@@ -198,11 +206,11 @@ struct ComparisonView: View {
                                                     }
                                                 }
                                             }
-                                            LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA && layerAArmed) {
+                                            LayerToggleChip(label: "A", color: Theme.Palette.acc, isOn: showLayerA) {
                                                 cancelDrawInIfNeeded()
                                                 showLayerA.toggle()
                                             }
-                                            LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB && layerBArmed) {
+                                            LayerToggleChip(label: "B", color: Theme.Palette.amb, isOn: showLayerB) {
                                                 cancelDrawInIfNeeded()
                                                 showLayerB.toggle()
                                             }
@@ -368,7 +376,8 @@ struct ComparisonView: View {
         }.value
     }
 
-    /// R1.3: A draws over `Motion.sweep`, B starts ~0.35s in — overlapping,
+    /// R1.3: A draws over `Motion.sweep`, B starts ~0.2s in (Plan AI5 —
+    /// tightened from 0.35s alongside the shorter sweep) — overlapping,
     /// not sequential (§8), so the pair reads as being laid over each other
     /// rather than a slideshow. Plays once per screen visit (`hasPlayedDrawIn`).
     private func beginDrawInIfNeeded() {
@@ -384,7 +393,7 @@ struct ComparisonView: View {
         } completion: {
             layerAArmed = true
         }
-        withAnimation(Theme.Motion.travel(Theme.Motion.sweep).delay(0.35)) {
+        withAnimation(Theme.Motion.travel(Theme.Motion.sweep).delay(0.2)) {
             drawInProgressB = 1
         } completion: {
             layerBArmed = true
@@ -474,7 +483,7 @@ struct ComparisonView: View {
 private struct CrossBikeWarning: View {
     var body: some View {
         Text("DIFFERENT BIKES. Differences may reflect the bikes, not the rider.")
-            .font(Theme.mono(11))
+            .font(Theme.mono(12))
             .foregroundStyle(Theme.Palette.amb)
             .padding(Theme.Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -494,7 +503,7 @@ private struct PoseDeltaAdvisory: View {
 
     var body: some View {
         Text(warning.text)
-            .font(Theme.mono(11))
+            .font(Theme.mono(12))
             .foregroundStyle(warning.severity == .warn ? Theme.Palette.amb : Theme.Palette.fg2)
             .padding(.horizontal, Theme.Space.screenMargin)
             .padding(.bottom, Theme.Space.md)
@@ -512,7 +521,7 @@ private struct AdvisoryLine: View {
 
     var body: some View {
         Text(text)
-            .font(Theme.mono(11))
+            .font(Theme.mono(12))
             .foregroundStyle(Theme.Palette.amb)
             .padding(.horizontal, Theme.Space.screenMargin)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -764,7 +773,7 @@ private struct LayerToggleChip: View {
         Button(action: action) {
             Text(label)
                 .font(Theme.mono(11, weight: .bold))
-                .foregroundStyle(isOn ? color : Theme.Palette.fg4)
+                .foregroundStyle(isOn ? color : Theme.Palette.fg3)
                 .frame(width: width, height: 28)
                 .background(Theme.Palette.bg0.opacity(0.72))
                 .overlay(Rectangle().stroke(isOn ? color : Theme.Palette.line, lineWidth: 1))
@@ -795,7 +804,7 @@ private struct PositionPanel: View {
             }
             if let bike = position.bike {
                 Text(bike.nickname)
-                    .font(Theme.mono(11))
+                    .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
                     .lineLimit(1)
             }
@@ -814,11 +823,13 @@ private struct PositionPanel: View {
 /// raw cm² comparison holds elsewhere (torsten-aero-notes.md §D) because a
 /// cm² delta has no felt meaning; the honesty debt is paid with the
 /// noise-floor gate below, the conditional "at your usual effort" framing,
-/// and an assumptions line that's always attached, never optional. No P3
-/// rear-located gate here (dropped for this pass — Plan P3 as built only
-/// disambiguates side-on facing, it doesn't localise a frontal silhouette
-/// diff; revisit if that ever gets built) — the wake/rear-bag caveat is
-/// always-on in the assumptions line instead.
+/// and an assumptions line that's always attached, never optional (Plan AI3
+/// shortens that line but keeps it attached; only the rear-bag/wake caveat
+/// moved into the measurement-detail disclosure, since it qualifies the
+/// model rather than the estimate itself). No P3 rear-located gate here
+/// (dropped for this pass — Plan P3 as built only disambiguates side-on
+/// facing, it doesn't localise a frontal silhouette diff; revisit if that
+/// ever gets built).
 private struct TimeImpactSection: View {
     let areaA: Double
     let areaB: Double
@@ -851,6 +862,21 @@ private struct TimeImpactSection: View {
     @State private var customDistanceText = ""
     @FocusState private var focusedField: Field?
 
+    // AI7: collapsed for a returning rider who's already confirmed a speed
+    // (straight to the delta hero), expanded for a first-timer who still
+    // needs to meet the form. Read straight from UserDefaults rather than
+    // through `inputsConfirmed` above — @AppStorage's wrapped value isn't
+    // reliably readable this early in a synthesized-adjacent custom init.
+    @State private var inputsExpanded: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(areaA: Double, areaB: Double, isDistinguishable: Bool) {
+        self.areaA = areaA
+        self.areaB = areaB
+        self.isDistinguishable = isDistinguishable
+        _inputsExpanded = State(initialValue: !UserDefaults.standard.bool(forKey: "effortInputsConfirmed"))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("TIME IMPACT")
@@ -866,7 +892,7 @@ private struct TimeImpactSection: View {
                         .padding(.horizontal, Theme.Space.screenMargin)
                         .padding(.top, Theme.Space.sm)
                 }
-                inputs
+                inputsDisclosure
                     .padding(.horizontal, Theme.Space.screenMargin)
                     .padding(.top, Theme.Space.md)
             } else {
@@ -918,11 +944,11 @@ private struct TimeImpactSection: View {
             }
             if !inputsConfirmed {
                 Text("Using a default speed. Edit below for yours.")
-                    .font(Theme.mono(11, weight: .bold))
+                    .font(Theme.mono(12, weight: .bold))
                     .foregroundStyle(Theme.Palette.amb)
             }
-            Text("Estimate. Assumes equal effort, equal drag coefficient, an \(Int(EffortModel.assumedMassKg)) kg rider+bike+kit, flat course, no wind. A rear-mounted bag can change drag through wake effects this model doesn't capture.")
-                .font(Theme.mono(10))
+            Text("Estimate. Equal effort, equal drag coefficient, \(Int(EffortModel.assumedMassKg)) kg rider+bike+kit, flat, no wind.")
+                .font(Theme.mono(12))
                 .foregroundStyle(Theme.Palette.fg3)
         }
         .padding(Theme.Space.md)
@@ -1021,7 +1047,51 @@ private struct TimeImpactSection: View {
         return "~\(String(format: "%.1f", pct.lowPct))–\(String(format: "%.1f", pct.highPct))%"
     }
 
-    // MARK: - Inputs
+    // MARK: - Inputs disclosure (Plan AI7)
+
+    /// `Components.DetailDisclosure`'s exact visual treatment, inlined —
+    /// that component hardcodes `expanded = false` and lives in
+    /// Components.swift (out of scope for this change), but this is the one
+    /// disclosure on the screen whose *initial* state has to vary
+    /// (`inputsExpanded`, set in `init`). Flagged for later unification: if
+    /// `DetailDisclosure` ever grows an initial-state parameter, this copy
+    /// should be deleted in favour of it.
+    private var inputsDisclosure: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button { toggleInputs() } label: {
+                HStack(spacing: Theme.Space.xs) {
+                    Text(inputsExpanded ? "−" : "+")
+                        .font(Theme.mono(14, weight: .bold))
+                        .foregroundStyle(Theme.Palette.acc)
+                    Text("Change speed & distance".uppercased())
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.fg2)
+                        .kerning(0.5)
+                    Spacer()
+                }
+                .padding(.horizontal, Theme.Space.md)
+                .frame(minHeight: 40)
+                .background(Theme.Palette.bg1)
+                .overlay(Rectangle().stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if inputsExpanded {
+                inputs
+                    .padding(.top, Theme.Space.md)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func toggleInputs() {
+        if reduceMotion {
+            inputsExpanded.toggle()
+        } else {
+            withAnimation(Theme.Motion.interactive()) { inputsExpanded.toggle() }
+        }
+    }
 
     private var inputs: some View {
         // Two distinct field groups (distance / speed), each with a tight
@@ -1043,9 +1113,9 @@ private struct TimeImpactSection: View {
 
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
                 SpeedControl(speedKmh: $speedKmh)
-                Text("The speed you'd hold on a flat, calm road, not a ridden average (that bundles hills, stops and wind).")
-                    .font(Theme.mono(10))
-                    .foregroundStyle(Theme.Palette.fg4)
+                Text("Flat, calm road speed. Not your ridden average.")
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.Palette.fg3)
             }
         }
     }
@@ -1120,8 +1190,8 @@ private struct DeltaHero: View {
                         .foregroundStyle(Theme.Palette.fg2)
                         .kerning(0.3)
                     Text("raw: \(sign)\(String(format: "%.1f", delta))% · noise: ±\(String(format: "%.1f", noisePct))%")
-                        .font(Theme.mono(10))
-                        .foregroundStyle(Theme.Palette.fg4)
+                        .font(Theme.mono(12))
+                        .foregroundStyle(Theme.Palette.fg3)
                 }
                 .opacity(subtitleVisible ? 1 : 0)
                 .onAppear {
@@ -1314,6 +1384,16 @@ private struct ComparisonMeasurementDetail: View {
                 valB: metricsB?.computedAt.formatted(date: .abbreviated, time: .omitted),
                 diff: nil
             )
+
+            // Relocated from the always-attached assumptions line (Plan
+            // AI3) — the caveat itself is unchanged, just no longer forced
+            // onto every glance at the estimate.
+            Text("A rear-mounted bag can change drag through wake effects this model doesn't capture.")
+                .font(Theme.mono(12))
+                .foregroundStyle(Theme.Palette.fg3)
+                .padding(.horizontal, Theme.Space.screenMargin)
+                .padding(.top, Theme.Space.sm)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

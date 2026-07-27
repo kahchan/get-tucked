@@ -200,8 +200,8 @@ struct PositionDetailView: View {
                             SectionDivider()
                             VStack(alignment: .leading, spacing: Theme.Space.xs) {
                                 Text("PACKING")
-                                    .font(Theme.mono(10))
-                                    .foregroundStyle(Theme.Palette.fg4)
+                                    .font(Theme.mono(11))
+                                    .foregroundStyle(Theme.Palette.fg3)
                                 Text(packing)
                                     .font(Theme.mono(13))
                                     .foregroundStyle(Theme.Palette.fg2)
@@ -225,7 +225,7 @@ struct PositionDetailView: View {
                         // SetTheSceneView's coaching this flow genuinely
                         // needs, since that screen is never shown here.
                         Text("Same kit, same helmet, same bar position: clothing changes your silhouette as much as a small bag does.")
-                            .font(Theme.mono(11))
+                            .font(Theme.mono(12))
                             .foregroundStyle(Theme.Palette.fg3)
                             .padding(.horizontal, Theme.Space.screenMargin)
                             .padding(.top, Theme.Space.sm)
@@ -786,13 +786,13 @@ private struct MetricsSection: View {
                 if let shoulder = metrics.shoulderWidthCm,
                    let warning = AnalysisMath.shoulderWidthWarning(shoulder) {
                     Text(warning)
-                        .font(Theme.mono(11))
+                        .font(Theme.mono(12))
                         .foregroundStyle(Theme.Palette.amb)
                         .padding(.top, Theme.Space.xs)
                 }
                 if let wheelCheckWarning {
                     Text(wheelCheckWarning)
-                        .font(Theme.mono(11))
+                        .font(Theme.mono(12))
                         .foregroundStyle(Theme.Palette.amb)
                         .padding(.top, Theme.Space.xs)
                 }
@@ -909,7 +909,7 @@ private struct SoloEffortRow: View {
 
                 if !inputsConfirmed {
                     Text("Assumed — tap the speed to set yours.")
-                        .font(Theme.mono(10))
+                        .font(Theme.mono(12))
                         .foregroundStyle(Theme.Palette.fg3)
                 }
 

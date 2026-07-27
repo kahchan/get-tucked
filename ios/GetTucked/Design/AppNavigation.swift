@@ -232,7 +232,7 @@ private struct IndexRowButtonStyle: ButtonStyle {
         HStack(alignment: .firstTextBaseline, spacing: Theme.Space.md) {
             Text(ordinal)
                 .font(Theme.mono(13))
-                .foregroundStyle(Theme.Palette.fg4)
+                .foregroundStyle(Theme.Palette.fg3)
             Text(label)
                 .font(Theme.heading(32))
                 .foregroundStyle(configuration.isPressed ? Theme.Palette.acc : Theme.Palette.fg)

@@ -77,7 +77,7 @@ struct SetTheSceneView: View {
                 // enough to cover both a normal capture and the "match this
                 // position" flow, so it needs no second copy path.
                 Text("Comparing to an earlier shot? Same kit, same helmet, same bar position — clothing changes your silhouette as much as a small bag does.")
-                    .font(Theme.mono(11))
+                    .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
                     .padding(.horizontal, Theme.Space.screenMargin)
                     .padding(.vertical, Theme.Space.sm)
