@@ -4,3 +4,9 @@ output/
 .env*
 .DS_Store
 .claude/
+
+# Camera-roll fixtures. These are photos of real, identifiable riders and this
+# repo is public — keep them local. The matte-lab harness reads fixtures/ off
+# disk, so nothing here needs to be tracked for it to work. Stock/reference
+# imagery already committed to fixtures/ is unaffected.
+fixtures/IMG_*
