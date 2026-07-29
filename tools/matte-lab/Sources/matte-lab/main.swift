@@ -419,6 +419,20 @@ func buildTwoToneComposite(
     return (rgbaToCGImage(base, width: width, height: height), coverageBike, coverageSubject)
 }
 
+/// Packed (row-padding stripped) gray byte array from any 8-bit gray CGImage
+/// — the read half of grayToCGImage, used wherever a mask needs to go back
+/// through pasteCropMaskFullFrame/resample math rather than stay a CGImage.
+func extractGrayBytes(_ image: CGImage) -> [UInt8] {
+    guard let data = image.dataProvider?.data, let ptr = CFDataGetBytePtr(data) else { return [] }
+    let w = image.width, h = image.height, bpr = image.bytesPerRow
+    var out = [UInt8](repeating: 0, count: w * h)
+    for y in 0 ..< h {
+        let row = y * bpr
+        for x in 0 ..< w { out[y * w + x] = ptr[row + x] }
+    }
+    return out
+}
+
 // MARK: - Distinct colours for the instance-label visualisation
 
 let labelPalette: [(UInt8, UInt8, UInt8)] = [
@@ -527,7 +541,7 @@ func silhouetteOverlay(photo: CGImage, personGray: [UInt8], w: Int, h: Int, thre
 
 let args = CommandLine.arguments
 guard args.count >= 2 else {
-    print("usage: matte-lab <image-path> [--sweep] [--ae1] [--ae2]")
+    print("usage: matte-lab <image-path> [--sweep] [--ae1] [--ae2] [--crop-reseg]")
     exit(2)
 }
 let imagePath = args[1]
@@ -537,6 +551,7 @@ let ae2Mode = args.contains("--ae2")
 let afDiagMode = args.contains("--afdiag")
 let afCropMode = args.contains("--afcrop")
 let afInstanceMode = args.contains("--afinstance")
+let cropResegMode = args.contains("--crop-reseg")
 let imageName = (imagePath as NSString).lastPathComponent
 let toolDir = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -853,6 +868,153 @@ if ae2Mode, let subj = scaledSubjectImage,
             writePNG(comp, to: ae2Dir.appendingPathComponent(name).path)
         }
         _ = (bike, subjCount)  // composite's own bike-share not the AE2 metric of interest; count above is
+    }
+}
+
+// MARK: - Plan AJ experiment E — crop-and-reseg the foreground-instance
+// request (AD5b's crop-then-reseg trick, applied to
+// VNGenerateForegroundInstanceMaskRequest for the first time — it has only
+// ever been applied to VNGeneratePersonSegmentationRequest, in
+// cropRefinedPersonMask). Crops the ORIGINAL photo to the padded baseline
+// subject bbox and re-runs the instance request on the crop, so a head-on
+// bike — a handful of pixels at Vision's fixed internal resolution when the
+// rider+bike occupies a quarter of the frame — gets far more effective
+// resolution to be recognised from. Geometry (bbox/pad/paste-back) mirrors
+// AnalysisEngine.cropRefinedPersonMask/pasteMaskFullFrame; reimplemented here
+// rather than importing the app target, per the harness's own convention.
+
+struct CropResegOutcome {
+    let instanceCount: Int
+    let subjectPxFullFrame: Int
+    let bikeCoveragePct: Double
+    let fullFrameGray: [UInt8]
+    let bboxFrac: (x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat)
+}
+
+/// Runs a fresh VNGenerateForegroundInstanceMaskRequest + rider-anchored
+/// selection (COPIED selection logic, same as the baseline path above) on a
+/// `pad`-padded crop of `tightBBox`, then pastes the selected-union mask back
+/// into full-frame (subjW x subjH) coordinates for direct comparison against
+/// the uncropped baseline. Returns nil on any crop/Vision failure — this is a
+/// diagnostic, not something that needs to degrade gracefully in production.
+func runCropReseg(
+    cgImage: CGImage, tightBBox: (x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat),
+    pad: CGFloat, subjW: Int, subjH: Int, personR: [UInt8]
+) -> CropResegOutcome? {
+    let bbox = (x0: max(0, tightBBox.x0 - pad), y0: max(0, tightBBox.y0 - pad),
+                x1: min(1, tightBBox.x1 + pad), y1: min(1, tightBBox.y1 + pad))
+    let srcW = cgImage.width, srcH = cgImage.height
+    let cropRect = CGRect(x: bbox.x0 * CGFloat(srcW), y: bbox.y0 * CGFloat(srcH),
+                          width: (bbox.x1 - bbox.x0) * CGFloat(srcW),
+                          height: (bbox.y1 - bbox.y0) * CGFloat(srcH)).integral
+    guard cropRect.width >= 1, cropRect.height >= 1,
+          let cropped = cgImage.cropping(to: cropRect) else { return nil }
+
+    let cropHandler = VNImageRequestHandler(cgImage: cropped, options: [:])
+    let cropInstanceRequest = VNGenerateForegroundInstanceMaskRequest()
+    let cropRectRequest = VNDetectHumanRectanglesRequest()
+    cropRectRequest.upperBodyOnly = false
+    do { try cropHandler.perform([cropInstanceRequest, cropRectRequest]) } catch { return nil }
+    guard let cropInstanceResult = cropInstanceRequest.results?.first else { return nil }
+    let instanceCount = cropInstanceResult.allInstances.count
+
+    let cropBoxesU8 = instanceBoxesUInt8(mask: cropInstanceResult.instanceMask)
+    let cropRiderBox: CGRect
+    if let largest = (cropRectRequest.results ?? []).max(by: {
+        $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
+    }) {
+        cropRiderBox = largest.boundingBox
+    } else {
+        cropRiderBox = CGRect(x: 0.35, y: 0.25, width: 0.3, height: 0.5)
+    }
+    var selected = IndexSet(cropInstanceResult.allInstances)
+    if let rider = riderInstance(instanceBoxes: cropBoxesU8, riderBox: cropRiderBox) {
+        selected = connectedInstances(riderInstance: rider, instanceBoxes: cropBoxesU8)
+    }
+
+    guard let scaledBuffer = try? cropInstanceResult.generateScaledMaskForImage(forInstances: selected, from: cropHandler)
+    else { return nil }
+    let (decodedImage, _, _) = maskBufferToGray(scaledBuffer)
+    guard let decodedImage else { return nil }
+    let cropGray = extractGrayBytes(decodedImage)
+    let fullGray = pasteCropMaskFullFrame(
+        cropGray: cropGray, cropW: decodedImage.width, cropH: decodedImage.height,
+        bbox: bbox, subjW: subjW, subjH: subjH
+    )
+
+    guard let fullImage = grayToCGImage(fullGray, width: subjW, height: subjH),
+          let fullData = fullImage.dataProvider?.data, let fullBytes = CFDataGetBytePtr(fullData) else { return nil }
+    // Same riderThreshold/subjectThreshold (128/128) as the baseline
+    // two-tone composite above, so bike-coverage numbers are directly
+    // comparable rather than an artefact of a different split.
+    let (_, bike, subjCount) = buildTwoToneComposite(
+        baseImage: cgImage, subjectBytes: fullBytes, subjectBytesPerRow: fullImage.bytesPerRow,
+        personGray: personR, width: subjW, height: subjH, riderThreshold: 128, subjectThreshold: 128
+    )
+    let bikeCoveragePct = subjCount > 0 ? 100 * Double(bike) / Double(subjCount) : 0
+    let fullBBox = subjectBBoxFractions(subjectImage: fullImage, threshold: 128) ?? bbox
+
+    return CropResegOutcome(
+        instanceCount: instanceCount, subjectPxFullFrame: subjCount,
+        bikeCoveragePct: bikeCoveragePct, fullFrameGray: fullGray, bboxFrac: fullBBox
+    )
+}
+
+/// Horizontally concatenates same-size gray panels (downscaled to
+/// `maxPanelWidth` for a manageable file) for an eyeball before/after check.
+func buildSideBySide(panels: [[UInt8]], w: Int, h: Int, maxPanelWidth: Int = 700) -> CGImage? {
+    guard !panels.isEmpty, w > 0, h > 0 else { return nil }
+    let scale = min(1.0, Double(maxPanelWidth) / Double(w))
+    let outW = max(1, Int(Double(w) * scale))
+    let outH = max(1, Int(Double(h) * scale))
+    let gap = 8
+    let totalW = outW * panels.count + gap * (panels.count - 1)
+    var rgba = [UInt8](repeating: 40, count: totalW * outH * 4)
+    for (i, panel) in panels.enumerated() {
+        let resized = resamplePersonBilinear(panel, w: w, h: h, toW: outW, toH: outH)
+        let xOffset = i * (outW + gap)
+        for y in 0 ..< outH {
+            for x in 0 ..< outW {
+                let v = resized[y * outW + x]
+                let off = (y * totalW + xOffset + x) * 4
+                rgba[off] = v; rgba[off + 1] = v; rgba[off + 2] = v; rgba[off + 3] = 255
+            }
+        }
+    }
+    return rgbaToCGImage(rgba, width: totalW, height: outH)
+}
+
+if cropResegMode, let subj = scaledSubjectImage {
+    let ajDir = outputDir.appendingPathComponent("aj")
+    try? FileManager.default.createDirectory(at: ajDir, withIntermediateDirectories: true)
+
+    if let tightBBox = subjectBBoxFractions(subjectImage: subj, threshold: 128) {
+        print("\n[CROP-RESEG] Plan AJ experiment E — baseline vs crop-and-reseg foreground-instance request")
+        print(String(format:
+            "  baseline       instances=%-2d  subject px=%7d  bike coverage=%5.1f%%  bbox=(%.3f,%.3f)-(%.3f,%.3f)",
+            allInstances.count, coverageSubject, 100 * Double(coverageBike) / Double(max(1, coverageSubject)),
+            tightBBox.x0, tightBBox.y0, tightBBox.x1, tightBBox.y1))
+
+        var panels: [[UInt8]] = [extractGrayBytes(subj)]
+        for pad in [CGFloat(0.03), CGFloat(0.08)] {
+            guard let outcome = runCropReseg(
+                cgImage: cgImage, tightBBox: tightBBox, pad: pad, subjW: subjW, subjH: subjH, personR: personR
+            ) else {
+                print(String(format: "  crop-reseg @%.0f%%  FAILED (crop or Vision request error)", pad * 100))
+                continue
+            }
+            print(String(format:
+                "  crop-reseg @%.0f%%  instances=%-2d  subject px=%7d  bike coverage=%5.1f%%  bbox=(%.3f,%.3f)-(%.3f,%.3f)",
+                pad * 100, outcome.instanceCount, outcome.subjectPxFullFrame, outcome.bikeCoveragePct,
+                outcome.bboxFrac.x0, outcome.bboxFrac.y0, outcome.bboxFrac.x1, outcome.bboxFrac.y1))
+            panels.append(outcome.fullFrameGray)
+        }
+        if let sideBySide = buildSideBySide(panels: panels, w: subjW, h: subjH) {
+            writePNG(sideBySide, to: ajDir.appendingPathComponent("crop-reseg-compare.png").path)
+            print("  wrote aj/crop-reseg-compare.png (baseline | crop@3% | crop@8%)")
+        }
+    } else {
+        print("\n[CROP-RESEG] could not compute baseline subject bbox — skipping")
     }
 }
 

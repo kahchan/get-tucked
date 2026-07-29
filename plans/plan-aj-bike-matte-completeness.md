@@ -101,6 +101,12 @@ changes until it's answered.
 
 ## AJ1 — Quantify (diagnostic only, no app change)
 
+> **Now the critical path, not a preliminary.** With E refuted, AJ1 no longer decides
+> *whether* to chase a fix — it produces the number that AJ4's disclosure will publish.
+> That raises the bar on it: the figure has to be defensible enough to print, which means
+> same-position repeats, not the two different positions measured so far.
+
+
 Extend `tools/matte-lab` to print, per photo, one machine-readable line:
 
 - instance count (`result.allInstances.count`) — confirm the single-instance finding
@@ -151,8 +157,36 @@ validated against hand-labelled ground truth, not eyeballed. Head-on the frame t
 is close to edge-on and small, which is *why* a size bound might work — but "might" has
 to become "measured" before this ships.
 
-**E. Crop-and-reseg the instance request (AD5b, applied where it never has been).**
-*This is the strongest untried lever, and it comes straight out of the side-on finding.*
+**E. Crop-and-reseg the instance request — ❌ TESTED AND REFUTED 2026-07-27.**
+
+> **Result: a clean negative. Do not pursue this.** Ran as `matte-lab --crop-reseg`
+> against both frontal fixtures and both side-on controls, at 3% and 8% padding.
+>
+> | fixture | view | baseline | crop @3% | crop @8% | instances |
+> |---|---|---|---|---|---|
+> | IMG_0674 | frontal | 17.6% | 17.5% | 17.0% | 1 / 1 / 1 |
+> | IMG_0676 | frontal | 16.3% | 15.7% | 15.9% | 1 / 1 / 1 |
+> | IMG_0675 | side-on | 59.5% | 60.6% | 60.4% | 1 / 1 / 1 |
+> | IMG_0677 | side-on | 63.2% | 62.3% | 62.7% | 1 / 1 / 1 |
+>
+> Every frontal number moved by ≤0.6pt, **several in the wrong direction**. Instance
+> count never exceeded 1 at any pad. Subject-mask bounding boxes were unchanged to three
+> decimal places, so the mask reaches no further toward the ground and still misses the
+> rear wheel. The side-on control moved by the same order of magnitude (±1.4pt), which
+> rules out a general resolution effect too — this is resample noise from the paste-back,
+> not signal.
+>
+> **The premise below was wrong.** The bike pixels are not missing for want of
+> resolution: hand the identical request a crop where the subject fills the frame and it
+> returns essentially the identical mask. Vision's instance model simply does not
+> associate the occluded bike parts with the rider blob at any resolution tested. By
+> extension this also weakens **C** (saliency), which rests on a similar "more/better
+> evidence will surface the bike" intuition, though C was not tested directly.
+>
+> Cost of finding out: one harness mode, no app change, nothing to unwind. This is what
+> the experiment was for.
+
+*Original rationale, retained so the refutation is legible:*
 
 `AnalysisEngine.cropRefinedPersonMask(source:coarseMask:)` already does exactly this for
 person segmentation: take a coarse mask, compute its foreground bbox, pad 3%, crop the
@@ -193,9 +227,16 @@ legitimate outcome, not a cop-out: it is the honest response if the miss is cons
 and it is squarely in line with this project's posture of never showing a number it
 can't defend.
 
-**Recommendation up front:** run **E** first — it is cheap, offline, risk-free to try,
-and it either produces the fix or kills the best idea in one experiment. If E moves
-nothing and AJ1 shows consistency, ship **A + D** and stop.
+**Recommendation — updated 2026-07-27, after E was tested and refuted:** ship **D**, and
+**A** only if it measurably helps the rider edge. E is dead (see above). B remains the
+only untried idea with real upside, and it carries the worst correctness risk in this
+document — it *adds* pixels the model never saw, to a number the whole product rests on.
+Do not reach for B to fix an appearance complaint.
+
+The honest position is now well-evidenced: head-on, roughly 17% of the subject mask is
+bike, that share is stable across shots, and most of what is missing sits behind the
+rider where their own silhouette already occupies the frontal area. Quantify it, say it
+plainly on the methodology screen, and stop.
 The bike pixels we're missing sit mostly *behind the rider* from head-on, where the
 rider's own silhouette already occupies that frontal area — so the true error is
 materially smaller than the visual gap suggests. Chasing B or C to fix an appearance
