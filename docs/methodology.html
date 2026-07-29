@@ -12,7 +12,20 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/barlow-condensed-700.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-mono-400.woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
-<script>document.documentElement.classList.add('js')</script>
+<script>
+document.documentElement.classList.add('js');
+/* AI11 failsafe — inline so it runs even if site.js 404s, fails to parse, or
+   is blocked outright. Bails when site.js signalled that it wired the scroll
+   observer: revealing everything unconditionally would cancel the entrances
+   for below-fold content the reader hasn't reached yet. Selector list must
+   stay identical to the `targets` query in site.js — keep the two in sync. */
+setTimeout(function () {
+  if (window.__gtEntrancesOwned) return;
+  document.querySelectorAll(
+    'section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites, .enter'
+  ).forEach(function (e) { e.classList.add('in'); });
+}, 2000);
+</script>
 </head>
 <body>
 

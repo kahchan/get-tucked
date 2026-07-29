@@ -1,7 +1,10 @@
 /* ==========================================================================
    Get Tucked — shared stylesheet for / and /methodology
-   Design tokens mirror the app's Theme.swift (acid-yellow, 0px radius, mono
-   numerals), lifted to editorial values for long-form reading.
+   Design tokens hold the same contrast intent as the app's Theme.swift
+   (acid-yellow, 0px radius, mono numerals) on a different, lighter canvas —
+   NOT the same hexes. Do not "fix" the site tokens to match the app's; that
+   would drop several below AA on this canvas. Each ramp is tuned to its own
+   background, lifted to editorial values for long-form reading.
    Fonts are self-hosted (no third-party CDN) — consistent with the
    no-analytics / on-device posture.
    ========================================================================== */
@@ -28,7 +31,8 @@
   /* --- Site tokens (app values, editorial lift) --- */
   --bg0:#121417; --bg1:#16191D; --bg2:#1C2025; --panel:#1E222A;
   --line:#2A2E34; --line2:#2E333B;
-  --fg:#E8E6E1; --fg2:#A6A29B; --fg3:#8A867F; --fg4:#5E5A54;
+  --fg:#E8E6E1; --fg2:#A6A29B; --fg3:#8A867F;
+  --fg4:#5E5A54; /* 2.66:1 on --bg0 — placeholder text only, never real content */
   --acc:#D9F020; --amb:#E8A020;
 
   --mono:'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -456,7 +460,7 @@ details .disc-body code{
   padding:2px 6px; color:var(--fg); white-space:nowrap;
 }
 details .figure-note{
-  display:block; font-family:var(--mono); font-size:12px; color:var(--fg4);
+  display:block; font-family:var(--mono); font-size:12px; color:var(--fg3);
   border-left:2px solid var(--line); padding:6px 0 6px 12px; margin:0 0 14px;
 }
 /* Slide the disclosure body in instead of snapping. Progressive enhancement:
@@ -491,7 +495,7 @@ details .figure-note{
   overflow-wrap:anywhere;
 }
 .cites a:hover{text-decoration:underline; text-underline-offset:2px}
-.cites .lang{font-family:var(--mono); font-size:12px; color:var(--fg4)}
+.cites .lang{font-family:var(--mono); font-size:12px; color:var(--fg3)}
 
 /* closing CTA on methodology */
 .doc-cta{padding:56px 0; border-top:1px solid var(--line2)}
