@@ -302,6 +302,119 @@ large text sizes than before, not further. This is real debt with a known cause.
   blocked-shutter reason should be an accessibility announcement when it changes.
 - Add the `.isButton` trait wherever `.buttonStyle(.plain)` on custom content has lost it.
 
+---
+
+# Part 3 — Navigation gestures and a horizontal-overflow bug
+
+Added 2026-07-29 on Kah's request, after Part 2 shipped. Independent of Parts 1 and 2.
+
+## AK10 — Swipe back
+
+**Confirmed absent, and the cause is known.** Every pushed screen calls `hideNavBar()`
+(`SharedViews.swift`), which is `.toolbar(.hidden, for: .navigationBar)`. Hiding the
+navigation bar wholesale also disables UIKit's `interactivePopGestureRecognizer`, so
+there is no edge-swipe back anywhere in the app — the floating `BackButton` is the only
+way out of a pushed screen. Nothing in the codebase currently re-enables it (no
+`interactivePopGesture` or `navigationBarBackButtonHidden` usage at all).
+
+Approaches, cheapest first:
+
+1. **Keep the bar, hide its contents.** Replace `.toolbar(.hidden, for: .navigationBar)`
+   with `.navigationBarBackButtonHidden(true)` plus an empty/transparent bar appearance.
+   The bar continues to exist, so the system gesture survives. Risk: a visible bar
+   region or a layout shift at the top of every screen, which is exactly what
+   `hideNavBar()` was introduced to remove — check against the existing `NavHeader`
+   spacing, which is tuned to the pixel (`headerTitleInset`, and the `BackButton`'s
+   hand-calibrated `-2` top padding).
+2. **Re-enable the recogniser via introspection.** A `UIViewControllerRepresentable`
+   that walks to the enclosing `UINavigationController` and sets
+   `interactivePopGestureRecognizer?.isEnabled = true` with a delegate. Keeps the current
+   look exactly, but it is private-ish behaviour and can break between iOS releases.
+3. **A custom `DragGesture` on each screen** that pops `path` past a threshold. Full
+   control, no UIKit reliance, but it must not fight the existing gestures — see the
+   conflict note in AK11, which is the real constraint here.
+
+**Also decide:** should swipe-back work on `CaptureView`? It deliberately owns its own ✕
+and a discard confirmation (Q1/Q2), so an edge swipe that silently discards a completed
+analysis would be a regression. Recommend excluding capture, matching how the floating
+`BackButton` is already suppressed there.
+
+## AK11 — Swipe between tabs, consistently
+
+**Partially built already, which is the problem.** Plan AB11 added swipe-to-cycle in two
+places only:
+
+- `PositionDetailView.photoSwipeGesture` — swipe *the photo* to cycle PHOTO/MASK/BONES
+- `ComparisonView.swipeGesture` — swipe *the overlay* to cycle PHOTO/OUTLINE
+
+So swiping works on some content, in some places, and nowhere else. Missing:
+
+- **`LeaderboardView.FilterBar`** (ALL/ROAD/GRAVEL/MTB) — no gesture at all
+- **FRONTAL/SIDE-ON** on `PositionDetailView` — the photo swipe cycles the *inner*
+  PHOTO/MASK/BONES segment, never this one
+- **`SegmentedToggleBar` generally** — it has no gesture of its own anywhere; every
+  working swipe is attached to a *neighbouring content view*, not to the bar
+- The distance presets on `ComparisonView`'s TIME IMPACT (arguably should stay
+  tap-only — a swipe changing an input that feeds a displayed number is a different
+  proposition from swiping between views of the same data)
+
+**The right shape:** put the gesture on `SegmentedToggleBar` itself, so every tab strip
+in the app gains it at once and the two bespoke content-level swipes can either delegate
+to it or be retired. That is the difference between "add swipe to two more places" and
+"tab strips are swipeable", and only the second one stops this recurring.
+
+⚠️ **The hard part is gesture conflict, not the swipe.** Each of these already coexists
+with something:
+- the enclosing vertical `ScrollView` — the existing gestures use
+  `.simultaneousGesture` with `minimumDistance: 24` plus a horizontal-dominance check
+  (`abs(h) > 50 && abs(h) > abs(v) * 1.5`) precisely so a vertical scroll never registers
+  as a tab swipe. Reuse that rule; do not invent a new threshold.
+- `pinchZoomable()` — the photo carries magnify, pan and double-tap gestures, and Plan
+  AI already hit this: tap-to-skip on the reveal had to become `simultaneousGesture` to
+  avoid competing with double-tap-to-zoom. A zoomed pan must never read as a tab swipe
+  (the existing `isZoomed` / `isPhotoZoomed` guards exist for this).
+- **AK10's swipe-back, if implemented as a `DragGesture`.** An edge swipe to pop and a
+  horizontal swipe to change tabs are the same gesture with different origins. If AK10
+  takes approach 3, the two must be reconciled — most likely by restricting swipe-back to
+  a narrow leading-edge zone. **Implement AK10 and AK11 together, or AK10 first**, so
+  this is designed rather than discovered.
+
+Accessibility: a swipe-only affordance is invisible to VoiceOver, and Part 2 just added
+`.isSelected` traits to `SegmentedToggleBar`. Tabs must remain tappable, and the swipe is
+an accelerator, never the only route.
+
+## AK12 — Horizontal overflow on the analyse screen (bug)
+
+Kah, on device: "the analyse screen seems to have some horizontal overflow, so the scroll
+goes both ways." Confirmed as plausible from two concrete findings, both worth checking
+before anything else:
+
+1. **`PositionDetailView`'s photo container is not clipped.** `ComparisonView`
+   (`:669`) and three places in `CaptureView` all call `.clipped()`; `PositionDetailView`
+   never does. Its photo `ZStack` carries `BonesDrawOnOverlay` → `DimensionOverlay`, whose
+   callout boxes are positioned by `boxOrigin`/`chooseLeaderDirection` relative to the
+   measured points. `chooseLeaderDirection` tries to keep a box inside `bounds`, but if no
+   direction fits, a box can land partly outside the image — and with no `.clipped()`
+   nothing stops it widening the scroll content. This is the leading hypothesis and the
+   cheapest thing to test: add `.clipped()` and see if the horizontal drift stops.
+2. **Fixed column widths in `DiffTable`/`DiffRow` were never swept.** Three literal
+   columns (`76`, `76`, `70` = 222pt) that do **not** scale, beside a key label that now
+   does. **AK8 swept fixed *heights* only — widths were explicitly not in scope**, so
+   these are the natural next overflow source, and they will bite hardest at large
+   Dynamic Type. Note this is on Compare rather than detail, so it may be a second,
+   separate instance of the same class of bug.
+
+Diagnose before fixing: no `ScrollView` in the app sets non-default axes (verified), so
+horizontal movement means content genuinely exceeds the viewport rather than an
+axis misconfiguration. Find the widest subview rather than adding `.clipped()` blindly —
+clipping hides an overflow, it does not remove it, and a clipped callout is still a
+callout the rider cannot read.
+
+Check at both default and AX5, since Part 2 made several previously-fixed dimensions
+scale and this may be a regression the AX5 screenshots didn't reveal.
+
+---
+
 ## Verification
 
 - Full suite green (329 baseline).
