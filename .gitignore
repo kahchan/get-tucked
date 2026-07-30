@@ -10,3 +10,7 @@ output/
 # disk, so nothing here needs to be tracked for it to work. Stock/reference
 # imagery already committed to fixtures/ is unaffected.
 fixtures/IMG_*
+# Reference/comparison mattes derived from those photos. These are full-colour
+# subject cutouts, not binary masks, so they identify the rider just as the
+# source photo does.
+fixtures/truth/

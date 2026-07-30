@@ -34,49 +34,95 @@ Two AJ items are carried forward unchanged and still bind:
 
 # Part 1 — Matte completeness
 
-## AK1 — Ground truth first (gate for everything below)
+## AK1 — Validation, without hand-painting anything
 
-Nothing in Part 1 may ship without this, because "the matte looks better" is an opinion
-and the output is a measurement.
+The first draft of this section asked Kah to hand-paint reference mattes. He pushed back,
+correctly: that front-loaded hours of tedium before establishing there was anything to
+find. Two cheaper routes were tried instead, and one of them settled the question.
 
-**Label by correcting the existing mask, not by tracing.**
-`tools/matte-lab/output/<fixture>/2-subject-mask.png` is already exactly the photo's
-dimensions (verified: 3024×4032 for both), so it drops straight in as a layer over the
-photo with no alignment work. Paint in the missing bike, erase any spill. The delta is
-the only thing in dispute, and editing it is minutes of work where tracing a full
-silhouette is hours.
+### AK1a — macOS Remove Background as a second opinion: ✅ DONE, and it closes the model-swap line
 
-- **Frontal pair only to start** — `IMG_0674` and `IMG_0676`. The side-on shots already
-  reach ~60% and are a control, not the problem; label them later only if a candidate
-  looks live.
-- **Work at ÷4 (756×1008).** IoU and false-positive *ratios* are scale-invariant as long
-  as truth and candidate are compared at the same size, so full resolution buys nothing
-  here.
-- ⚠️ **Path matters:** `fixtures/IMG_*-truth.png` is silently swallowed by the
-  `fixtures/IMG_*` rule added in `b7fae52` — it would appear to save and then never be
-  tracked. Use `fixtures/truth/<name>.png`.
-- **Write down the subject rule before painting, and apply it to both masks identically:**
-  subject is *what the wind actually sees*. Spokes and the open frame triangle are **not**
-  subject, because air passes through them. This one call determines whether AK4's hole
-  fill can ever be legitimate, so an inconsistent rule here invalidates the scoring it is
-  supposed to gate.
-- Add a matte-lab mode that scores any candidate mask against its ground truth:
-  **IoU**, plus separate **false-negative** (missed subject) and **false-positive**
-  (invented background) pixel counts. Report the false-positive number prominently:
-  that's the one that inflates frontal area, and it is the number that decides whether a
-  candidate is allowed near the app.
-- Record the current production mask's scores as the baseline every candidate must beat.
+Kah ran macOS **Remove Background** on both frontal fixtures — one click each, no
+painting — and observed it behaves much like ours. Measured (quarter resolution,
+threshold 128, alpha channel vs `2-subject-mask.png`):
 
-**Also finish AJ1 while here** (it was never done): two shots of the same position
-without moving anything, to establish whether the current shortfall is *consistent*. If
-it is, that number becomes AK7's honest disclosure even if a candidate wins — it
-describes what shipped before it.
+| | IMG_0674 | IMG_0676 |
+|---|---|---|
+| agreement (IoU) | **0.965** | **0.956** |
+| our subject mask | 35,153 px | 37,684 px |
+| Remove Background | 34,099 px | 36,647 px |
+| px the reference has that we lack | **92 (0.3%)** | **320 (0.9%)** |
+| area change if we adopted it | **−3.0%** | **−2.8%** |
 
-## AK2 — Background-model segmentation (now the only live mask candidate)
+**Remove Background's mask is *smaller* than ours and has essentially nothing to
+recover.** The difference map is a 1-pixel rim around the whole silhouette — pure
+edge-threshold feathering, ours very slightly dilated — plus two specks near the fork.
+**No structural disagreement.** Both pipelines produce the same silhouette, including the
+same absent rear wheel.
 
-> With AK3 closed and AJ's candidate E refuted, this is the sole remaining automated
-> approach with real upside. AK4 is a fallback, AK5 is a product decision. If AK2 fails
-> its AK1 gate, the honest answer is AJ's option D — disclose the shortfall and stop.
+**What this proves, and what it doesn't.** It is strong evidence that *swapping Apple
+segmentation models will not fix this* — that line is closed. It is **not** proof our mask
+is correct: macOS Remove Background almost certainly shares model lineage with
+`VNGenerateForegroundInstanceMaskRequest`, so their agreement may reflect a common blind
+spot rather than truth. Two related models converging is weaker evidence than two
+independent methods converging. That distinction is the entire remaining case for AK2.
+
+*Reproduce:* rasterise both to a common size, threshold the reference's alpha at 128, and
+count set intersections. ~100 lines against CoreGraphics; not committed, since the
+reference source it compares against is now retired. The numbers above are the artifact.
+
+### AK1b — Label-free validation using landmarks the rider already tapped
+
+Better than any reference matte, and it needs no labelling at all: **every capture already
+stores human-confirmed physical landmarks.** `Position.handlebarTapPoints` and
+`Position.wheelTapPoints` are unit-coordinate points the rider tapped during calibration.
+
+So the completeness test is: **does the subject mask actually cover the landmarks the
+rider tapped?** If the mask has no foreground along the vertical span between the tapped
+wheel top and bottom, it is provably missing the wheel — no opinion, no IoU, no painting.
+Same for the handlebar line. This runs across *every saved position*, not four fixtures.
+
+Two further invariants, also label-free:
+- **Superset:** the subject mask must contain the person mask. Any violation is a bug
+  irrespective of what truth would say.
+- **Repeatability:** the same position shot twice should give a stable area — AJ1, still
+  worth doing, still free.
+
+Note for accuracy: the existing `wheelCheckDisagreementFraction` validates the *scale*
+(measured wheel vs spec size), **not** mask completeness. It is a physical reality check,
+but not this one.
+
+### AK1c — Pixel-accurate truth: deferred, and only if earned
+
+Hand-painted truth is now the *last* resort, not the first step, and only becomes
+necessary if AK2 produces a candidate whose improvement needs quantifying. If that day
+comes: correct `2-subject-mask.png` rather than tracing (it is already exactly the
+photo's dimensions, so it layers on with no alignment), work at ÷4, and fix the subject
+rule first — **subject is what the wind actually sees, so spokes and the open frame
+triangle are NOT subject.** That call decides whether AK4's hole fill can ever be
+legitimate.
+
+⚠️ `fixtures/IMG_*-truth.png` is silently swallowed by the `fixtures/IMG_*` rule from
+`b7fae52`. Use `fixtures/truth/`, which is itself gitignored — those files are
+full-colour subject cutouts, so they identify the rider exactly as the source photo does.
+
+## AK2 — Background-model segmentation (one experiment, on narrowed grounds)
+
+> **Downgraded 2026-07-29 by AK1a, but not closed — and the reason it survives is the
+> reason to run it.** Every other automated route is dead: AJ's candidate E refuted by
+> measurement, AK3 closed on physics, model-swapping closed by AK1a. AK2 is the only
+> remaining approach that is **methodologically independent** — it is not semantic, so it
+> cannot inherit the shared blind spot that AK1a's 96% agreement might represent. It is
+> the only thing that could disagree *informatively*.
+>
+> **Set expectations honestly:** two related models agree that the subject-vs-background
+> boundary is where our mask puts it, and that boundary is what AK2 recomputes. So do not
+> expect the number to move much. Run it once, as a falsification test of "we are at the
+> ceiling", not as an expected fix. If it agrees too, the ceiling claim is established by
+> two genuinely independent methods and Part 1 is finished.
+>
+> Run **AK1b's landmark check first** — it is cheaper, works on real saved positions, and
+> may show there is nothing missing that isn't occluded anyway.
 
 
 The app already coaches "plain, high-contrast background", already measures background
@@ -189,7 +235,22 @@ This is a STOP-and-ask under `CLAUDE.md`. Decide before implementing:
 
 Option 1 plus a one-time explanatory note is my recommendation if a candidate wins.
 
-## AK7 — Disclosure, regardless of outcome
+## AK7 — Disclosure — now the recommended outcome, not the consolation prize
+
+> **Recommendation as of 2026-07-29.** Every automated route has been closed by evidence
+> rather than by giving up: E refuted, AK3 closed on physics, model-swap closed by AK1a.
+> Two pipelines agree on the silhouette to 96%, and the second has under 1% we lack.
+>
+> The reason the bike looks absent is geometric, not algorithmic: head-on, standing over
+> the bike, the rear wheel sits directly behind the front wheel and the frame sits behind
+> the legs. **Occluded structure contributes no additional frontal area.** The fork column
+> and bars *are* in the mask. So the visual gap is largely not an area error — which is
+> what AJ concluded, now supported by two pipelines instead of one.
+>
+> Ship the disclosure. If the *appearance* is what needs fixing rather than the number,
+> that is **AK5**, and it should be chosen as a design decision with eyes open, not as a
+> workaround for a measurement problem we have been unable to demonstrate exists.
+
 
 Whatever happens, replace the methodology's qualitative "reads a touch low" with AK1's
 measured figure. If a candidate ships, this describes the improvement honestly; if none
