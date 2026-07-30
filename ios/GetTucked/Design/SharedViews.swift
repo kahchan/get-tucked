@@ -1,5 +1,28 @@
 import SwiftUI
 
+// MARK: - Accessibility number formatting (Plan AK9)
+//
+// A hero number like "7488 cm²" is read by VoiceOver as bare digits plus a
+// glyph — this builds the spoken sentence a sighted user gets from the
+// visual instead. Free functions, not part of AnalysisMath (Plan AK's Part 1
+// is off limits here) — purely a display-string concern.
+
+/// Thousands-grouped whole number for speech — VoiceOver reads digit groups
+/// the same either way, but this keeps every spoken number's rounding rule
+/// identical to its on-screen counterpart (`Int(_.rounded())`).
+func accessibilityGroupedNumber(_ value: Double) -> String {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.maximumFractionDigits = 0
+    return formatter.string(from: NSNumber(value: value.rounded())) ?? "\(Int(value.rounded()))"
+}
+
+/// Shared by every hero frontal-area number (RevealStep, PositionDetailView's
+/// MetricsSection) so the spoken form can't drift between screens.
+func frontalAreaAccessibilityLabel(_ cm2: Double) -> String {
+    "Frontal area, \(accessibilityGroupedNumber(cm2)) square centimetres"
+}
+
 extension View {
     /// Hides the system navigation bar. iOS-only; no-op on macOS.
     func hideNavBar() -> some View {
@@ -40,6 +63,17 @@ struct NavHeader<Trailing: View>: View {
             // this, a taller trailing icon (or a missing subtitle) shifts
             // the title's own position, which the floating BackButton
             // (positioned independently, per screen) can't track.
+            // AK8 on-device finding (AX5, not fixed here — see report): the
+            // subtitle truncates with "…" past ~4 wrapped lines instead of
+            // showing in full. `.fixedSize(vertical: true)` stops the
+            // truncation but this VStack sits in a non-scrolling column
+            // ahead of a ScrollView (BikeSetupView and others); when forced
+            // to its full ideal height it overflows into that ScrollView's
+            // content instead of pushing it down — an unclipped-overflow
+            // regression worse than the truncation it replaces. Left as
+            // graceful truncation pending a real structural fix (NavHeader
+            // subtitles kept short, or the whole header made part of the
+            // scroll region) — a bigger change than this sweep's scope.
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(Theme.heading(19))
@@ -91,6 +125,9 @@ struct HeaderLink: View {
                 .kerning(0.8)
         }
         .buttonStyle(PressedOpacityButtonStyle())
+        // The visible glyph is "LABEL →" as one string — without this,
+        // VoiceOver reads the trailing arrow character aloud too.
+        .accessibilityLabel(label)
     }
 }
 
@@ -198,6 +235,9 @@ struct SegmentedToggleBar: View {
                 }
         }
         .buttonStyle(.plain)
+        // Selection today is acid colour + a 2pt underline alone — both
+        // invisible to VoiceOver and to colourblind users (Plan AK9).
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -226,13 +266,15 @@ struct EmptyStateView: View {
                             .kerning(0.5)
                         Text("→")
                             .font(Theme.mono(14, weight: .bold))
+                            .accessibilityHidden(true)
                     }
                     .foregroundStyle(Color.black)
                     .padding(.horizontal, Theme.Space.lg)
-                    .frame(height: Theme.Control.accentButtonHeight)
+                    .frame(minHeight: Theme.Control.accentButtonHeight)
                     .background(Theme.Palette.acc)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(ctaLabel)
             }
             Spacer()
         }

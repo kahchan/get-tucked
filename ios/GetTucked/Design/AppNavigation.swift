@@ -199,6 +199,7 @@ private struct IndexOverlay: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Close menu")
             .padding(.trailing, Theme.Space.screenMargin - (Theme.Control.iconTapTarget - Theme.Control.iconSize) / 2)
             .padding(.top, Theme.Space.sm)
         }
@@ -260,6 +261,7 @@ struct BackButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(BackButtonStyle())
+        .accessibilityLabel("Back")
     }
 }
 

@@ -93,6 +93,8 @@ struct PositionDetailView: View {
                                     .scaledToFit()
                                     .transition(.opacity)
                                     .opacity(showingSideOn ? 0 : 1)
+                                    .accessibilityLabel("Head-on photo of the rider and bike")
+                                    .accessibilityHidden(showingSideOn)
                             }
                             if let image = sideOnImage {
                                 Image(uiImage: image)
@@ -100,11 +102,16 @@ struct PositionDetailView: View {
                                     .scaledToFit()
                                     .transition(.opacity)
                                     .opacity(showingSideOn ? 1 : 0)
+                                    .accessibilityLabel("Side-on photo of the rider and bike")
+                                    .accessibilityHidden(!showingSideOn)
                             }
                             // Plan Z6 + Z7: matte → dimensions → skeleton
                             // (skeleton topmost), with a scripted BONES
                             // draw-on that replays every time the segment
-                            // becomes .bones.
+                            // becomes .bones. Decorative on top of the photo
+                            // above, which already carries the description —
+                            // hidden from VoiceOver so it doesn't walk three
+                            // stacked images (Plan AK9).
                             if !showingSideOn {
                                 BonesDrawOnOverlay(
                                     maskOverlay: maskOverlay,
@@ -114,6 +121,7 @@ struct PositionDetailView: View {
                                     aspectRatio: headOnAspectRatio,
                                     segment: frontalPhotoSegment
                                 )
+                                .accessibilityHidden(true)
                             }
                             if showingSideOn {
                                 BonesDrawOnOverlay(
@@ -124,6 +132,7 @@ struct PositionDetailView: View {
                                     aspectRatio: sideOnAspectRatio,
                                     segment: sideOnPhotoSegment
                                 )
+                                .accessibilityHidden(true)
                             }
                         }
                         .overlay(alignment: .topTrailing) {
@@ -774,6 +783,9 @@ private struct MetricsSection: View {
                         heroVisible = true
                     }
                 }
+                // "7488 cm²" reads as bare glyphs otherwise (Plan AK9).
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(frontalAreaAccessibilityLabel(metrics.frontalAreaCm2))
 
                 Text(AnalysisMath.uncertaintyDisplay(metrics.frontalAreaUncertainty))
                     .font(Theme.mono(12))
@@ -946,6 +958,7 @@ private struct SoloEffortRow: View {
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(Theme.Palette.acc)
                     .rotationEffect(.degrees(editing ? 180 : 0))
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, Theme.Space.sm)
             .padding(.vertical, 6)
@@ -953,5 +966,7 @@ private struct SoloEffortRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Flat-road speed, \(Int(speedKmh)) kilometres per hour")
+        .accessibilityHint(editing ? "Double tap to hide the speed control" : "Double tap to edit")
     }
 }

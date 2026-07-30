@@ -186,6 +186,13 @@ struct ComparisonView: View {
                                         onGestureBegan: cancelDrawInIfNeeded,
                                         onSwipeCycle: cycleOutlineSegment
                                     )
+                                    // Decorative silhouette comparison — the numeric
+                                    // delta above/below already states the comparison;
+                                    // this graphic has no content a VoiceOver user can
+                                    // act on (Plan AK9). The toggle chips overlaid on
+                                    // top stay accessible: this only hides the layer
+                                    // it's attached to, not the sibling overlay content.
+                                    .accessibilityHidden(true)
                                     .overlay(alignment: .topTrailing) {
                                         // Row is trailing-anchored (.overlay(alignment: .topTrailing)
                                         // below) with A/B as the last two children — the PHOTO
@@ -779,6 +786,8 @@ private struct LayerToggleChip: View {
                 .overlay(Rectangle().stroke(isOn ? color : Theme.Palette.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        // A bare "A"/"B"/"PHOTO" is ambiguous read alone (Plan AK9).
+        .accessibilityLabel("\(label) layer, \(isOn ? "shown" : "hidden")")
     }
 }
 
@@ -1157,6 +1166,17 @@ private struct DeltaHero: View {
     private var color: Color { isImprovement ? Theme.Palette.acc : Theme.Palette.amb }
     private var sign: String { delta >= 0 ? "+" : "" }
 
+    /// Spoken form for the whole hero (Plan AK9) — read against the *final*
+    /// delta, never the mid-roll animated value the digits pass through.
+    private var accessibilityLabelText: String {
+        guard isDistinguishable else {
+            return "Within measurement noise. Raw difference \(sign)\(String(format: "%.1f", delta)) percent, noise plus or minus \(String(format: "%.1f", noisePct)) percent."
+        }
+        let deltaPct = "\(sign)\(String(format: "%.1f", delta)) percent"
+        let winnerName = winner == "A" ? "Position A" : "Position B"
+        return "\(deltaPct) difference. \(winnerName) is smaller by \(accessibilityGroupedNumber(absoluteDeltaCm2)) square centimetres."
+    }
+
     var body: some View {
         VStack(spacing: 4) {
             if isDistinguishable {
@@ -1201,6 +1221,11 @@ private struct DeltaHero: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Theme.Space.lg)
+        // One spoken element, not a swipe through a rolling-digit view plus
+        // two more Texts (Plan AK9) — "7488 cm²" and "≈" read as glyphs
+        // otherwise.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabelText)
     }
 }
 
@@ -1256,7 +1281,7 @@ private struct DiffTable: View {
                     .frame(width: 70, alignment: .trailing)
             }
             .padding(.horizontal, Theme.Space.screenMargin)
-            .frame(height: 36)
+            .frame(minHeight: 36)
 
             SectionDivider()
 
@@ -1426,7 +1451,7 @@ private struct DiffRow: View {
                     .frame(width: 70, alignment: .trailing)
             }
             .padding(.horizontal, Theme.Space.screenMargin)
-            .frame(height: 44)
+            .frame(minHeight: 44)
             SectionDivider()
         }
     }

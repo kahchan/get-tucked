@@ -72,15 +72,17 @@ struct PoseCheckView: View {
                             .kerning(0.5)
                         Spacer()
                         Text("→").font(Theme.mono(14, weight: .bold))
+                            .accessibilityHidden(true)
                     }
                     .foregroundStyle(Color.black)
                     .padding(.horizontal, Theme.Space.md)
                     .frame(maxWidth: .infinity)
-                    .frame(height: Theme.Control.accentButtonHeight)
+                    .frame(minHeight: Theme.Control.accentButtonHeight)
                     .background(Theme.Palette.acc)
                 }
                 .padding(.horizontal, Theme.Space.lg)
                 .padding(.vertical, Theme.Space.md)
+                .accessibilityLabel("Pick a side-on photo")
             }
         }
         .hideNavBar()

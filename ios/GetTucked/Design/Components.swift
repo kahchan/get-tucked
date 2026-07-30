@@ -35,11 +35,12 @@ private struct AccentButtonStyle: ButtonStyle {
             Text("→")
                 .font(Theme.mono(14, weight: .bold))
                 .offset(x: configuration.isPressed ? 3 : 0)
+                .accessibilityHidden(true)
         }
         .foregroundStyle(enabled ? Color.black : Theme.Palette.fg3)
         .padding(.horizontal, Theme.Space.md)
         .frame(maxWidth: .infinity)
-        .frame(height: Theme.Control.accentButtonHeight)
+        .frame(minHeight: Theme.Control.accentButtonHeight)
         .background(enabled ? Theme.Palette.acc : Theme.Palette.line)
         .overlay(configuration.isPressed ? Color.black.opacity(0.12) : Color.clear)
         .animation(Theme.Motion.press(configuration.isPressed), value: configuration.isPressed)
@@ -76,7 +77,7 @@ private struct GhostButtonStyle: ButtonStyle {
         .foregroundStyle(Theme.Palette.fg)
         .padding(.horizontal, Theme.Space.md)
         .frame(maxWidth: .infinity)
-        .frame(height: Theme.Control.ghostButtonHeight)
+        .frame(minHeight: Theme.Control.ghostButtonHeight)
         .overlay(
             Rectangle()
                 .stroke(Theme.Palette.line, lineWidth: Theme.Control.hairline)
@@ -350,6 +351,16 @@ struct StatusPill: View {
         }
     }
 
+    // State today is colour + a dot alone — inaudible. Spoken form for
+    // VoiceOver (Plan AK9); the visible label stays just the short word.
+    private var stateDescription: String {
+        switch state {
+        case .unknown: "not yet checked"
+        case .warning: "needs adjustment"
+        case .ok:      "OK"
+        }
+    }
+
     var body: some View {
         HStack(spacing: 5) {
             Circle()
@@ -369,6 +380,8 @@ struct StatusPill: View {
                 .stroke(borderColor, lineWidth: Theme.Control.hairline)
         )
         .hudText()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(stateDescription)")
         .animation(Theme.Motion.entrance(), value: state)
         .onChange(of: state) { oldValue, newValue in
             guard newValue == .ok, oldValue != .ok else { return }
@@ -412,6 +425,7 @@ struct DetailDisclosure<Content: View>: View {
                     Text(expanded ? "−" : "+")
                         .font(Theme.mono(14, weight: .bold))
                         .foregroundStyle(Theme.Palette.acc)
+                        .accessibilityHidden(true)
                     Text(label.uppercased())
                         .font(Theme.mono(11, weight: .bold))
                         .foregroundStyle(Theme.Palette.fg2)
@@ -425,6 +439,7 @@ struct DetailDisclosure<Content: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("\(label), \(expanded ? "expanded" : "collapsed")")
 
             if expanded {
                 content
@@ -468,12 +483,14 @@ struct FacingChip: View {
             HStack(spacing: 4) {
                 if facing == .left {
                     Text("◂").font(Theme.mono(10))
+                        .accessibilityHidden(true)
                 }
                 Text(isConfident ? "FRONT" : "FRONT?")
                     .font(Theme.mono(11, weight: .bold))
                     .kerning(0.5)
                 if facing == .right {
                     Text("▸").font(Theme.mono(10))
+                        .accessibilityHidden(true)
                 }
             }
             .foregroundStyle(isConfident ? Theme.Palette.acc : Theme.Palette.fg3)
@@ -483,5 +500,8 @@ struct FacingChip: View {
             .overlay(Rectangle().stroke(isConfident ? Theme.Palette.acc : Theme.Palette.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Facing \(facing == .left ? "left" : "right")\(isConfident ? "" : ", unconfirmed")")
+        .accessibilityHint("Double tap to correct which way the rider is facing")
     }
 }

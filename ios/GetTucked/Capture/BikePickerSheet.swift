@@ -57,6 +57,7 @@ struct BikePickerSheet: View {
                                     .font(Theme.mono(16))
                                     .foregroundStyle(Theme.Palette.acc)
                                     .frame(width: 20, alignment: .center)
+                                    .accessibilityHidden(true)
                                 Text(addingBike ? "CANCEL" : "ADD A BIKE")
                                     .font(Theme.mono(11, weight: .bold))
                                     .foregroundStyle(Theme.Palette.acc)
@@ -64,7 +65,7 @@ struct BikePickerSheet: View {
                                 Spacer()
                             }
                             .padding(.horizontal, Theme.Space.screenMargin)
-                            .frame(height: 52)
+                            .frame(minHeight: 52)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

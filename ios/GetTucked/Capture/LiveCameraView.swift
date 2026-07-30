@@ -173,6 +173,8 @@ struct LiveCameraView: View {
                     BikeChip(name: bike.nickname)
                 }
                 .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Shooting on \(bike.nickname), tap to change bike")
             } else if let stepLabel {
                 StepLabelChip(label: stepLabel)
             }
@@ -208,6 +210,7 @@ struct LiveCameraView: View {
                     .hudText()
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Cancel capture")
         }
         .padding(.horizontal, Theme.Space.lg)
         .padding(.top, Theme.Space.md)
@@ -230,6 +233,13 @@ struct LiveCameraView: View {
             .opacity(reason == nil ? 0 : 1)
             .animation(Theme.Motion.entrance(Theme.Motion.fast), value: reason)
             .accessibilityHidden(reason == nil)
+            // A sighted user gets this visually the instant it appears; a
+            // VoiceOver user gets nothing unless the shutter is actually
+            // tapped and silently fails — post it explicitly (Plan AK9).
+            .onChange(of: reason) { _, newReason in
+                guard let newReason else { return }
+                UIAccessibility.post(notification: .announcement, argument: newReason)
+            }
     }
 
     /// Capture button + optional library/skip links — identical content in
@@ -441,6 +451,9 @@ private struct LevelLine: View {
         .frame(height: 16)
         .padding(.horizontal, Theme.Space.lg)
         .hudText()
+        // Redundant with the LEVEL status pill, which now speaks its own
+        // state (Plan AK9) — this bar is a purely visual tilt gauge.
+        .accessibilityHidden(true)
         .animation(.easeOut(duration: 0.1), value: deviationDeg)
     }
 }
@@ -488,6 +501,7 @@ private struct CaptureButton: View {
         }
         .disabled(!enabled)
         .buttonStyle(.plain)
+        .accessibilityLabel("Capture photo")
         .animation(.easeInOut(duration: 0.2), value: enabled)
     }
 }

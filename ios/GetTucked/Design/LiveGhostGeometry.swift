@@ -88,6 +88,9 @@ struct GhostOverlay: View {
         }
         .opacity(opacity)
         .allowsHitTesting(false)
+        // Framing guidance over the live feed — nothing here is content a
+        // VoiceOver user could act on (Plan AK9).
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder

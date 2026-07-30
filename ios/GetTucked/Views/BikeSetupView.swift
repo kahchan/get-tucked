@@ -60,6 +60,7 @@ struct BikeSetupView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
 
                 SectionDivider()
@@ -103,6 +104,7 @@ struct BikeSetupView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Handlebar width guidance")
                         }
                         .padding(.top, Theme.Space.md)
 
@@ -245,7 +247,7 @@ struct TypeToggle: View {
                         .font(Theme.mono(12, weight: selected ? .bold : .regular))
                         .foregroundStyle(selected ? Color.black : Theme.Palette.fg2)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                         .background(selected ? Theme.Palette.acc : Color.clear)
                         .overlay(
                             Rectangle()
@@ -275,7 +277,7 @@ struct BarTypeToggle: View {
                         .font(Theme.mono(12, weight: selected ? .bold : .regular))
                         .foregroundStyle(selected ? Color.black : Theme.Palette.fg2)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                         .background(selected ? Theme.Palette.acc : Color.clear)
                         .overlay(
                             Rectangle()
@@ -301,16 +303,18 @@ struct OptionalSectionToggle: View {
             HStack(spacing: Theme.Space.xs) {
                 Text(expanded ? "−" : "+")
                     .font(Theme.mono(14, weight: .bold))
+                    .accessibilityHidden(true)
                 Text(label.uppercased())
                     .font(Theme.mono(11, weight: .bold))
                     .kerning(0.5)
                 Spacer()
             }
             .foregroundStyle(Theme.Palette.fg3)
-            .frame(height: 40)
+            .frame(minHeight: 40)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(label), \(expanded ? "expanded" : "collapsed")")
     }
 }
 
@@ -342,7 +346,7 @@ struct RimStandardToggle: View {
                         .font(Theme.mono(12, weight: selected ? .bold : .regular))
                         .foregroundStyle(selected ? Color.black : Theme.Palette.fg2)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                         .background(selected ? Theme.Palette.acc : Color.clear)
                         .overlay(
                             Rectangle()

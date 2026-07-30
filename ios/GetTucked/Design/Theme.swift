@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Get Tucked design tokens. Source of truth for the visual system:
 // near-black canvas, acid-yellow accent, 0px radius everywhere,
@@ -74,28 +75,44 @@ enum Theme {
     }
 
     enum Control {
-        static let accentButtonHeight: CGFloat = 52
-        static let ghostButtonHeight: CGFloat = 48
-        static let metricRowHeight: CGFloat = 50
+        // AK8: these were `static let` literals — @ScaledMetric needs a View
+        // context it doesn't have here, so Dynamic Type comes from
+        // UIFontMetrics instead. `static var` (not `let`) so each access
+        // re-reads the current content size category rather than freezing
+        // whatever was in effect the first time the token was touched (a
+        // `let` would cache the value for the life of the process).
+        static var accentButtonHeight: CGFloat { scaled(52) }
+        static var ghostButtonHeight: CGFloat { scaled(48) }
+        static var metricRowHeight: CGFloat { scaled(50) }
         /// Q8.5: PositionRow, BikeRow, BikePickerRow — one list-row height so
         /// they don't drift independently.
-        static let listRowHeight: CGFloat = 60
+        static var listRowHeight: CGFloat { scaled(60) }
         static let hairline: CGFloat = 1
         /// Leading title inset for pushed screens (NavHeader), wide enough to
         /// clear the floating BackButton — a centred glyph in its own 44pt
         /// tap target sitting at the screen margin, so this only needs to
         /// clear the tap target plus a real gap.
-        static let headerTitleInset: CGFloat = 52
+        static var headerTitleInset: CGFloat { scaled(52) }
         /// Shared by every bare-icon control (back arrow, close, add, gear) so
         /// icons read as one consistent family across the app, not a mix of
         /// whatever size felt right on each screen.
-        static let iconSize: CGFloat = 26
+        static var iconSize: CGFloat { scaled(26) }
         /// Apple HIG minimum tappable target — applies regardless of how
-        /// small the glyph inside it is.
-        static let iconTapTarget: CGFloat = 44
+        /// small the glyph inside it is. HIG's 44pt is a floor, not a
+        /// nominal size at "Large": `max` so a smaller-than-Large content
+        /// size (UIFontMetrics scales below 1.0 there) can never shrink the
+        /// tap target under Apple's own minimum.
+        static var iconTapTarget: CGFloat { max(44, scaled(44)) }
         /// Gap between a bespoke or shared header and the SectionDivider
         /// beneath it.
         static let headerBottomPad: CGFloat = 16
+
+        /// `UIFontMetrics(forTextStyle: .body).scaledValue(for:)` — the
+        /// mechanism `@ScaledMetric` uses internally, called directly since
+        /// these tokens live outside a View.
+        private static func scaled(_ value: CGFloat) -> CGFloat {
+            UIFontMetrics(forTextStyle: .body).scaledValue(for: value)
+        }
     }
 
     // MARK: Motion tokens

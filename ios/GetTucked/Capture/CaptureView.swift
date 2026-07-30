@@ -124,6 +124,7 @@ struct CaptureView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Cancel capture")
                     }
                     SectionDivider()
                 }
@@ -681,6 +682,7 @@ private struct AnalysingView: View {
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
                     .opacity(reduceMotion || cursorVisible ? 1 : 0)
+                    .accessibilityHidden(true)
             }
 
             Spacer()
@@ -836,12 +838,18 @@ private struct RevealStep: View {
                                 Image(uiImage: photo)
                                     .resizable()
                                     .scaledToFit()
+                                    .accessibilityLabel("Captured photo of the rider and bike")
+                                // Decorative layers stacked on the photo above, which
+                                // already carries the description — hidden from
+                                // VoiceOver so it doesn't walk three stacked images
+                                // (Plan AK9).
                                 if let maskOverlay {
                                     Image(uiImage: maskOverlay)
                                         .resizable()
                                         .scaledToFit()
                                         .scanReveal(progress: reduceMotion ? 1 : sweepProgress)
                                         .opacity(revealSegment == .photo ? 0 : 1)
+                                        .accessibilityHidden(true)
                                 }
                                 // Plan Z6: dimensions render below the skeleton
                                 // (matte → dimensions → skeleton, skeleton topmost).
@@ -849,11 +857,13 @@ private struct RevealStep: View {
                                     DimensionOverlay(dimensions: frontalDimensions, progress: dimensionProgress)
                                         .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
                                         .skeletonReveal(visible: dimensionsVisible)
+                                        .accessibilityHidden(true)
                                 }
                                 if revealSegment == .bones, let frontalSkeletonOverlay {
                                     frontalSkeletonOverlay
                                         .aspectRatio(photo.size.width / photo.size.height, contentMode: .fit)
                                         .skeletonReveal(visible: skeletonVisible)
+                                        .accessibilityHidden(true)
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -914,6 +924,11 @@ private struct RevealStep: View {
                                         .foregroundStyle(Theme.Palette.fg3)
                                 }
                                 .padding(.top, Theme.Space.xs)
+                                // "7488 cm²" reads as bare glyphs otherwise (Plan
+                                // AK9) — read against the final value, not
+                                // whatever the roll is mid-animation.
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(frontalAreaAccessibilityLabel(result.frontalAreaCm2))
 
                                 VStack(alignment: .leading, spacing: Theme.Space.xs) {
                                     Text(AnalysisMath.uncertaintyDisplay(result.frontalAreaUncertaintyCm2))

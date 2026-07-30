@@ -114,15 +114,17 @@ struct MatteCheckView: View {
                             .kerning(0.5)
                         Spacer()
                         Text("→").font(Theme.mono(14, weight: .bold))
+                            .accessibilityHidden(true)
                     }
                     .foregroundStyle(Color.black)
                     .padding(.horizontal, Theme.Space.md)
                     .frame(maxWidth: .infinity)
-                    .frame(height: Theme.Control.accentButtonHeight)
+                    .frame(minHeight: Theme.Control.accentButtonHeight)
                     .background(Theme.Palette.acc)
                 }
                 .padding(.horizontal, Theme.Space.lg)
                 .padding(.vertical, Theme.Space.md)
+                .accessibilityLabel("Pick a photo")
             }
         }
         .hideNavBar()
@@ -351,7 +353,7 @@ private struct ModeToggleBar: View {
                 tab(candidate.rawValue, selected: mode == candidate) { mode = candidate }
             }
         }
-        .frame(height: 40)
+        .frame(minHeight: 40)
     }
 
     private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -359,12 +361,18 @@ private struct ModeToggleBar: View {
             Text(label)
                 .font(Theme.mono(11, weight: selected ? .bold : .regular))
                 .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Height from the label + padding, never a greedy
+                // `maxHeight: .infinity` under this bar's `minHeight` — that
+                // exact shape (Plan AI, SegmentedToggleBar) is what let a
+                // relaxed bar's tabs swallow all the space it was given.
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
                 .overlay(alignment: .bottom) {
                     if selected { Rectangle().fill(Theme.Palette.acc).frame(height: 2) }
                 }
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -377,7 +385,7 @@ private struct PhotoToggleBar: View {
             tab("PHOTO", selected: !showingMatte) { showingMatte = false }
             tab("MATTE", selected: showingMatte) { if hasMatte { showingMatte = true } }
         }
-        .frame(height: 40)
+        .frame(minHeight: 40)
     }
 
     private func tab(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -385,12 +393,16 @@ private struct PhotoToggleBar: View {
             Text(label)
                 .font(Theme.mono(11, weight: selected ? .bold : .regular))
                 .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Same fix as ModeToggleBar above — no `maxHeight: .infinity`
+                // under a relaxed parent.
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
                 .overlay(alignment: .bottom) {
                     if selected { Rectangle().fill(Theme.Palette.acc).frame(height: 2) }
                 }
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 #endif

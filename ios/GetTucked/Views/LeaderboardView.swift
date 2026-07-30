@@ -83,7 +83,7 @@ private struct FilterBar: View {
                         .font(Theme.mono(11, weight: selected ? .bold : .regular))
                         .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                         .overlay(alignment: .bottom) {
                             if selected {
                                 Rectangle()
@@ -94,6 +94,7 @@ private struct FilterBar: View {
                         }
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
         // R2: rapid tab-tapping should re-target the live underline

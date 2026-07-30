@@ -78,6 +78,7 @@ struct PositionListView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Menu")
                         .padding(.leading, -(Theme.Control.iconTapTarget - Theme.Control.iconSize) / 2)
 
                         Text("POSITIONS")
@@ -95,6 +96,7 @@ struct PositionListView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(bikes.isEmpty)
+                        .accessibilityLabel("Capture a position")
                     }
                     // Q7.1: nothing to say with fewer than 2 positions — the
                     // row collapses rather than showing a hint that doesn't
@@ -170,8 +172,13 @@ struct PositionListView: View {
                                 SectionDivider()
                             }
                         }
-                        // Bottom padding so the compare bar doesn't overlap the last row.
-                        if selected.count == 2 { Color.clear.frame(height: 72) }
+                        // Bottom padding so the compare bar doesn't overlap the last row —
+                        // derived from CompareBar's own height (button + bottom padding)
+                        // rather than a magic number, so it still clears at scaled Dynamic
+                        // Type sizes instead of the 72pt literal this used to be.
+                        if selected.count == 2 {
+                            Color.clear.frame(height: Theme.Control.accentButtonHeight + Theme.Space.lg)
+                        }
                     }
                 }
             }
@@ -278,7 +285,8 @@ private struct PositionRow: View {
         HStack(spacing: Theme.Space.xs) {
             Button(action: onToggleSelect) {
                 CheckboxIndicator(isSelected: isSelected, isDisabled: isAtCapacity)
-                    .frame(width: Theme.Control.iconTapTarget, height: Theme.Control.listRowHeight)
+                    .frame(width: Theme.Control.iconTapTarget)
+                    .frame(minHeight: Theme.Control.listRowHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

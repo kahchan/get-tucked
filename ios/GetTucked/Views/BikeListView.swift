@@ -27,6 +27,7 @@ struct BikeListView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Add bike")
                 }
 
                 SectionDivider()

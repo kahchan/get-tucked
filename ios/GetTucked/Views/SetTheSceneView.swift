@@ -110,7 +110,7 @@ private struct ColumnHeader: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, Theme.Space.screenMargin)
-        .frame(height: 40)
+        .frame(minHeight: 40)
     }
 }
 
@@ -167,6 +167,10 @@ private struct TipCell: View {
                 .font(Theme.mono(11))
                 .foregroundStyle(accent)
                 .frame(width: 16)
+                // Decorative — the adjoining sentence already says it (Plan
+                // AK9); without this VoiceOver reads an odd glyph name
+                // ("up down arrow", "cross mark"…) before every tip.
+                .accessibilityHidden(true)
             Text(text)
                 .font(Theme.mono(12))
                 .foregroundStyle(Theme.Palette.fg2)
