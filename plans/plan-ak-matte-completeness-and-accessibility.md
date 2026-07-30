@@ -39,10 +39,27 @@ Two AJ items are carried forward unchanged and still bind:
 Nothing in Part 1 may ship without this, because "the matte looks better" is an opinion
 and the output is a measurement.
 
-- Hand-label the true rider+bike+bags silhouette on the frontal fixtures
-  (`IMG_0674`, `IMG_0676`) and both side-on controls (`IMG_0675`, `IMG_0677`). A
-  painted PNG alpha per fixture, committed next to the fixture, is enough — no tooling
-  to build.
+**Label by correcting the existing mask, not by tracing.**
+`tools/matte-lab/output/<fixture>/2-subject-mask.png` is already exactly the photo's
+dimensions (verified: 3024×4032 for both), so it drops straight in as a layer over the
+photo with no alignment work. Paint in the missing bike, erase any spill. The delta is
+the only thing in dispute, and editing it is minutes of work where tracing a full
+silhouette is hours.
+
+- **Frontal pair only to start** — `IMG_0674` and `IMG_0676`. The side-on shots already
+  reach ~60% and are a control, not the problem; label them later only if a candidate
+  looks live.
+- **Work at ÷4 (756×1008).** IoU and false-positive *ratios* are scale-invariant as long
+  as truth and candidate are compared at the same size, so full resolution buys nothing
+  here.
+- ⚠️ **Path matters:** `fixtures/IMG_*-truth.png` is silently swallowed by the
+  `fixtures/IMG_*` rule added in `b7fae52` — it would appear to save and then never be
+  tracked. Use `fixtures/truth/<name>.png`.
+- **Write down the subject rule before painting, and apply it to both masks identically:**
+  subject is *what the wind actually sees*. Spokes and the open frame triangle are **not**
+  subject, because air passes through them. This one call determines whether AK4's hole
+  fill can ever be legitimate, so an inconsistent rule here invalidates the scoring it is
+  supposed to gate.
 - Add a matte-lab mode that scores any candidate mask against its ground truth:
   **IoU**, plus separate **false-negative** (missed subject) and **false-positive**
   (invented background) pixel counts. Report the false-positive number prominently:
@@ -55,7 +72,12 @@ without moving anything, to establish whether the current shortfall is *consiste
 it is, that number becomes AK7's honest disclosure even if a candidate wins — it
 describes what shipped before it.
 
-## AK2 — Background-model segmentation (recommended first candidate)
+## AK2 — Background-model segmentation (now the only live mask candidate)
+
+> With AK3 closed and AJ's candidate E refuted, this is the sole remaining automated
+> approach with real upside. AK4 is a fallback, AK5 is a product decision. If AK2 fails
+> its AK1 gate, the honest answer is AJ's option D — disclose the shortfall and stop.
+
 
 The app already coaches "plain, high-contrast background", already measures background
 confidence every frame, and already shows a **BG** pill for it. That is an enforced
@@ -81,7 +103,36 @@ change the number.
 — a false positive, directly inflating area. AK1's scoring is what catches this.
 Ground-shadow handling is the specific thing to look at first if scores disappoint.
 
-## AK3 — Depth-assisted mask (second candidate, feasibility-gated)
+## AK3 — Depth-assisted mask — ❌ CLOSED 2026-07-29, before any engineering
+
+> **Kah ran the zero-cost kill test: Portrait mode does not engage at the coached 5–6 m
+> standoff.** AK3 is closed. Cost of finding out: one look through the stock Camera app,
+> no app changes, no schema migration.
+>
+> Portrait mode declining is not literally identical to
+> `AVCapturePhotoOutput.isDepthDataDeliveryEnabled` returning nothing — that is a lower-
+> level API without Portrait's aesthetic distance heuristics. But the same physics drives
+> both: stereo disparity from a centimetre-scale lens baseline carries almost no parallax
+> at 5–6 m, and LiDAR is roughly a 5 m instrument. Any map delivered at that range would
+> be too coarse to separate rider from wall.
+>
+> **The more important finding: AK3 is structurally incompatible with this app's capture
+> protocol, not merely blocked today.** Depth needs the subject close. The 5–6 m standoff
+> exists precisely to flatten the near-wheel perspective error (Plan W3, made real in the
+> app by Plan AF's 2× default). Moving closer to obtain usable depth would reintroduce
+> the exact scale error the standoff was introduced to remove — and scale error corrupts
+> the area number directly, which is strictly worse than an incomplete matte.
+>
+> So this does not become viable on better hardware or on a Pro model. **Do not reopen
+> it** unless the capture protocol itself changes, at which point the whole scale
+> derivation is back in question anyway.
+>
+> Note the asymmetry that made this cheap, and reuse it: AK3 was cheap to *kill* and
+> expensive to *confirm* — the confirm path needed depth delivery, a capture-delegate
+> change, and a `SchemaV9` field to persist the map (a documented stop-and-ask). Ordering
+> the kill test first saved all of it.
+
+*Original rationale, retained so the closure is legible:*
 
 The capture path currently requests **no depth at all** — `AVCapturePhotoSettings()` is
 bare (`LiveCameraView.swift:686`). On a dual/triple-camera iPhone,
