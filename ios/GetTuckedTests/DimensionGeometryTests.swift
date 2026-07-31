@@ -209,6 +209,32 @@ final class DimensionGeometryTests: XCTestCase {
         assertSpanBoxWithinBounds(axle: point, direction: direction, boxSize: boxSize, bounds: bounds, runLength: 36)
     }
 
+    /// AK12: an axle tapped hard against the frame's own horizontal edge
+    /// means neither up nor down on the fixed outward side can land in
+    /// bounds (both share the same doomed horizontal offset) — reproduced
+    /// on-device as a wheel-height callout rendering off the screen
+    /// entirely. The fallback must pick a direction that actually fits
+    /// rather than the nominally-preferred one that doesn't.
+    func testChooseVerticalLeaderDirectionFallsBackAcrossWhenOutwardSideEscapesBounds() {
+        let bounds = CGSize(width: 400, height: 600)
+        let point = CGPoint(x: 395, y: 300)
+        let boxSize = CGSize(width: 60, height: 20)
+        let direction = DimensionGeometry.chooseVerticalLeaderDirection(from: point, outward: .right, boxSize: boxSize, bounds: bounds, runLength: 36)
+        XCTAssertTrue(direction == .downLeft || direction == .upLeft, "outward .right with no room right must fall back left rather than escape")
+        assertSpanBoxWithinBounds(axle: point, direction: direction, boxSize: boxSize, bounds: bounds, runLength: 36)
+    }
+
+    /// Mirror of the above on the opposite edge/side, so the fallback isn't
+    /// accidentally direction-specific.
+    func testChooseVerticalLeaderDirectionFallsBackAcrossOnOppositeEdge() {
+        let bounds = CGSize(width: 400, height: 600)
+        let point = CGPoint(x: 5, y: 300)
+        let boxSize = CGSize(width: 60, height: 20)
+        let direction = DimensionGeometry.chooseVerticalLeaderDirection(from: point, outward: .left, boxSize: boxSize, bounds: bounds, runLength: 36)
+        XCTAssertTrue(direction == .downRight || direction == .upRight, "outward .left with no room left must fall back right rather than escape")
+        assertSpanBoxWithinBounds(axle: point, direction: direction, boxSize: boxSize, bounds: bounds, runLength: 36)
+    }
+
     func testSpanEndpointsCentredOnAxleWithCorrectLength() {
         let (top, bottom) = DimensionGeometry.spanEndpoints(axle: CGPoint(x: 100, y: 200), spanPx: 50)
         XCTAssertEqual(top, CGPoint(x: 100, y: 175))

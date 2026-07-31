@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Pure geometry for `DimensionOverlay` — kept free of SwiftUI types (beyond
 /// `CGPoint`/`CGSize`/`CGRect`, which `SkeletonGeometry` already treats as
@@ -149,17 +150,29 @@ enum DimensionGeometry {
     /// Z5) — unlike `chooseLeaderDirection`'s free 4-way pick, the side-on
     /// wheel-height leader's horizontal sign is dictated by which wheel it
     /// is (front points forward, rear points rearward), so only up/down is
-    /// free to pick, whichever keeps the box in bounds.
+    /// free to pick, whichever keeps the box in bounds. The fixed side is
+    /// what keeps the front and rear boxes from ever colliding, so it's
+    /// still preferred whenever it has room — but an axle tapped near the
+    /// frame's own horizontal edge means NEITHER up nor down on that side
+    /// can land in bounds at all (both candidates share the same doomed
+    /// horizontal offset), so the box quietly escaped the frame outright
+    /// with nothing to catch it (AK12, reproduced on-device for the
+    /// side-on wheel-height callout). Falling back to a full 4-way search
+    /// only when the preferred side's best candidate still overflows keeps
+    /// Z5's anti-collision guarantee in the common case while stopping the
+    /// escape in the rare near-edge one.
     static func chooseVerticalLeaderDirection(
         from point: CGPoint, outward: HorizontalSide, boxSize: CGSize, bounds: CGSize, runLength: CGFloat
     ) -> LeaderDirection {
-        let candidates: [LeaderDirection] = outward == .right ? [.downRight, .upRight] : [.downLeft, .upLeft]
-        let scored = candidates.map { direction -> (LeaderDirection, CGFloat) in
+        let outwardCandidates: [LeaderDirection] = outward == .right ? [.downRight, .upRight] : [.downLeft, .upLeft]
+        let scored = outwardCandidates.map { direction -> (LeaderDirection, CGFloat) in
             let end = leaderEnd(from: point, direction: direction, runLength: runLength)
             let rect = boxRect(leaderEnd: end, direction: direction, boxSize: boxSize)
             return (direction, overflow(rect, bounds: bounds))
         }
-        return scored.min { $0.1 < $1.1 }!.0
+        let bestOutward = scored.min { $0.1 < $1.1 }!
+        guard bestOutward.1 > 0 else { return bestOutward.0 }
+        return chooseLeaderDirection(from: point, boxSize: boxSize, bounds: bounds, runLength: runLength)
     }
 
     /// The wheel-height span's top/bottom endpoints (Plan Z5) — centred on
@@ -253,6 +266,19 @@ struct DimensionOverlay: View {
         reduceMotion ? 1 : SkeletonTimeline.jointOpacity(boneTrim: trim, popFraction: Self.popFraction)
     }
 
+    /// `calloutBoxSize` must be estimated against the SAME size the box's
+    /// `Text` actually renders at — `Theme.mono` scales `Self.fontSize` for
+    /// Dynamic Type internally (`relativeTo: .body`), but `calloutBoxSize`
+    /// itself is plain arithmetic with no such scaling. Passing the raw
+    /// `Self.fontSize` left the box sized for a static 9pt at every content
+    /// size, so at AX5 the (much larger) rendered glyphs overflowed their
+    /// own box and truncated to "…" (AK12, reproduced on-device). Scaling
+    /// this the same way `Theme.Control` does keeps the box's own size
+    /// estimate honest at every Dynamic Type step.
+    private var scaledFontSize: CGFloat {
+        UIFontMetrics(forTextStyle: .body).scaledValue(for: Self.fontSize)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
@@ -273,7 +299,7 @@ struct DimensionOverlay: View {
         let from = DimensionGeometry.point(forTopLeftUnit: dimension.unitFrom, in: size)
         let to = DimensionGeometry.point(forTopLeftUnit: dimension.unitTo, in: size)
         let label = DimensionGeometry.calloutLabel(mm: dimension.valueMm)
-        let boxSize = DimensionGeometry.calloutBoxSize(label: label, fontSize: Self.fontSize, padding: Self.boxPadding)
+        let boxSize = DimensionGeometry.calloutBoxSize(label: label, fontSize: scaledFontSize, padding: Self.boxPadding)
         let fromTick = DimensionGeometry.tickEndpoints(at: from, lineFrom: from, lineTo: to, length: Self.tickLength)
         let toTick = DimensionGeometry.tickEndpoints(at: to, lineFrom: from, lineTo: to, length: Self.tickLength)
 
@@ -300,7 +326,7 @@ struct DimensionOverlay: View {
         let spanPx = dimension.spanUnitY * size.height
         let (top, bottom) = DimensionGeometry.spanEndpoints(axle: axle, spanPx: spanPx)
         let label = DimensionGeometry.calloutLabel(mm: dimension.valueMm)
-        let boxSize = DimensionGeometry.calloutBoxSize(label: label, fontSize: Self.fontSize, padding: Self.boxPadding)
+        let boxSize = DimensionGeometry.calloutBoxSize(label: label, fontSize: scaledFontSize, padding: Self.boxPadding)
         let direction = DimensionGeometry.chooseVerticalLeaderDirection(
             from: axle, outward: dimension.outward, boxSize: boxSize, bounds: size, runLength: Self.leaderRun
         )
