@@ -78,6 +78,61 @@ to the repo are the authority for specifics.
 - The user cares deeply about visual polish — once the design spec lands, styling is not
   optional.
 
+## Writing plans (`plans/plan-*.md`)
+
+Plans are forward-looking briefing packets, not journals. Style contract:
+
+- **Prescriptive voice only.** Symptom → fix → verification. State decisions in one
+  line with one line of why; no persuasion, no epistemics essays, no meta-commentary
+  about how the plan was drafted. Plan W is the reference for tone and length.
+- **When an item closes, compress it**: ≤3 lines (verdict, one-line reason, commit
+  hash or memory pointer). Keep measured numbers/tables that exist nowhere else;
+  delete the narrative and any "original rationale, retained" sections — git history
+  keeps those.
+- **Cite standing traps, don't restate them.** "See standing traps in CLAUDE.md" is
+  the whole reference.
+- **Sub-agent prompts point at the plan** ("implement AK8 from plans/plan-ak…;
+  non-goals and verification as written there"), never restate its content.
+
+## Delegating to sub-agents
+
+Agents start cold and pay to re-derive everything. Brief them accordingly:
+
+- **Give only what's necessary:** the plan section to implement, the exact files to
+  start in, the verification bar, and anything the plan does *not* say. CLAUDE.md and
+  the plan are already readable — don't paste them into the prompt.
+- **Point, don't restate.** If the prompt is re-explaining a decision the plan
+  already records, cut it; if the plan is too vague to point at, fix the plan.
+- **Name the files.** A prompt that starts an agent at `LiveCameraView.swift:686`
+  saves it sweeping the repo to find that itself.
+- **One verification pass, not N.** A full `xcodebuild` run is expensive and its
+  output is enormous — don't have five parallel workers each run the whole suite.
+  Workers build/test only what their change touches; the orchestrator (or one
+  dedicated agent) runs the full suite once after the merge.
+- **Fewer, larger slices.** Cold-start cost is fixed per agent, so three meaty
+  independent tasks beat eight thin ones.
+- **Every agent ends with plan feedback** — where the plan was wrong, ambiguous, or
+  now moot, as suggested edits. Fold that back into the plan file before the next
+  wave, so the plan improves instead of the same wrong assumption being rediscovered.
+
+## Standing traps (cite these from plans instead of restating)
+
+- **Schema bump:** any new persisted field = new schema version, and the bump MUST
+  update `Schema(versionedSchema:)` in `GetTuckedApp.swift`, or the app fatals at
+  launch ("Failed to cast model"). Shipped once: Plan V, fixed 7d7f311.
+- **Simulator Vision is nil:** segmentation requests return nil in the Simulator —
+  matte-lab and any mask work run on Apple Silicon or device only.
+- **Relaxing a fixed height:** check what the children ask for — a child with
+  `maxHeight: .infinity` eats the space (`SegmentedToggleBar` shipped broken this
+  way in Plan AI).
+- **Horizontal swipe threshold:** reuse the established rule —
+  `.simultaneousGesture`, `minimumDistance: 24`, dominance
+  `abs(h) > 50 && abs(h) > abs(v) * 1.5`. Don't invent a new threshold.
+- **Tap points are top-left origin** (Plan Z).
+- **`fg4` never carries text** — it's below the AA contrast floor by design.
+- **`fixtures/IMG_*` is gitignored** (b7fae52) and silently swallows truth files —
+  reference mattes go in `fixtures/truth/`.
+
 ## History — the segmentation spike (retired)
 
 Before committing to native, a throwaway browser spike (`src/`, `verifier/`, `fixtures/`,
