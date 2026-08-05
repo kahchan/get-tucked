@@ -353,6 +353,35 @@ let ae1SamplePoints: [String: (forkGap: (CGFloat, CGFloat), torso: (CGFloat, CGF
     "IMG_0676.JPG": (forkGap: (0.493, 0.49), torso: (0.466, 0.35)),
 ]
 
+// Production subject-mask decode threshold (AE2) — hoisted here (was defined
+// inline further down) so AK1b can use it without depending on AF-block order.
+let subjectProdThreshold: UInt8 = 102
+
+// MARK: - AK1b: landmark tap points (plans/plan-ak-matte-completeness-and-accessibility.md)
+//
+// Position.handlebarTapPoints / Position.wheelTapPoints are top-left-origin
+// unit-fraction pairs a rider taps during capture (see Position.swift):
+// handlebar = (left grip, right grip); wheel = (ground contact, top of tire).
+// This harness has no access to a real on-device SwiftData store — those taps
+// exist only on Kah's phone — so the two frontal fixtures below (the only
+// head-on shots in fixtures/; IMG_0675/0677 are side-on) are eyeballed off
+// the photo to the same physical points a rider would tap. Estimates, not
+// captured truth — see the AK1b report for what this does and doesn't prove.
+let ak1bTapPoints: [String: (handlebarLeft: CGPoint, handlebarRight: CGPoint, wheelGround: CGPoint, wheelTop: CGPoint)] = [
+    "IMG_0674.JPG": (handlebarLeft: CGPoint(x: 0.399, y: 0.423), handlebarRight: CGPoint(x: 0.593, y: 0.423),
+                     wheelGround: CGPoint(x: 0.490, y: 0.718), wheelTop: CGPoint(x: 0.490, y: 0.545)),
+    "IMG_0676.JPG": (handlebarLeft: CGPoint(x: 0.417, y: 0.423), handlebarRight: CGPoint(x: 0.575, y: 0.423),
+                     wheelGround: CGPoint(x: 0.492, y: 0.710), wheelTop: CGPoint(x: 0.492, y: 0.539)),
+]
+
+// AK1a's Remove Background reference files (fixtures/truth/), registered for
+// the same two frontal fixtures AK1a measured — AK2 recomputes IoU against
+// the identical reference so the two numbers are directly comparable.
+let ak1aReferenceFiles: [String: String] = [
+    "IMG_0674.JPG": "IMG_0674-removebg.png",
+    "IMG_0676.JPG": "IMG_0676-removebg.png",
+]
+
 // MARK: - Person-mask erosion (AD5a) — CIMorphologyMinimum, the inverse of the
 // production outlineMask's CIMorphologyMaximum dilate. `radius` is in PIXELS
 // at the buffer's own resolution; callers here always pass a buffer already
@@ -537,11 +566,117 @@ func silhouetteOverlay(photo: CGImage, personGray: [UInt8], w: Int, h: Int, thre
     return rgbaToCGImage(base, width: w, height: h)
 }
 
+// MARK: - AK2 — background-model segmentation (plans/plan-ak-matte-completeness-
+// and-accessibility.md AK2). Methodologically independent of both Vision
+// requests used above (no semantic model at all) — a plain colour-distance
+// classifier off the coached plain-background border, so it can't share
+// AK1a's model-lineage blind spot. One-time falsification run: never wired
+// into production, no bgConfidenceMin gate to maintain — just the harness
+// applying the equivalent judgement call inline.
+
+/// Downsamples a CGImage to an RGBA byte buffer at the given size (CGContext
+/// high-interpolation draw, same resample quality as resamplePersonBilinear
+/// uses for gray buffers elsewhere in this file).
+func downsampleRGBA(_ image: CGImage, toW: Int, toH: Int) -> [UInt8]? {
+    var buf = [UInt8](repeating: 0, count: toW * toH * 4)
+    guard let ctx = CGContext(
+        data: &buf, width: toW, height: toH, bitsPerComponent: 8,
+        bytesPerRow: toW * 4, space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else { return nil }
+    ctx.interpolationQuality = .high
+    ctx.draw(image, in: CGRect(x: 0, y: 0, width: toW, height: toH))
+    return buf
+}
+
+/// Loads a PNG and returns just its alpha channel as a packed gray buffer, at
+/// the PNG's own native resolution. Used to read the AK1a Remove Background
+/// reference (`fixtures/truth/*-removebg.png`), which encodes subject-vs-
+/// background as opaque-vs-transparent.
+func loadPNGAlphaGray(path: String) -> (gray: [UInt8], w: Int, h: Int)? {
+    let url = URL(fileURLWithPath: path)
+    guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+          let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
+    guard let rgba = downsampleRGBA(cg, toW: cg.width, toH: cg.height) else { return nil }
+    var gray = [UInt8](repeating: 0, count: cg.width * cg.height)
+    for i in 0 ..< (cg.width * cg.height) { gray[i] = rgba[i * 4 + 3] }
+    return (gray, cg.width, cg.height)
+}
+
+func meanAndStd(_ xs: [Double]) -> (mean: Double, std: Double) {
+    guard !xs.isEmpty else { return (0, 0) }
+    let n = Double(xs.count)
+    let mean = xs.reduce(0, +) / n
+    let variance = xs.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / n
+    return (mean, variance.squareRoot())
+}
+
+/// Intersection-over-union of two same-size boolean masks, plus the raw
+/// counts (so a caller can also report each mask's own foreground size).
+func iouAndCounts(_ a: [Bool], _ b: [Bool]) -> (iou: Double, aCount: Int, bCount: Int, interCount: Int, unionCount: Int) {
+    var inter = 0, uni = 0, ac = 0, bc = 0
+    for i in 0 ..< a.count {
+        let av = a[i], bv = b[i]
+        if av { ac += 1 }
+        if bv { bc += 1 }
+        if av && bv { inter += 1 }
+        if av || bv { uni += 1 }
+    }
+    return (uni > 0 ? Double(inter) / Double(uni) : 0, ac, bc, inter, uni)
+}
+
+/// Nearest foreground pixel to (cx,cy) in a boolean grid, spiral search —
+/// used to seed the rider's connected component from the existing subject
+/// mask's own centroid rather than trying to re-derive a Vision-coordinate
+/// anchor (keeps this entirely in the harness's own top-left pixel frame).
+func nearestForeground(_ grid: [Bool], w: Int, h: Int, cx: Int, cy: Int) -> (x: Int, y: Int)? {
+    if cx >= 0, cx < w, cy >= 0, cy < h, grid[cy * w + cx] { return (cx, cy) }
+    let maxR = max(w, h)
+    for r in 1 ... maxR {
+        for dx in -r ... r {
+            for dy in [cy - r, cy + r] {
+                let x = cx + dx
+                if x >= 0, x < w, dy >= 0, dy < h, grid[dy * w + x] { return (x, dy) }
+            }
+        }
+        if r >= 2 {
+            for dy in (cy - r + 1) ... (cy + r - 1) {
+                for dx in [cx - r, cx + r] {
+                    if dx >= 0, dx < w, dy >= 0, dy < h, grid[dy * w + dx] { return (dx, dy) }
+                }
+            }
+        }
+    }
+    return nil
+}
+
+/// 4-connected flood fill from `seed` over a boolean grid — the rider's
+/// connected component out of the raw background-distance classification.
+func floodFill(_ grid: [Bool], w: Int, h: Int, seed: (x: Int, y: Int)) -> [Bool] {
+    var visited = [Bool](repeating: false, count: w * h)
+    var component = [Bool](repeating: false, count: w * h)
+    var stack = [seed]
+    visited[seed.y * w + seed.x] = true
+    while let (x, y) = stack.popLast() {
+        component[y * w + x] = true
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            let nx = x + dx, ny = y + dy
+            guard nx >= 0, nx < w, ny >= 0, ny < h else { continue }
+            let nidx = ny * w + nx
+            if !visited[nidx], grid[nidx] {
+                visited[nidx] = true
+                stack.append((nx, ny))
+            }
+        }
+    }
+    return component
+}
+
 // MARK: - Main
 
 let args = CommandLine.arguments
 guard args.count >= 2 else {
-    print("usage: matte-lab <image-path> [--sweep] [--ae1] [--ae2] [--crop-reseg]")
+    print("usage: matte-lab <image-path> [--sweep] [--ae1] [--ae2] [--crop-reseg] [--ak1b] [--ak2]")
     exit(2)
 }
 let imagePath = args[1]
@@ -552,6 +687,8 @@ let afDiagMode = args.contains("--afdiag")
 let afCropMode = args.contains("--afcrop")
 let afInstanceMode = args.contains("--afinstance")
 let cropResegMode = args.contains("--crop-reseg")
+let ak1bMode = args.contains("--ak1b")
+let ak2Mode = args.contains("--ak2")
 let imageName = (imagePath as NSString).lastPathComponent
 let toolDir = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -733,6 +870,197 @@ if let subj = scaledSubjectImage,
     coverageSubject = subjCount
     if let comp {
         writePNG(comp, to: outputDir.appendingPathComponent("4-twotone-composite.png").path)
+    }
+}
+
+// MARK: - AK1b — landmark coverage check (read-only investigation, no mask
+// change). plans/plan-ak-matte-completeness-and-accessibility.md AK1b: does
+// the subject mask carry foreground along the tapped handlebar/wheel spans,
+// and does subject ⊇ person hold everywhere. Falsification check only — a
+// FAIL here is reported, not silently patched (AK2/AK4/AK6 own any fix).
+if ak1bMode, let subj = scaledSubjectImage,
+   let subjData = subj.dataProvider?.data, let subjBytes = CFDataGetBytePtr(subjData) {
+    let sw = subj.width, sh = subj.height, sbpr = subj.bytesPerRow
+
+    func subjectValue(atUnitX ux: CGFloat, unitY uy: CGFloat) -> UInt8 {
+        let x = min(sw - 1, max(0, Int((ux * CGFloat(sw)).rounded())))
+        let y = min(sh - 1, max(0, Int((uy * CGFloat(sh)).rounded())))
+        return subjBytes[y * sbpr + x]
+    }
+
+    // Samples the straight line between two tapped points (not just its
+    // endpoints) — a real wheel/handlebar tap defines a span, and a mask that
+    // covers both taps but not the line between them still fails the check.
+    func sampleSpan(_ p0: CGPoint, _ p1: CGPoint, samples: Int = 21) -> (belowCount: Int, minValue: UInt8, samples: Int) {
+        var below = 0
+        var minV: UInt8 = 255
+        for i in 0 ..< samples {
+            let t = CGFloat(i) / CGFloat(samples - 1)
+            let x = p0.x + (p1.x - p0.x) * t
+            let y = p0.y + (p1.y - p0.y) * t
+            let v = subjectValue(atUnitX: x, unitY: y)
+            minV = min(minV, v)
+            if v < subjectProdThreshold { below += 1 }
+        }
+        return (below, minV, samples)
+    }
+
+    print("\n[AK1b] landmark coverage — subject threshold \(subjectProdThreshold) (production AE2 decode)")
+    if let points = ak1bTapPoints[imageName] {
+        let hb = sampleSpan(points.handlebarLeft, points.handlebarRight)
+        print(String(format: "  handlebar span   below-threshold=%2d/%-2d  min=%3d  -> %@",
+                     hb.belowCount, hb.samples, hb.minValue, hb.belowCount == 0 ? "PASS" : "FAIL"))
+        let wheel = sampleSpan(points.wheelGround, points.wheelTop)
+        print(String(format: "  wheel span       below-threshold=%2d/%-2d  min=%3d  -> %@",
+                     wheel.belowCount, wheel.samples, wheel.minValue, wheel.belowCount == 0 ? "PASS" : "FAIL"))
+    } else {
+        print("  no tap-point estimate registered for \(imageName) (side-on fixture, or no frontal estimate) — span check skipped")
+    }
+
+    // subject ⊇ person invariant, at production thresholds (subject 102 / person 128).
+    // personR is already resampled to subject resolution by block (4) above.
+    if personR.count == sw * sh {
+        var violations = 0
+        var personFg = 0
+        for y in 0 ..< sh {
+            let row = y * sbpr
+            for x in 0 ..< sw {
+                let p = personR[y * sw + x]
+                guard p >= 128 else { continue }
+                personFg += 1
+                if subjBytes[row + x] < subjectProdThreshold { violations += 1 }
+            }
+        }
+        let pct = personFg > 0 ? 100 * Double(violations) / Double(personFg) : 0
+        print(String(format: "  subject\u{2287}person  violations=%d/%d person px (%.2f%%)  -> %@",
+                     violations, personFg, pct, violations == 0 ? "PASS" : "FAIL"))
+    } else {
+        print("  subject\u{2287}person  skipped (person resample size mismatch — unexpected)")
+    }
+}
+
+// MARK: - AK2 — background-model segmentation (one-time falsification run,
+// no production code touched). plans/plan-ak-matte-completeness-and-
+// accessibility.md AK2: estimate a background colour model from the frame
+// border (the app coaches a plain background via the BG pill), classify by
+// colour distance, take the rider's connected component, union with the
+// existing subject mask, and compare IoU against AK1a's Remove Background
+// reference at quarter resolution / threshold 128 — the same method AK1a
+// used, so the two IoU numbers sit side by side.
+if ak2Mode, let subj = scaledSubjectImage {
+    let ak2Dir = outputDir.appendingPathComponent("ak2")
+    try? FileManager.default.createDirectory(at: ak2Dir, withIntermediateDirectories: true)
+
+    let qw = max(1, subjW / 4)
+    let qh = max(1, subjH / 4)
+    print("\n[AK2] background-model segmentation — working resolution \(qw)x\(qh) (quarter, mirrors AK1a)")
+
+    // A: existing subject mask, downsampled + rethresholded exactly as AK1a compared it.
+    let subjectContinuous = extractGrayBytes(subj)
+    let subjectQuarter = resamplePersonBilinear(subjectContinuous, w: subjW, h: subjH, toW: qw, toH: qh)
+    let maskA = subjectQuarter.map { $0 >= 128 }
+
+    guard let rgba = downsampleRGBA(cgImage, toW: qw, toH: qh) else {
+        print("  ! could not downsample photo to RGB — skipping")
+        exit(0)
+    }
+
+    // Border ring = coached plain background (BG pill), 2% margin.
+    let marginPx = max(2, Int(0.02 * Double(min(qw, qh))))
+    var borderR: [Double] = [], borderG: [Double] = [], borderB: [Double] = []
+    for y in 0 ..< qh {
+        for x in 0 ..< qw {
+            guard x < marginPx || x >= qw - marginPx || y < marginPx || y >= qh - marginPx else { continue }
+            let off = (y * qw + x) * 4
+            borderR.append(Double(rgba[off])); borderG.append(Double(rgba[off + 1])); borderB.append(Double(rgba[off + 2]))
+        }
+    }
+    let (meanR, stdR) = meanAndStd(borderR)
+    let (meanG, stdG) = meanAndStd(borderG)
+    let (meanB, stdB) = meanAndStd(borderB)
+    let combinedStd = (stdR * stdR + stdG * stdG + stdB * stdB).squareRoot()
+    // Degradation rule (mirrors bgConfidenceMin): a busy/non-plain border
+    // makes the background model untrustworthy — report but don't use the
+    // resulting IoU as if it settles anything.
+    let highVarianceCutoff = 40.0
+    let lowConfidence = combinedStd > highVarianceCutoff
+    let kSigma = 3.0
+    let distThreshold = max(kSigma * combinedStd, 18.0)
+    print(String(format: "  border model: mean=(%.0f,%.0f,%.0f) combinedStd=%.1f  distThreshold=%.1f  confidence=%@",
+                 meanR, meanG, meanB, combinedStd, distThreshold, lowConfidence ? "LOW (busy/non-plain border)" : "ok"))
+
+    var foregroundRaw = [Bool](repeating: false, count: qw * qh)
+    for i in 0 ..< (qw * qh) {
+        let off = i * 4
+        let dr = Double(rgba[off]) - meanR
+        let dg = Double(rgba[off + 1]) - meanG
+        let db = Double(rgba[off + 2]) - meanB
+        foregroundRaw[i] = (dr * dr + dg * dg + db * db).squareRoot() > distThreshold
+    }
+    if let img = grayToCGImage(foregroundRaw.map { $0 ? UInt8(255) : 0 }, width: qw, height: qh) {
+        writePNG(img, to: ak2Dir.appendingPathComponent("bg-raw-classification.png").path)
+    }
+
+    // Seed the rider's connected component from the EXISTING subject mask's
+    // own centroid — sidesteps reconciling Vision's bottom-left coordinate
+    // convention with this harness's top-left buffers (see Position.swift /
+    // CLAUDE.md tap-point-origin trap; irrelevant here since both masks
+    // already share this file's top-left pixel frame).
+    var sumX = 0, sumY = 0, aCount = 0
+    for y in 0 ..< qh {
+        for x in 0 ..< qw where maskA[y * qw + x] { sumX += x; sumY += y; aCount += 1 }
+    }
+    guard aCount > 0, let seed = nearestForeground(foregroundRaw, w: qw, h: qh, cx: sumX / aCount, cy: sumY / aCount) else {
+        print("  ! existing subject mask empty, or no foreground near its centroid — skipping component/IoU")
+        exit(0)
+    }
+    let maskC = floodFill(foregroundRaw, w: qw, h: qh, seed: seed)
+    if let img = grayToCGImage(maskC.map { $0 ? UInt8(255) : 0 }, width: qw, height: qh) {
+        writePNG(img, to: ak2Dir.appendingPathComponent("bg-rider-component.png").path)
+    }
+
+    let maskB = zip(maskA, maskC).map { $0 || $1 }
+
+    // Known risk: ground shadows join the rider's connected component and
+    // read as foreground. Proxy check: of the pixels the background model
+    // adds beyond the existing subject mask (C \ A), what fraction sits in
+    // the bottom third of frame (near the ground plane)?
+    var excessCount = 0, excessBottomThird = 0
+    for y in 0 ..< qh {
+        for x in 0 ..< qw {
+            let i = y * qw + x
+            guard maskC[i], !maskA[i] else { continue }
+            excessCount += 1
+            if y >= (2 * qh) / 3 { excessBottomThird += 1 }
+        }
+    }
+    let excessBottomPct = excessCount > 0 ? 100 * Double(excessBottomThird) / Double(excessCount) : 0
+    print(String(format: "  C\\A (bg-model adds beyond existing mask): %d px, %d (%.1f%%) in bottom third of frame%@",
+                 excessCount, excessBottomThird, excessBottomPct,
+                 excessBottomPct > 40 ? "  <- ground-shadow risk: check bg-rider-component.png" : ""))
+
+    if let refName = ak1aReferenceFiles[imageName] {
+        let refPath = toolDir.deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("fixtures/truth").appendingPathComponent(refName).path
+        if let refAlpha = loadPNGAlphaGray(path: refPath) {
+            let refQuarter = resamplePersonBilinear(refAlpha.gray, w: refAlpha.w, h: refAlpha.h, toW: qw, toH: qh)
+            let maskRef = refQuarter.map { $0 >= 128 }
+            let ioA = iouAndCounts(maskA, maskRef)
+            let ioB = iouAndCounts(maskB, maskRef)
+            let ioC = iouAndCounts(maskC, maskRef)
+            print(String(format: "  IoU vs AK1a reference (%@):", refName))
+            print(String(format: "    existing subject mask (A)            iou=%.3f  A=%d px  ref=%d px", ioA.iou, ioA.aCount, ioA.bCount))
+            print(String(format: "    A \u{222a} bg-model rider component (B)     iou=%.3f  B=%d px  ref=%d px  delta vs A=%+.4f",
+                         ioB.iou, ioB.aCount, ioB.bCount, ioB.iou - ioA.iou))
+            print(String(format: "    bg-model rider component alone (C)   iou=%.3f  C=%d px  ref=%d px", ioC.iou, ioC.aCount, ioC.bCount))
+            if lowConfidence {
+                print("  ! border confidence LOW — do not read the IoU-B number above as trustworthy; background wasn't plain enough to model.")
+            }
+        } else {
+            print("  ! could not load AK1a reference at \(refPath) — IoU comparison skipped")
+        }
+    } else {
+        print("  no AK1a reference registered for \(imageName) — classification-only report above, no IoU comparison")
     }
 }
 
@@ -1019,8 +1347,7 @@ if cropResegMode, let subj = scaledSubjectImage {
 }
 
 // MARK: - AF experiments (Plan AF root-cause + candidate fixes)
-
-let subjectProdThreshold: UInt8 = 102   // production (AE2) subject decode threshold
+// subjectProdThreshold is defined near ak1bTapPoints above.
 
 // (AFDIAG) precise person-mask value grid over the fork/head-tube gap +
 // silhouette-edge alignment overlay. personR is the production bilinear
