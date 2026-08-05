@@ -18,6 +18,7 @@ enum AppScreen: Hashable {
     case capture(referenceID: PersistentIdentifier?)
     case bikeList
     case bikeSetup
+    case bikeEdit(PersistentIdentifier)
     case leaderboard
     case comparison(PersistentIdentifier, PersistentIdentifier)
     case howItWorks
@@ -91,6 +92,8 @@ struct AppNavigationView: View {
                             BikeListView(path: $path)
                         case .bikeSetup:
                             BikeSetupView()
+                        case .bikeEdit(let id):
+                            BikeEditWrapper(id: id)
                         case .leaderboard:
                             LeaderboardView(path: $path)
                         case .comparison(let idA, let idB):
@@ -291,6 +294,23 @@ private struct PositionDetailWrapper: View {
                 .background(Theme.Palette.bg0)
                 // Without this the system nav bar's back chevron shows
                 // alongside the app's floating BackButton — two backs.
+                .hideNavBar()
+        }
+    }
+}
+
+private struct BikeEditWrapper: View {
+    let id: PersistentIdentifier
+    @Query private var bikes: [Bike]
+
+    var body: some View {
+        if let bike = bikes.first(where: { $0.persistentModelID == id }) {
+            BikeSetupView(editing: bike)
+        } else {
+            Text("Bike not found")
+                .foregroundStyle(Theme.Palette.fg2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Palette.bg0)
                 .hideNavBar()
         }
     }

@@ -6,7 +6,6 @@ struct BikeListView: View {
     @Query(sort: \Bike.createdAt, order: .forward) private var bikes: [Bike]
     @Environment(\.modelContext) private var context
     @State private var showingAddBike = false
-    @State private var editingBike: Bike?
     #if DEBUG
     @State private var showResetConfirm = false
     #endif
@@ -38,7 +37,7 @@ struct BikeListView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(bikes) { bike in
-                                Button { editingBike = bike } label: {
+                                Button { path.append(.bikeEdit(bike.persistentModelID)) } label: {
                                     BikeRow(bike: bike)
                                 }
                                 .buttonStyle(RowPressStyle())
@@ -66,9 +65,6 @@ struct BikeListView: View {
         .hideNavBar()
         .sheet(isPresented: $showingAddBike) {
             BikeSetupView()
-        }
-        .sheet(item: $editingBike) { bike in
-            BikeSetupView(editing: bike)
         }
         #if DEBUG
         .confirmationDialog("Delete all bikes and positions?", isPresented: $showResetConfirm, titleVisibility: .visible) {
