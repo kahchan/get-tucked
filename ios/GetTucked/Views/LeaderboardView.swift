@@ -17,6 +17,21 @@ struct LeaderboardView: View {
         filtered.sorted { ($0.metrics?.frontalAreaCm2 ?? .infinity) < ($1.metrics?.frontalAreaCm2 ?? .infinity) }
     }
 
+    // AK11: was a bespoke `FilterBar` (hand-rolled underline/tap, no swipe)
+    // — rebuilt on `SegmentedToggleBar` so it gains the shared swipe
+    // accelerator instead of needing a third copy of that gesture.
+    private let filterOptions: [BikeType?] = [nil, .road, .gravel, .mtb]
+
+    private var bikeFilterIndexBinding: Binding<Int> {
+        Binding(
+            get: { filterOptions.firstIndex(of: bikeFilter) ?? 0 },
+            set: { newIndex in
+                guard filterOptions.indices.contains(newIndex) else { return }
+                bikeFilter = filterOptions[newIndex]
+            }
+        )
+    }
+
     var body: some View {
         ZStack {
             Theme.Palette.bg0.ignoresSafeArea()
@@ -26,7 +41,7 @@ struct LeaderboardView: View {
                 SectionDivider()
 
                 // Bike type filter
-                FilterBar(selection: $bikeFilter)
+                SegmentedToggleBar(labels: ["ALL", "ROAD", "GRAVEL", "MTB"], selectedIndex: bikeFilterIndexBinding)
                 SectionDivider()
 
                 if ranked.isEmpty {
@@ -53,53 +68,6 @@ struct LeaderboardView: View {
             }
         }
         .hideNavBar()
-    }
-}
-
-// MARK: - Filter bar
-
-private struct FilterBar: View {
-    @Binding var selection: BikeType?
-
-    // Underline slides between tabs (N7) instead of popping.
-    @Namespace private var underlineNamespace
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private let options: [(label: String, value: BikeType?)] = [
-        ("ALL", nil),
-        ("ROAD", .road),
-        ("GRAVEL", .gravel),
-        ("MTB", .mtb),
-    ]
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(options, id: \.label) { option in
-                let selected = selection == option.value
-                Button {
-                    selection = option.value
-                } label: {
-                    Text(option.label)
-                        .font(Theme.mono(11, weight: selected ? .bold : .regular))
-                        .foregroundStyle(selected ? Theme.Palette.acc : Theme.Palette.fg3)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 36)
-                        .overlay(alignment: .bottom) {
-                            if selected {
-                                Rectangle()
-                                    .fill(Theme.Palette.acc)
-                                    .frame(height: 2)
-                                    .matchedGeometryEffect(id: "filterUnderline", in: underlineNamespace)
-                            }
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-        // R2: rapid tab-tapping should re-target the live underline
-        // position, not cross-fade two fixed-duration eases.
-        .animation(reduceMotion ? nil : Theme.Motion.interactive(0.3), value: selection)
     }
 }
 

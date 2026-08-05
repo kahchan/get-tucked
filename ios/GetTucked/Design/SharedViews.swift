@@ -24,8 +24,41 @@ func frontalAreaAccessibilityLabel(_ cm2: Double) -> String {
 }
 
 extension View {
-    /// Hides the system navigation bar. iOS-only; no-op on macOS.
+    /// Hides the system navigation bar's chrome — title, back chevron+label,
+    /// background — while leaving the bar itself present (AK10 approach 1).
+    /// Every pushed screen uses this in place of the app's own NavHeader/
+    /// BackButton; the previous implementation (`.toolbar(.hidden, for:
+    /// .navigationBar)`) hid the bar wholesale, which also silently disabled
+    /// `interactivePopGestureRecognizer` — hiding a UINavigationBar detaches
+    /// whatever the swipe-back gesture's delegate needs from it, a known
+    /// SwiftUI/UIKit quirk, not a bug in this app. Keeping the bar (just
+    /// styled invisible) preserves the system swipe-back gesture; the app's
+    /// own floating `BackButton` (`AppNavigationView`) stays the primary,
+    /// always-visible affordance either way. iOS-only; no-op on macOS.
+    ///
+    /// `.navigationBarTitleDisplayMode(.inline)` with no title/buttons keeps
+    /// the bar at zero *visual* height — measured on-device (simulator,
+    /// iPhone 17/iOS 26.5): `NavHeader` lands at the identical on-screen
+    /// position, root and pushed alike, whether the bar is kept-but-invisible
+    /// or hidden wholesale, so no compensating offset is needed here. If a
+    /// future iOS/SwiftUI version starts reserving real space for the
+    /// invisible bar, that'll show up as every `NavHeader` shifting down —
+    /// re-run the before/after comparison in the AK10 report rather than
+    /// guessing a new offset.
     func hideNavBar() -> some View {
+        #if canImport(UIKit)
+        HideNavBarKeepingSwipe { self }
+        #else
+        self
+        #endif
+    }
+
+    /// The pre-AK10 behavior: hides the navigation bar wholesale, which also
+    /// disables the system interactivePopGestureRecognizer. `CaptureView`
+    /// only — it owns its own ✕ + discard-confirmation flow (Q1/Q2), so a
+    /// silent-discard edge swipe there would be a regression (AK10, "exclude
+    /// CaptureView, recommended").
+    func hideNavBarFully() -> some View {
         #if canImport(UIKit)
         self.toolbar(.hidden, for: .navigationBar)
         #else
@@ -41,6 +74,47 @@ extension View {
         shadow(color: .black.opacity(0.6), radius: 2, y: 1)
     }
 }
+
+#if canImport(UIKit)
+/// Implementation detail of `hideNavBar()` (AK10 approach 1). Keeps the
+/// system navigation bar present — transparent, no title, no back button —
+/// instead of hiding it wholesale, so nothing about the bar itself changes
+/// (approach 1's own reasoning still holds). `.navigationBarBackButtonHidden`
+/// also disables `interactivePopGestureRecognizer` as a side effect, and two
+/// rounds of fighting that private recognizer's delegate (AK13, AK17) proved
+/// it isn't even consulted on this iOS/SwiftUI version — see AK17/AK18 in
+/// `plans/plan-ak-matte-completeness-and-accessibility.md`. AK18 replaces it
+/// with a plain SwiftUI edge-gated `DragGesture` that calls
+/// `@Environment(\.dismiss)` directly, independent of that recognizer.
+private struct HideNavBarKeepingSwipe<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+    @Environment(\.dismiss) private var dismiss
+
+    /// Matches the system screen-edge-pan recognizer's own recognition zone
+    /// (AK17). No RTL handling elsewhere in this codebase, so this checks the
+    /// leading (left) edge only.
+    private static var edgeBandWidth: CGFloat { 24 }
+
+    var body: some View {
+        content()
+            .navigationBarBackButtonHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { value in
+                        guard value.startLocation.x <= Self.edgeBandWidth else { return }
+                        let horizontal = value.translation.width
+                        let vertical = value.translation.height
+                        guard horizontal > 0,
+                              abs(horizontal) > 50,
+                              abs(horizontal) > abs(vertical) * 1.5 else { return }
+                        dismiss()
+                    }
+            )
+    }
+}
+#endif
 
 /// Standard in-app nav header row (not system NavigationView title).
 struct NavHeader<Trailing: View>: View {
@@ -238,6 +312,47 @@ struct SegmentedToggleBar: View {
         // Selection today is acid colour + a 2pt underline alone — both
         // invisible to VoiceOver and to colourblind users (Plan AK9).
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+extension View {
+    /// AK14: the swipe that pages a `SegmentedToggleBar`'s selection, applied
+    /// to the screen's own **content** — not the bar itself. AK11 put this
+    /// gesture on the ~40pt tab strip so every strip gained it "for free";
+    /// nobody swipes a 40pt strip, so it was interactively dead there (and
+    /// read as backwards on the positions list, since touching a *control*
+    /// invokes direct manipulation — selection follows the finger — while
+    /// touching *content* invokes paging — content follows the finger, so
+    /// swipe-left → next). The gesture logic lives here, once, rather than
+    /// back on `SegmentedToggleBar` (which has none now) or duplicated per
+    /// screen — a screen opts in by applying this to its own content, same
+    /// content-hosted shape AB11 originally used. Threshold unchanged from
+    /// AB11/AK11 (see CLAUDE.md standing traps) — not re-derived here.
+    ///
+    /// Deliberately not applied to every tab strip (AK11's mistake): only
+    /// where tabs page spatially adjacent content (`PositionDetailView`'s
+    /// photo, `ComparisonView`'s overlay) — see AK14 Scope. A bar that
+    /// re-sorts/re-filters in place (`PositionListView`, `LeaderboardView`)
+    /// has no "next item" for a direction to point at.
+    ///
+    /// `.simultaneousGesture` so it never steals the enclosing ScrollView's
+    /// vertical drag — only `.onEnded` acts, and only once the drag is
+    /// clearly horizontal. AK10 reconciliation still applies unchanged: the
+    /// `minimumDistance: 24` + dominance check are the same threshold every
+    /// horizontal swipe in the app trusts to lose to an edge-pop back-swipe.
+    func segmentedSwipe(selection: Binding<Int>, count: Int, disabled: Bool = false) -> some View {
+        simultaneousGesture(
+            DragGesture(minimumDistance: 24)
+                .onEnded { value in
+                    guard !disabled else { return }
+                    let horizontal = value.translation.width
+                    let vertical = value.translation.height
+                    guard abs(horizontal) > 50, abs(horizontal) > abs(vertical) * 1.5 else { return }
+                    let newIndex = selection.wrappedValue + (horizontal < 0 ? 1 : -1)
+                    guard (0..<count).contains(newIndex) else { return }
+                    selection.wrappedValue = newIndex
+                }
+        )
     }
 }
 

@@ -35,6 +35,10 @@ struct ComparisonView: View {
     // visible layer's photo in behind its own outline, so it follows that
     // layer's own A/B chip rather than getting a chip of its own to hide.
     @State private var showPhotoUnderlay = false
+    // AK11: lifted out of GhostCompareOverlay (was a private @State there).
+    // AK14: fed into the overlay's own `.segmentedSwipe` as `disabled` — a
+    // pinch-zoomed pan must never also be read as a tab swipe.
+    @State private var isOverlayZoomed = false
 
     // R1: the outline draw-in ceremony. A then B, staggered ~0.2s apart
     // (Plan AI5 — tightened from 0.35s); plays once per screen visit
@@ -184,8 +188,20 @@ struct ComparisonView: View {
                                         drawInProgressA: reduceMotion ? 1 : drawInProgressA,
                                         drawInProgressB: reduceMotion ? 1 : drawInProgressB,
                                         onGestureBegan: cancelDrawInIfNeeded,
-                                        onSwipeCycle: cycleOutlineSegment
+                                        isZoomed: $isOverlayZoomed
                                     )
+                                    // AK19: keyed on both positions' identity so a
+                                    // fresh A/B pairing always starts pinchZoomable's
+                                    // zoom/pan state clean, even if the view were
+                                    // ever reused across a different comparison.
+                                    .id("\(positionA.persistentModelID)-\(positionB.persistentModelID)")
+                                    // AK14: swipe-to-cycle PHOTO/OUTLINE lives on
+                                    // the overlay content itself again (AB11's
+                                    // original hit region, via `.segmentedSwipe`)
+                                    // — see PositionDetailView's photo for the
+                                    // same reasoning. isOverlayZoomed is the same
+                                    // guard AB11/AK11 both used.
+                                    .segmentedSwipe(selection: showOutlineBinding, count: 2, disabled: isOverlayZoomed)
                                     // Decorative silhouette comparison — the numeric
                                     // delta above/below already states the comparison;
                                     // this graphic has no content a VoiceOver user can
@@ -326,15 +342,6 @@ struct ComparisonView: View {
                 showOutline = newValue == 1
             }
         )
-    }
-
-    /// AB11: routes the overlay's swipe gesture through the same binding the
-    /// PHOTO/OUTLINE toggle uses (so `cancelDrawInIfNeeded` fires identically
-    /// either way) — no wraparound: an out-of-range index is simply dropped.
-    private func cycleOutlineSegment(delta: Int) {
-        let newIndex = showOutlineBinding.wrappedValue + delta
-        guard (0...1).contains(newIndex) else { return }
-        showOutlineBinding.wrappedValue = newIndex
     }
 
     /// Off-main, once — mirrors the pattern `CaptureView.buildGhosts()` uses
@@ -627,11 +634,13 @@ private struct GhostCompareOverlay: View {
     // R1.4: a pinch/pan starting mid-draw snaps the ceremony to done —
     // scrolling/zooming shouldn't compete with an unrelated animation.
     var onGestureBegan: () -> Void = {}
-    // AB11: swipe the overlay to cycle PHOTO/OUTLINE — never A/B, which
-    // keeps its own chips untouched.
-    var onSwipeCycle: (Int) -> Void = { _ in }
+    // AK11 lifted this out to ComparisonView; AK14 put the swipe back here
+    // (as `.segmentedSwipe` on this view at the call site, restoring AB11's
+    // original hit region) after AK11's move to `SegmentedToggleBar` proved
+    // interactively dead — a 40pt tab strip isn't where anyone swipes. This
+    // `@Binding` is still how the call site's `disabled:` guard reaches in.
+    @Binding var isZoomed: Bool
 
-    @State private var isZoomed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -658,26 +667,9 @@ private struct GhostCompareOverlay: View {
             // toggles don't reset zoom, since the physical-cm placement puts
             // both modes' content at the identical screen position/scale.
             .pinchZoomable(onGestureBegan: onGestureBegan, onZoomChanged: { isZoomed = $0 })
-            // AB11: `.simultaneousGesture` so the swipe never steals the
-            // enclosing ScrollView's vertical drag — only `.onEnded` acts,
-            // and only for a clearly horizontal drag while unzoomed (a
-            // zoomed pan is a different, `.highPriorityGesture`-owned
-            // gesture already; `isZoomed` is a defense-in-depth guard here).
-            .simultaneousGesture(swipeGesture)
         }
         .background(Theme.Palette.bg1)
         .clipped()
-    }
-
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onEnded { value in
-                guard !isZoomed else { return }
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                guard abs(horizontal) > 50, abs(horizontal) > abs(vertical) * 1.5 else { return }
-                onSwipeCycle(horizontal < 0 ? 1 : -1)
-            }
     }
 
     @ViewBuilder
@@ -1113,6 +1105,12 @@ private struct TimeImpactSection: View {
         VStack(alignment: .leading, spacing: Theme.Space.md) {
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
                 FieldLabel("DISTANCE")
+                // AK14: no `.segmentedSwipe` here, deliberately — this bar
+                // picks an input that feeds a computed number (TIME IMPACT),
+                // not a view/tab; a swipe changing it by accident is a
+                // different, worse mistake than a swipe changing a tab. Same
+                // principle now excludes PositionListView's sort and
+                // LeaderboardView's filter bar (see AK14 Scope).
                 SegmentedToggleBar(labels: presetLabels, selectedIndex: presetIndexBinding)
                 if selectedPreset == nil {
                     MonoField(placeholder: "e.g. 250", text: $customDistanceText, numericOnly: true)
@@ -1261,7 +1259,14 @@ private struct DiffTable: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header row
+            // Header row. AK15: these stay UNSCALED, deliberately — growing
+            // them with @ScaledMetric was tried and reverted, since three
+            // fixed-width columns that grow with Dynamic Type stop being
+            // "fixed" and can outgrow the screen at AX5 with nothing left to
+            // compress (only the flexible METRIC/Spacer pair can absorb
+            // width, and it has nothing left to give once the columns
+            // themselves are the overflow). `.lineLimit`/`.minimumScaleFactor`
+            // below fit the label into a still-legible single line instead.
             HStack {
                 Text("METRIC")
                     .font(Theme.mono(11))
@@ -1270,14 +1275,20 @@ private struct DiffTable: View {
                 Text("A")
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.Palette.fg3)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                     .frame(width: 76, alignment: .trailing)
                 Text("B")
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.Palette.fg3)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                     .frame(width: 76, alignment: .trailing)
                 Text("DIFF")
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.Palette.fg3)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                     .frame(width: 70, alignment: .trailing)
             }
             .padding(.horizontal, Theme.Space.screenMargin)
@@ -1431,6 +1442,10 @@ private struct DiffRow: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // AK15: widths stay UNSCALED — see DiffTable's header row for
+            // why growing them is unsafe. `.lineLimit`/`.minimumScaleFactor`
+            // keep a value on one legible line instead of wrapping
+            // character-by-character ("482"/"0"/"cm²") at AX5.
             HStack {
                 Text(key.uppercased())
                     .font(Theme.mono(11))
@@ -1440,14 +1455,20 @@ private struct DiffRow: View {
                 Text(valA ?? "—")
                     .font(Theme.mono(13))
                     .foregroundStyle(Theme.Palette.fg)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                     .frame(width: 76, alignment: .trailing)
                 Text(valB ?? "—")
                     .font(Theme.mono(13))
                     .foregroundStyle(Theme.Palette.fg)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                     .frame(width: 76, alignment: .trailing)
                 Text(diff ?? "—")
                     .font(Theme.mono(13, weight: .bold))
                     .foregroundStyle(diffColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                     .frame(width: 70, alignment: .trailing)
             }
             .padding(.horizontal, Theme.Space.screenMargin)

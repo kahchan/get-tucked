@@ -142,7 +142,10 @@ struct CaptureView: View {
                 Button("Cancel", role: .cancel) {}
             }
         }
-        .hideNavBar()
+        // AK10: CaptureView keeps the old wholesale-hide behavior (no swipe-
+        // back) — it owns its own ✕ + discard-confirmation flow (Q1/Q2), and
+        // a silent-discard edge swipe would bypass that.
+        .hideNavBarFully()
         .onAppear {
             if selectedBike == nil {
                 // Matching a position (Plan P2) means staying on the same

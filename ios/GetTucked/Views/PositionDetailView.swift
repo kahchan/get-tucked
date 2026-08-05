@@ -29,9 +29,10 @@ struct PositionDetailView: View {
     @State private var frontalPhotoSegment: PhotoSegment = .photo
     @State private var sideOnPhotoSegment: PhotoSegment = .photo
     @State private var showDeleteConfirm = false
-    // AB11: gates the swipe-to-cycle gesture below — a pinch-zoomed pan must
-    // never also be read as a tab swipe. Reset per photo via `.id(showingSideOn)`
-    // resetting the whole pinch-zoom modifier, same as zoom itself.
+    // AB11/AK14: fed into the photo's `.segmentedSwipe` as `disabled` — a
+    // pinch-zoomed pan must never also be read as a tab swipe. Reset per
+    // photo via `.id(showingSideOn)` resetting the whole pinch-zoom modifier,
+    // same as zoom itself.
     @State private var isPhotoZoomed = false
     // Peeked from the stored photos' headers (no full decode) so the
     // placeholder box is sized correctly from the very first frame (N5) —
@@ -143,18 +144,24 @@ struct PositionDetailView: View {
                         }
                         .aspectRatio(showingSideOn ? sideOnAspectRatio : headOnAspectRatio, contentMode: .fit)
                         .frame(maxWidth: .infinity)
-                        // Keyed on showingSideOn so switching photos resets zoom
-                        // rather than carrying a now-meaningless offset onto a
-                        // different image with a different aspect ratio.
-                        .id(showingSideOn)
+                        // Keyed on position identity + showingSideOn so switching
+                        // photos, or navigating to a different Position, resets
+                        // zoom rather than carrying a now-meaningless offset onto
+                        // a different image (AK19).
+                        .id("\(position.persistentModelID)-\(showingSideOn)")
                         .pinchZoomable(onZoomChanged: { isPhotoZoomed = $0 })
-                        // AB11: swipe the photo itself to cycle PHOTO/MASK/BONES —
-                        // `.simultaneousGesture` so it never steals the enclosing
-                        // ScrollView's vertical drag (only `.onEnded` acts, and only
-                        // once the drag is clearly horizontal); the `isPhotoZoomed`
-                        // guard is what keeps a zoomed pan from also being read as a
-                        // tab swipe.
-                        .simultaneousGesture(photoSwipeGesture)
+                        // AK14: swipe-to-cycle PHOTO/MASK/BONES lives on the
+                        // photo content itself again (AB11's original hit
+                        // region) via `.segmentedSwipe` — AK11's move onto
+                        // SegmentedToggleBar made every strip "gain" the
+                        // gesture but left nobody able to trigger it (a 40pt
+                        // tab strip isn't where anyone swipes). isPhotoZoomed
+                        // is the same guard AB11/AK11 both used.
+                        .segmentedSwipe(
+                            selection: showingSideOn ? sideOnPhotoSegmentBinding : frontalPhotoSegmentBinding,
+                            count: showingSideOn ? sideOnSegments.count : frontalSegments.count,
+                            disabled: isPhotoZoomed
+                        )
                         // MASK/BONES only make sense once the overlay they need is
                         // ready — fades in (rather than popping the layout) once it
                         // is, same as the underlying mask fade in loadPhotos().
@@ -336,31 +343,6 @@ struct PositionDetailView: View {
                 }
             }
         )
-    }
-
-    /// AB11: one gesture, one meaning — cycles whichever toggle bar is
-    /// currently showing (frontal or side-on), through only its own
-    /// available segments. `minimumDistance: 24` keeps an ordinary vertical
-    /// scroll from ever registering as a swipe attempt in the first place;
-    /// the horizontal-dominance + distance checks in `onEnded` are the
-    /// second gate. No wraparound: `frontalPhotoSegmentBinding`/
-    /// `sideOnPhotoSegmentBinding` already no-op on an out-of-range index.
-    private var photoSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onEnded { value in
-                guard !isPhotoZoomed else { return }
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                guard abs(horizontal) > 50, abs(horizontal) > abs(vertical) * 1.5 else { return }
-                let delta = horizontal < 0 ? 1 : -1
-                if showingSideOn {
-                    let binding = sideOnPhotoSegmentBinding
-                    binding.wrappedValue = binding.wrappedValue + delta
-                } else {
-                    let binding = frontalPhotoSegmentBinding
-                    binding.wrappedValue = binding.wrappedValue + delta
-                }
-            }
     }
 
     /// No draw-on here (Plan O5) — `SkeletonOverlay.progress` defaults to 1
