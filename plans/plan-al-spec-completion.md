@@ -95,12 +95,14 @@ estimate — neither of the above.
    Best Bike Split.
 5. Debraux, P. "Field method for assessing the cycling frontal area." Sci-Sport.
 
-Fix: `REFERENCES` section at the foot of `HowItWorksView.swift`, below the already-shipped
-`LIMITATIONS` block. Text only, no outbound links (offline app; a dead link is worse than
-a plain citation line) — plain author/title/journal/year strings for 1–3, plain
-title/publisher for 4–5.
+**CLOSED 2026-08-07** — `ReferencesSection` shipped on `HowItWorksView.swift`, mirrors
+`LimitationsSection`'s styling, all 5 citations verbatim. 340 green.
 
-Verify: every entry in §11's contents list has a visible home on that screen.
+**New gap found during the §11 coverage check, out of AL4's original scope:** §11 bullet
+2 wants an explicit inputs (photo, handlebar width, ARKit camera pose) / outputs (cm²,
+percent delta) list. Nothing on the screen itemizes this — `MethodStep` 02's prose covers
+handlebar width but not ARKit pose as an input or percent-delta as an output. Small
+addendum, not a new section — candidate for wave 7 alongside AL13/AL14.
 
 ---
 

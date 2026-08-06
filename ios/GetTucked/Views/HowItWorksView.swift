@@ -89,6 +89,13 @@ struct HowItWorksView: View {
                         LimitationsSection()
                             .padding(.horizontal, Theme.Space.screenMargin)
 
+                        // AL4: spec §11's citations — the research this
+                        // screen's claims rest on, plus two accessible
+                        // overviews. Text only, no outbound links (offline
+                        // app; a dead link is worse than a plain citation).
+                        ReferencesSection()
+                            .padding(.horizontal, Theme.Space.screenMargin)
+
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Be informed,")
                                 .font(Theme.heading(30))
@@ -223,6 +230,44 @@ private struct LimitationsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.sm) {
             Text("LIMITATIONS")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.amb)
+                .kerning(1.2)
+            ForEach(items, id: \.self) { item in
+                HStack(alignment: .top, spacing: Theme.Space.sm) {
+                    Text("−")
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.amb)
+                    Text(item)
+                        .font(Theme.mono(12))
+                        .foregroundStyle(Theme.Palette.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(Theme.Space.md)
+        .background(Theme.Palette.bg2)
+        .overlay(Rectangle().stroke(Theme.Palette.line3, lineWidth: 1))
+    }
+}
+
+// MARK: - References (spec §11, Plan AL4)
+
+/// Citations backing this screen's claims, same amber caution register as
+/// `LimitationsSection`. Text only — the app is offline, so a plain citation
+/// line beats a dead link.
+private struct ReferencesSection: View {
+    private let items = [
+        "Defraeye, T., Blocken, B., Koninckx, E., Hespel, P., & Carmeliet, J. (2010). Aerodynamic study of different cyclist positions: CFD analysis and full-scale wind-tunnel tests. Journal of Biomechanics, 43(7), 1262–1268.",
+        "Crouch, T. N., Burton, D., LaBry, Z. A., & Blair, K. B. (2017). Riding against the wind: a review of competition cycling aerodynamics. Sports Engineering, 20(2), 81–110.",
+        "García-López, J., Rodríguez-Marroyo, J. A., Juneau, C.-E., Peleteiro, J., Córdova Martínez, A., & Villa, J. G. (2008). Reference values and improvement of aerodynamic drag in professional cyclists. Journal of Sports Sciences, 26(3), 277–286.",
+        "\"What Is CdA? Aerodynamic Drag Coefficient Explained for Cyclists and Triathletes.\" Best Bike Split.",
+        "Debraux, P. \"Field method for assessing the cycling frontal area.\" Sci-Sport.",
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.sm) {
+            Text("REFERENCES")
                 .font(Theme.mono(11, weight: .bold))
                 .foregroundStyle(Theme.Palette.amb)
                 .kerning(1.2)
