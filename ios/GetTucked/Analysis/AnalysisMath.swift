@@ -161,8 +161,10 @@ enum AnalysisMath {
         return count
     }
 
-    static func uncertaintyCm2(areaCm2: Double) -> Double {
-        areaCm2 * uncertaintyFraction
+    /// `measuredFraction` is the seam for a measured noise floor (AL6/AL10,
+    /// not yet built); falls back to the fixed placeholder when absent.
+    static func uncertaintyCm2(areaCm2: Double, measuredFraction: Double? = nil) -> Double {
+        areaCm2 * (measuredFraction ?? uncertaintyFraction)
     }
 
     /// Single ± cm² voice for a displayed area — rounds like

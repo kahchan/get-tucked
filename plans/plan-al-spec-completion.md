@@ -239,7 +239,7 @@ Grouped so no two parallel agents touch the same file.
 | 1a | AL1 + AL3a | `LiveCameraView.swift` | **Closed** — TILT relabel + bgConfidence instrumentation, 331 green. `SetTheSceneView.swift` had nothing to change (already coached copy). |
 | 1b | AL4 LIMITATIONS | `HowItWorksView.swift` | **Closed** — LIMITATIONS card added after `NoiseFloorNote`. REFERENCES still waits on D1. |
 | 2 | AL5 + AL7 + AL11 | `AppSchema.swift`, `GetTuckedApp.swift`, `CaptureView.swift`, `AnalysisMath.swift`, `AnalysisEngine.swift`, `PositionMetrics.swift`, `BikeSwap.swift`, `UserSettings.swift` (new) | **Closed** — SchemaV9, 331 green. AL11's mirror of `shoulderWidthCm` also had to reach `AnalysisEngine.swift` (Vision→metric computation) and the bike-swap rescale path — "same shape as shoulderWidthCm" pulls in more files than PositionMetrics alone. No singleton-model precedent existed for `UserSettings`; fetch-or-insert via a static helper is now that precedent. `armWidthCm` has no UI surface yet by design. |
-| 3 | AL2 seam | `AnalysisMath.swift` | After wave 2 |
+| 3 | AL2 seam | `AnalysisMath.swift` | **Closed** — `uncertaintyCm2(areaCm2:measuredFraction:)`, optional param defaults to 0.03. 332 green. Injection point for D2's winner: `AnalysisEngine.swift:237`, pass `userSettings.noiseFloorPct`. |
 | — | AL3a device session, J0 | — | Kah; interleaves, doesn't queue |
 | 4 | D2 winner (AL6 and/or AL10) | — | Blocked on D2 + J0 |
 | 5 | AL8a spike → AL8b | `tools/matte-lab`, then new | Verdict before UI |

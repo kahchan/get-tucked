@@ -150,6 +150,12 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(AnalysisMath.uncertaintyCm2(areaCm2: 400), 12, accuracy: acc)
     }
 
+    func testUncertaintyUsesMeasuredFractionWhenSupplied() {
+        XCTAssertEqual(
+            AnalysisMath.uncertaintyCm2(areaCm2: 400, measuredFraction: 0.05), 20, accuracy: acc
+        )
+    }
+
     func testUncertaintyDisplayRoundsAndFormats() {
         XCTAssertEqual(AnalysisMath.uncertaintyDisplay(154.7), "±155 cm²")
         XCTAssertEqual(AnalysisMath.uncertaintyDisplay(12.0), "±12 cm²")
