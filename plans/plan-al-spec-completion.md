@@ -222,11 +222,10 @@ launch-marketing memory).
 
 - **D1 — AL4 reference strings.** Supply the citations, or approve web-verifying them.
   Do not let an agent generate them.
-- **D2 — one noise measurement or two?** AL6 (repeat-capture self-test) and AL10 (3-shot
-  burst) measure the same thing. The burst yields per-position spread with no user
-  education, where the self-test's pedagogy is called out in §13 as harder than its
-  math — and a floor could be derived from accumulated burst spreads across positions,
-  collapsing three items into one. Recommend **burst only**; the spec asks for both.
+- **D2 — one noise measurement or two? RESOLVED 2026-08-06: burst only (AL10).** AL6
+  dropped. `UserSettings.noiseFloorPct` is populated by accumulating burst spread across
+  positions, not a separate onboarding self-test. J0 gate overridden by Kah (2026-08-06)
+  — building AL10 without the subject-matte device eyeball.
 
 ---
 
@@ -241,9 +240,9 @@ Grouped so no two parallel agents touch the same file.
 | 2 | AL5 + AL7 + AL11 | `AppSchema.swift`, `GetTuckedApp.swift`, `CaptureView.swift`, `AnalysisMath.swift`, `AnalysisEngine.swift`, `PositionMetrics.swift`, `BikeSwap.swift`, `UserSettings.swift` (new) | **Closed** — SchemaV9, 331 green. AL11's mirror of `shoulderWidthCm` also had to reach `AnalysisEngine.swift` (Vision→metric computation) and the bike-swap rescale path — "same shape as shoulderWidthCm" pulls in more files than PositionMetrics alone. No singleton-model precedent existed for `UserSettings`; fetch-or-insert via a static helper is now that precedent. `armWidthCm` has no UI surface yet by design. |
 | 3 | AL2 seam | `AnalysisMath.swift` | **Closed** — `uncertaintyCm2(areaCm2:measuredFraction:)`, optional param defaults to 0.03. 332 green. Injection point for D2's winner: `AnalysisEngine.swift:237`, pass `userSettings.noiseFloorPct`. |
 | — | AL3a device session, J0 | — | Kah; interleaves, doesn't queue |
-| 4 | D2 winner (AL6 and/or AL10) | — | Blocked on D2 + J0 |
+| 4 | AL10 burst (D2 resolved: burst only) | `LiveCameraView.swift`, `CaptureView.swift`, `AnalysisEngine.swift`, `AnalysisMath.swift`, `UserSettings.swift` | J0 gate overridden by Kah 2026-08-06 |
 | 5 | AL8a spike → AL8b | `tools/matte-lab`, then new | Verdict before UI |
-| 6 | AL9 events | `AppSchema.swift`, `LeaderboardView.swift` | SchemaV10 |
+| 6 | AL9 events | `AppSchema.swift`, `LeaderboardView.swift` | **Closed** — `Event` model (id/name/date/notes) + `Position.events` relationship, SchemaV10. Leaderboard gets an event chip filter, AND-combined with the bike filter. Inline "+ NEW" create only — no dedicated events screen, no edit/delete, `notes` field unwritten until one exists. 332 green. |
 | 7 | AL13, AL14 | `CLAUDE.md`, checklist | Docs |
 
 ## Verification

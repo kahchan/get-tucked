@@ -87,11 +87,20 @@ final class Position {
 
     var isBaseline: Bool
 
+    // Event tags (Plan AL9, SchemaV10) — many-to-many "tags with a date"
+    // (spec §6), not folders: a position can carry several events (e.g. both
+    // a shakedown ride and "Tour Divide 2026"). No cascade either direction —
+    // deleting an event untags its positions rather than deleting them, and
+    // deleting a position just drops it from the event's list.
+    @Relationship(inverse: \Event.positions)
+    var events: [Event]
+
     init(label: String, bike: Bike?) {
         self.id = UUID()
         self.capturedAt = Date()
         self.label = label
         self.bike = bike
         self.isBaseline = false
+        self.events = []
     }
 }
