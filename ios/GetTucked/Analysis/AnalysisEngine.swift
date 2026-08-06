@@ -99,6 +99,11 @@ struct AnalysisResult {
 struct HeadOnPoseMetrics {
     /// Shoulder-to-shoulder distance in cm, derived from VNHumanBodyPoseObservation.
     let shoulderWidthCm: Double
+    /// Elbow-to-elbow distance in cm, same ruler as `shoulderWidthCm` (AL11).
+    /// Only present when `armPoints` (below) cleared its confidence floor —
+    /// arms are symmetric-or-nothing, so this and `armPoints` are nil
+    /// together.
+    let armWidthCm: Double?
     /// Normalised (0–1, origin bottom-left) shoulder landmarks — the exact
     /// points shoulderWidthCm was computed from, persisted for the skeleton
     /// overlay (Plan O) so it replays what produced the number rather than
@@ -747,11 +752,20 @@ struct AnalysisEngine {
         )
 
         let hips = hipPoints(from: observation)
+        let arms = armPoints(from: observation)
+        // arms[0] = leftElbow, arms[2] = rightElbow (see armPoints(from:)).
+        let armWidthCm = arms.map {
+            AnalysisMath.armWidthCm(
+                leftElbowX: $0[0].x, rightElbowX: $0[2].x,
+                imageWidthPx: cgImage.width, pixelsPerCm: pixelsPerCm
+            )
+        }
         return HeadOnPoseMetrics(
             shoulderWidthCm: shoulderWidthCm,
+            armWidthCm: armWidthCm,
             leftShoulder: leftShoulder.location,
             rightShoulder: rightShoulder.location,
-            armPoints: armPoints(from: observation),
+            armPoints: arms,
             hipPoints: hips,
             kneePoints: kneePoints(from: observation, hipsPresent: hips != nil)
         )

@@ -741,6 +741,7 @@ final class AnalysisMathTests: XCTestCase {
             frontalAreaCm2: 400,
             frontalAreaUncertainty: 12,
             shoulderWidthCm: 42,
+            armWidthCm: nil,
             sideOnPixelsPerCm: nil,
             headDropCm: nil,
             wheelTapPoints: nil,
@@ -772,6 +773,7 @@ final class AnalysisMathTests: XCTestCase {
             frontalAreaCm2: 400,
             frontalAreaUncertainty: 12,
             shoulderWidthCm: nil,
+            armWidthCm: nil,
             sideOnPixelsPerCm: nil,
             headDropCm: nil,
             wheelTapPoints: [0.5, 0.9, 0.5, 0.544],
@@ -801,7 +803,7 @@ final class AnalysisMathTests: XCTestCase {
     func testRescaledMetricsWheelCheckNilWhenNewBikeHasNoWheelData() {
         let input = AnalysisMath.BikeSwapInput(
             pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
-            shoulderWidthCm: nil, sideOnPixelsPerCm: nil, headDropCm: nil,
+            shoulderWidthCm: nil, armWidthCm: nil, sideOnPixelsPerCm: nil, headDropCm: nil,
             wheelTapPoints: [0.5, 0.9, 0.5, 0.544], imageAspect: CGSize(width: 1000, height: 1000),
             oldHandlebarWidthMm: 400, newHandlebarWidthMm: 500,
             oldWheelbaseMm: nil, newWheelbaseMm: nil, newWheelDiameterMm: nil
@@ -814,7 +816,7 @@ final class AnalysisMathTests: XCTestCase {
     func testRescaledMetricsSideOnScalesByWheelbaseRatio() {
         let input = AnalysisMath.BikeSwapInput(
             pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
-            shoulderWidthCm: nil, sideOnPixelsPerCm: 12, headDropCm: 5,
+            shoulderWidthCm: nil, armWidthCm: nil, sideOnPixelsPerCm: 12, headDropCm: 5,
             wheelTapPoints: nil, imageAspect: CGSize(width: 1, height: 1),
             oldHandlebarWidthMm: 400, newHandlebarWidthMm: 400,
             oldWheelbaseMm: 1000, newWheelbaseMm: 1100, newWheelDiameterMm: nil
@@ -829,7 +831,7 @@ final class AnalysisMathTests: XCTestCase {
     func testRescaledMetricsSideOnNilsOutWhenNewBikeLacksWheelbase() {
         let input = AnalysisMath.BikeSwapInput(
             pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
-            shoulderWidthCm: nil, sideOnPixelsPerCm: 12, headDropCm: 5,
+            shoulderWidthCm: nil, armWidthCm: nil, sideOnPixelsPerCm: 12, headDropCm: 5,
             wheelTapPoints: nil, imageAspect: CGSize(width: 1, height: 1),
             oldHandlebarWidthMm: 400, newHandlebarWidthMm: 400,
             oldWheelbaseMm: 1000, newWheelbaseMm: nil, newWheelDiameterMm: nil
@@ -845,7 +847,7 @@ final class AnalysisMathTests: XCTestCase {
     func testRescaledMetricsLeavesBorrowedHeadDropUntouchedWhenSideOnScaleAlreadyNil() {
         let input = AnalysisMath.BikeSwapInput(
             pixelsPerCm: 10, frontalAreaCm2: 400, frontalAreaUncertainty: 12,
-            shoulderWidthCm: nil, sideOnPixelsPerCm: nil, headDropCm: 3.5,
+            shoulderWidthCm: nil, armWidthCm: nil, sideOnPixelsPerCm: nil, headDropCm: 3.5,
             wheelTapPoints: nil, imageAspect: CGSize(width: 1, height: 1),
             oldHandlebarWidthMm: 400, newHandlebarWidthMm: 500,
             oldWheelbaseMm: nil, newWheelbaseMm: 1100, newWheelDiameterMm: nil
@@ -866,6 +868,7 @@ final class AnalysisMathTests: XCTestCase {
             frontalAreaCm2: 437.5,
             frontalAreaUncertainty: 13.125,
             shoulderWidthCm: 41.3,
+            armWidthCm: nil,
             sideOnPixelsPerCm: 9.6,
             headDropCm: 4.2,
             wheelTapPoints: [0.5, 0.9, 0.5, 0.544],
@@ -883,6 +886,7 @@ final class AnalysisMathTests: XCTestCase {
             frontalAreaCm2: toB.frontalAreaCm2,
             frontalAreaUncertainty: toB.frontalAreaUncertainty,
             shoulderWidthCm: toB.shoulderWidthCm,
+            armWidthCm: toB.armWidthCm,
             sideOnPixelsPerCm: toB.sideOnPixelsPerCm,
             headDropCm: toB.headDropCm,
             wheelTapPoints: original.wheelTapPoints,

@@ -14,6 +14,11 @@ final class PositionMetrics {
     // Head-on pose (populated after Phase 2.4 pose estimation on head-on frame)
     var shoulderWidthCm: Double?
 
+    // Elbow-to-elbow width (Plan AL11, SchemaV9) — same ruler and shape as
+    // shoulderWidthCm above, derived from headOnArmPoints below. Nil exactly
+    // when headOnArmPoints is nil (arms didn't clear the confidence floor).
+    var armWidthCm: Double?
+
     // The bike's handlebar width at the moment this position was analysed —
     // not a live read of Bike.handlebarWidthMm, which the user can edit later
     // and would otherwise silently orphan this number's ruler (Plan I3).

@@ -331,6 +331,19 @@ enum AnalysisMath {
         return widthPx / pixelsPerCm
     }
 
+    /// Same geometry as `shoulderWidthCm`, read off the elbows instead of the
+    /// shoulders — how wide the rider's arms sit at the elbow, using the
+    /// same frontal ruler (`pixelsPerCm`). AL11: `headOnArmPoints` is already
+    /// persisted; this is the first metric to consume it as a measurement
+    /// rather than presentational context.
+    static func armWidthCm(
+        leftElbowX: Double, rightElbowX: Double,
+        imageWidthPx: Int, pixelsPerCm: Double
+    ) -> Double {
+        let widthPx = abs(leftElbowX - rightElbowX) * Double(imageWidthPx)
+        return widthPx / pixelsPerCm
+    }
+
     /// A human shoulder width outside this range means the scale is probably
     /// mis-tapped (or the bike's bar width is wrong), not that the rider is
     /// genuinely that narrow/wide.
@@ -641,6 +654,7 @@ enum AnalysisMath {
         let frontalAreaCm2: Double
         let frontalAreaUncertainty: Double
         let shoulderWidthCm: Double?
+        let armWidthCm: Double?
         let sideOnPixelsPerCm: Double?
         let headDropCm: Double?
         /// `Position.wheelTapPoints` — [groundX, groundY, topX, topY], unit
@@ -673,6 +687,7 @@ enum AnalysisMath {
         let frontalAreaCm2: Double
         let frontalAreaUncertainty: Double
         let shoulderWidthCm: Double?
+        let armWidthCm: Double?
         let wheelCheckDisagreementFraction: Double?
         let sideOnPixelsPerCm: Double?
         let headDropCm: Double?
@@ -688,6 +703,7 @@ enum AnalysisMath {
         let newFrontalAreaCm2 = input.frontalAreaCm2 * r * r
         let newFrontalAreaUncertainty = input.frontalAreaUncertainty * r * r
         let newShoulderWidthCm = input.shoulderWidthCm.map { $0 * r }
+        let newArmWidthCm = input.armWidthCm.map { $0 * r }
 
         // Wheel check: recomputed fresh from the stored taps against the
         // NEW bike's wheel diameter (reuses wheelPixelsPerCm +
@@ -731,6 +747,7 @@ enum AnalysisMath {
             frontalAreaCm2: newFrontalAreaCm2,
             frontalAreaUncertainty: newFrontalAreaUncertainty,
             shoulderWidthCm: newShoulderWidthCm,
+            armWidthCm: newArmWidthCm,
             wheelCheckDisagreementFraction: newWheelCheck,
             sideOnPixelsPerCm: newSideOnPixelsPerCm,
             headDropCm: newHeadDropCm,

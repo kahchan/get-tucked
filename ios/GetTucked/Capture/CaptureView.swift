@@ -15,6 +15,10 @@ struct CaptureView: View {
     @Environment(\.modelContext) private var context
     @Query private var bikes: [Bike]
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
+    // GetTuckedApp.fetchOrCreate guarantees exactly one row exists by the
+    // time any view runs — this array is never empty in practice.
+    @Query private var userSettingsRows: [UserSettings]
+    private var userSettings: UserSettings? { userSettingsRows.first }
 
     private var referencePosition: Position? {
         guard let referenceID else { return nil }
@@ -91,6 +95,10 @@ struct CaptureView: View {
     @State private var headOnGhost: GhostReference?
     @State private var sideOnGhost: GhostReference?
     @State private var ghostsBuilt = false
+    // Plan AL7: one-time acknowledgement before the very first capture —
+    // gated on UserSettings.consentToCaptureOthers so it never shows again
+    // once acknowledged.
+    @State private var showingConsentReminder = false
 
     enum CaptureStep: Equatable {
         case pickPhoto          // head-on · 1 OF 2
@@ -156,6 +164,15 @@ struct CaptureView: View {
             if !ghostsBuilt, referencePosition != nil {
                 ghostsBuilt = true
                 buildGhosts()
+            }
+            if userSettings?.consentToCaptureOthers == false {
+                showingConsentReminder = true
+            }
+        }
+        .sheet(isPresented: $showingConsentReminder) {
+            ConsentReminderSheet {
+                userSettings?.consentToCaptureOthers = true
+                showingConsentReminder = false
             }
         }
         // Derived from `step` rather than hand-audited per exit closure, so
@@ -561,6 +578,7 @@ struct CaptureView: View {
             foregroundPixelCount: result.foregroundPixelCount
         )
         metrics.shoulderWidthCm = result.headOnPose?.shoulderWidthCm
+        metrics.armWidthCm = result.headOnPose?.armWidthCm
         metrics.handlebarWidthMmUsed = usedHandlebarWidthMm
         metrics.wheelCheckDisagreementFraction = result.wheelCheckDisagreementFraction
         if let headOnPose = result.headOnPose {
@@ -629,6 +647,36 @@ struct CaptureView: View {
         savedPositionID = position.persistentModelID
         onSaved(position.id)
         step = .done
+    }
+}
+
+/// One-time consent acknowledgement (Plan AL7, spec §10) — App Store review
+/// liability if absent. A single sheet, not a new screen flow: two lines of
+/// copy and one button, dismissed on acknowledgement.
+private struct ConsentReminderSheet: View {
+    let onAcknowledge: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.lg) {
+            Text("BEFORE YOU CAPTURE")
+                .font(Theme.heading(28))
+                .foregroundStyle(Theme.Palette.acc)
+            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                Text("Your photos stay on this device. Nothing is uploaded anywhere.")
+                Text("Only photograph people who've agreed to be photographed.")
+            }
+            .font(Theme.mono(14))
+            .foregroundStyle(Theme.Palette.fg2)
+            Spacer()
+            AccentButton(label: "Got it") {
+                onAcknowledge()
+            }
+        }
+        .padding(Theme.Space.lg)
+        .padding(.top, Theme.Space.xl)
+        .background(Theme.Palette.bg0.ignoresSafeArea())
+        .presentationDetents([.medium])
+        .interactiveDismissDisabled()
     }
 }
 

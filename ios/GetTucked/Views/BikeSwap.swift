@@ -48,6 +48,7 @@ enum BikeSwap {
             frontalAreaCm2: metrics.frontalAreaCm2,
             frontalAreaUncertainty: metrics.frontalAreaUncertainty,
             shoulderWidthCm: metrics.shoulderWidthCm,
+            armWidthCm: metrics.armWidthCm,
             sideOnPixelsPerCm: metrics.sideOnPixelsPerCm,
             headDropCm: metrics.headDropCm,
             wheelTapPoints: position.wheelTapPoints,
@@ -64,6 +65,7 @@ enum BikeSwap {
         metrics.frontalAreaCm2 = result.frontalAreaCm2
         metrics.frontalAreaUncertainty = result.frontalAreaUncertainty
         metrics.shoulderWidthCm = result.shoulderWidthCm
+        metrics.armWidthCm = result.armWidthCm
         metrics.wheelCheckDisagreementFraction = result.wheelCheckDisagreementFraction
         metrics.sideOnPixelsPerCm = result.sideOnPixelsPerCm
         metrics.headDropCm = result.headDropCm
