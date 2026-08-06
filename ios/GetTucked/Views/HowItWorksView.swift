@@ -83,6 +83,12 @@ struct HowItWorksView: View {
                         NoiseFloorNote()
                             .padding(.horizontal, Theme.Space.screenMargin)
 
+                        // AL4: spec §11's limitations list — what the model
+                        // assumes and where it can be wrong, spelled out
+                        // rather than left implicit in the noise-floor note.
+                        LimitationsSection()
+                            .padding(.horizontal, Theme.Space.screenMargin)
+
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Be informed,")
                                 .font(Theme.heading(30))
@@ -195,6 +201,42 @@ private struct NoiseFloorNote: View {
             // absolute area is slightly underestimated — this mostly cancels
             // out when comparing two positions shot the same way. AI3: moved
             // into TimeEstimateSection's shared Assumptions disclosure.
+        }
+        .padding(Theme.Space.md)
+        .background(Theme.Palette.bg2)
+        .overlay(Rectangle().stroke(Theme.Palette.line3, lineWidth: 1))
+    }
+}
+
+// MARK: - Limitations (spec §11, Plan AL4)
+
+/// What the model assumes and where it can be wrong — same amber caution
+/// register as `NoiseFloorNote`, but a full section (three distinct failure
+/// modes, not one caveat sentence).
+private struct LimitationsSection: View {
+    private let items = [
+        "We flatten you to a single silhouette facing the camera — a planar projection. Anything the camera can't see (an arm tucked behind the torso, a bag hidden by your hip) doesn't count.",
+        "The scale ruler is your handlebar width, entered by hand. Get that number wrong and every area on that bike is wrong by the same factor.",
+        "Poor light — deep shadow, strong backlight, a background close to your kit in tone — degrades the segmentation, and the silhouette it draws degrades with it.",
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.sm) {
+            Text("LIMITATIONS")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.amb)
+                .kerning(1.2)
+            ForEach(items, id: \.self) { item in
+                HStack(alignment: .top, spacing: Theme.Space.sm) {
+                    Text("−")
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.amb)
+                    Text(item)
+                        .font(Theme.mono(12))
+                        .foregroundStyle(Theme.Palette.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
         .padding(Theme.Space.md)
         .background(Theme.Palette.bg2)

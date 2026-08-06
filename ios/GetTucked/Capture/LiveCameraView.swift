@@ -6,7 +6,7 @@ import Vision
 
 // MARK: - Live camera view (Phase 2.3)
 
-/// Full-screen camera preview with ARKit level/perp enforcement and Vision
+/// Full-screen camera preview with ARKit level/tilt enforcement and Vision
 /// real-time segmentation confidence. Replaces PhotosPicker for head-on capture.
 struct LiveCameraView: View {
     let bike: Bike
@@ -125,7 +125,7 @@ struct LiveCameraView: View {
                 blockedReasonSlot
                 StatusPillRow(
                     levelOK: session.levelOK,
-                    perpOK: session.perpOK,
+                    tiltOK: session.tiltOK,
                     bgOK: session.bgOK,
                     showsBackgroundPill: showsBackgroundPill
                 )
@@ -151,7 +151,7 @@ struct LiveCameraView: View {
                     blockedReasonSlot
                     StatusPillRow(
                         levelOK: session.levelOK,
-                        perpOK: session.perpOK,
+                        tiltOK: session.tiltOK,
                         bgOK: session.bgOK,
                         showsBackgroundPill: showsBackgroundPill,
                         isVertical: true
@@ -217,14 +217,14 @@ struct LiveCameraView: View {
     }
 
     /// Why the shutter is greyed out (Plan AI4). It sits ABOVE the status
-    /// pills and always occupies a line, visible or not: level/perp flicker
+    /// pills and always occupies a line, visible or not: level/tilt flicker
     /// in and out constantly while a rider is lining the shot up, and a row
     /// that appears and disappears below the pills reflowed the whole bottom
     /// stack — moving the shutter out from under a finger already on its way
     /// down (Kah, on-device). The blank string reserves the exact line height
     /// without a magic number, so nothing moves as the reason comes and goes.
     private var blockedReasonSlot: some View {
-        let reason = CaptureGate.blockedReason(levelOK: session.levelOK, perpOK: session.perpOK)
+        let reason = CaptureGate.blockedReason(levelOK: session.levelOK, tiltOK: session.tiltOK)
         return Text(reason ?? " ")
             .font(Theme.mono(12, weight: .bold))
             .foregroundStyle(Theme.Palette.amb)
@@ -460,7 +460,7 @@ private struct LevelLine: View {
 
 private struct StatusPillRow: View {
     let levelOK: Bool
-    let perpOK: Bool
+    let tiltOK: Bool
     let bgOK: Bool
     var showsBackgroundPill: Bool = true
     // Landscape's trailing-rail layout (Plan L3) stacks the pills instead
@@ -471,7 +471,7 @@ private struct StatusPillRow: View {
     var body: some View {
         let pills = Group {
             StatusPill(label: "LEVEL", state: levelOK ? .ok : .warning)
-            StatusPill(label: "PERP",  state: perpOK  ? .ok : .warning)
+            StatusPill(label: "TILT",  state: tiltOK  ? .ok : .warning)
             if showsBackgroundPill {
                 StatusPill(label: "BG", state: bgOK ? .ok : .warning)
             }
@@ -626,11 +626,11 @@ enum ZoomFactorDerivation {
 
 /// Pure text for why the shutter is currently disabled — kept free of
 /// `CameraSession` so it's unit-testable without AVFoundation/CoreMotion.
-/// Explains `CameraSession.allPassed`'s existing level/perp gate; does not
+/// Explains `CameraSession.allPassed`'s existing level/tilt gate; does not
 /// change it.
 enum CaptureGate {
-    static func blockedReason(levelOK: Bool, perpOK: Bool) -> String? {
-        switch (levelOK, perpOK) {
+    static func blockedReason(levelOK: Bool, tiltOK: Bool) -> String? {
+        switch (levelOK, tiltOK) {
         case (true, true):   return nil
         case (false, true):  return "Hold the phone level"
         case (true, false):  return "Tilt the phone upright"
@@ -648,8 +648,12 @@ final class CameraSession: NSObject, ObservableObject {
 
     @Published var tiltDeg: Double = 0
     @Published var levelOK = false
-    @Published var perpOK = false
+    @Published var tiltOK = false
     @Published var bgOK = false
+    // AL3a: raw value behind bgOK, published so a device session can judge
+    // whether the metric separates good/bad backgrounds at all (plan-al) —
+    // not consumed by any gate yet.
+    @Published var bgConfidence: Double = 0
     @Published var permissionDenied = false
     // Which way the phone is physically held — always .portrait unless
     // OrientationLock permits landscape (Plan L4).
@@ -659,9 +663,9 @@ final class CameraSession: NSObject, ObservableObject {
     // most captures actually use.
     @Published var zoomIsAt2x = true
 
-    // LEVEL + PERP are physically enforced and gate the shutter. BG is advisory —
+    // LEVEL + TILT are physically enforced and gate the shutter. BG is advisory —
     // a low-contrast background degrades the matte but shouldn't dead-lock capture.
-    var allPassed: Bool { levelOK && perpOK }
+    var allPassed: Bool { levelOK && tiltOK }
 
     private var photoOutput = AVCapturePhotoOutput()
     private var videoOutput = AVCaptureVideoDataOutput()
@@ -681,7 +685,7 @@ final class CameraSession: NSObject, ObservableObject {
 
     // Pill thresholds
     private let levelThresholdDeg = 2.0
-    private let perpThresholdDeg  = 5.0
+    private let tiltThresholdDeg  = 5.0
     private let bgConfidenceMin   = 0.6
 
     func start(bike: Bike) {
@@ -810,11 +814,11 @@ final class CameraSession: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - CMMotionManager for level + perp
+    // MARK: - CMMotionManager for level + tilt
 
     private func startMotion() {
         guard motionManager.isDeviceMotionAvailable else {
-            DispatchQueue.main.async { self.levelOK = true; self.perpOK = true }
+            DispatchQueue.main.async { self.levelOK = true; self.tiltOK = true }
             return
         }
         motionManager.deviceMotionUpdateInterval = 1.0 / 30.0
@@ -848,7 +852,7 @@ final class CameraSession: NSObject, ObservableObject {
 
             self.tiltDeg = deviation
             self.levelOK = abs(deviation) < self.levelThresholdDeg
-            self.perpOK  = abs(pitch) < self.perpThresholdDeg
+            self.tiltOK  = abs(pitch) < self.tiltThresholdDeg
         }
     }
 }
@@ -903,8 +907,12 @@ extension CameraSession: AVCaptureVideoDataOutputSampleBufferDelegate {
             }
         }
         let confidence = Double(decisive) / Double(max(1, sampled))
+        #if DEBUG
+        print("[AL3a] bgConfidence=\(confidence)")
+        #endif
 
         Task { @MainActor [weak self] in
+            self?.bgConfidence = confidence
             self?.bgOK = confidence >= (self?.bgConfidenceMin ?? 0.6)
         }
     }
