@@ -31,14 +31,25 @@ Xcode before building to a device.
 
 ## Status
 
-Phase 1 (skeleton: onboarding → capture → frontal area → save/list) is implemented in
-`ios/`, with known issues documented in `HANDOFF-REVIEW.md`. Remaining phases (pose,
-comparison, AR capture enforcement, bag segmentation, events/timeline, polish) are in §14
-of the code spec.
+Built and on `main`: onboarding → capture → subject matte → frontal area →
+save/list/detail, position comparison and a leaderboard, pose check, bike swap with
+rescale, design tokens (`Design/Theme.swift`), Dynamic Type/VoiceOver support, and native
+swipe-back/tab-swipe gesture navigation. Remaining phases (bag segmentation,
+events/timeline, further polish) are in §14 of the code spec. Several recent changes
+still need an on-device verification pass — simulator input can't trigger real gestures
+or Vision segmentation, see `plans/`. `HANDOFF-REVIEW.md` is a point-in-time review from
+before most of this shipped; treat it as history, not current status.
+
+## Marketing site
+
+`docs/` is the public site, served via GitHub Pages from `main`. Static HTML/CSS, no
+build step, self-hosted fonts (no third-party CDN, consistent with the app's on-device/
+no-analytics posture).
 
 ## Repo notes
 
 - `ios/` — the app.
+- `docs/` — the marketing site (see above).
 - `plans/get-tucked-code-spec.html` — behaviour source of truth. A design spec is being
   added for visual direction.
 - `src/`, `verifier/`, `fixtures/`, `index.html`, `package.json` — a **retired** browser
