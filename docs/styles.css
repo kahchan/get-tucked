@@ -26,6 +26,14 @@
   font-family:'Space Mono'; font-style:normal; font-weight:700; font-display:swap;
   src:url('fonts/space-mono-700.woff2') format('woff2');
 }
+@font-face{
+  font-family:'Ojuju'; font-style:normal; font-weight:600; font-display:swap;
+  src:url('fonts/ojuju-600.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Newsreader'; font-style:normal; font-weight:500; font-display:swap;
+  src:url('fonts/newsreader-500.woff2') format('woff2');
+}
 
 :root{
   /* --- Site tokens (app values, editorial lift) --- */
@@ -365,9 +373,37 @@ p.body em{color:var(--fg); font-style:italic}
 .methlink .arw{color:var(--acc)}
 
 /* ---------- footer ---------- */
-footer{padding:56px 0 72px; border-top:1px solid var(--line2)}
-footer p{font-family:var(--mono); font-size:13px; color:var(--fg3); line-height:1.9}
-footer .dads{color:var(--fg2)}
+/* Deep blueprint — the IAI maker's mark, borrowed from its own design system
+   (tokens/colors.css --blueprint-700) rather than this page's --bg ramp. */
+footer{background:#173359; border-top:1px solid #2F5687}
+footer .footer-inner{
+  /* Specificity must beat .wrap's own padding (incl. its @media overrides) —
+     a plain .footer-inner rule loses that fight and silently gets 0 top/bottom. */
+  padding-top:66px; padding-bottom:108px;
+  display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:32px 40px;
+}
+footer p{font-family:var(--mono); font-size:13px; color:#8CA5C4; line-height:1.9}
+footer .dads{color:#fff}
+.footer-mark{display:flex; align-items:center; gap:18px; flex:none; color:#fff}
+.footer-mark .seal{width:56px; height:56px; flex:none}
+.footer-mark .cal{display:flex; flex-direction:column; align-items:stretch}
+.footer-mark .serif{
+  display:block; font-family:'Newsreader', Georgia, serif; font-weight:500; line-height:1;
+  font-size:24px; letter-spacing:-.02em; color:#fff; white-space:nowrap;
+}
+.footer-mark .cal-row{display:flex; align-items:center; margin-top:9px}
+.footer-mark .cal-tick{width:1px; height:14px; background:currentColor; flex:none}
+.footer-mark .cal-arm{flex:1; display:flex; align-items:center; min-width:10px}
+.footer-mark .cal-arm svg{flex:none; width:6px; height:8px}
+.footer-mark .cal-fill{flex:1; height:1px; background:currentColor}
+.footer-mark .cal-label{
+  font-family:'Ojuju', var(--head); font-weight:600; font-size:10px;
+  letter-spacing:.3em; text-transform:uppercase; padding:0 12px; white-space:nowrap;
+}
+@media (max-width:768px){
+  .footer-inner{flex-direction:column; align-items:flex-start}
+  .footer-mark{align-self:flex-end}
+}
 
 /* ---------- scroll entrances ----------
    Initial hidden states only apply when JS is present (html.js), so the site
