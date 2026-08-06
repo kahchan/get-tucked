@@ -206,7 +206,10 @@ the pipeline stops moving.
 AK19's stale pan offset — no separate mechanism. Compressed in plan AK.
 
 **Needs Kah on a device:**
-- **AL3a** — the one new device task this plan adds.
+- **AL3a** — bgConfidence numbers, logged per frame.
+- **AL10** — burst feel (350ms pacing), and the 15% retry threshold, which is derived
+  from stationary-fixture matte-lab noise (<2%), not real handheld burst spread —
+  re-check against real numbers once captured.
 - **`open-human-steps.md` backlog**, unchanged and still gating: J0 subject-matte eyeball
   (gates AL8, AL10), A6 3D-vs-2D pose verdict, Shot A bar-at-chest ground truth, Plan G
   live-capture feel, Plan L landscape checklist, matte-bleed threshold.
@@ -240,7 +243,7 @@ Grouped so no two parallel agents touch the same file.
 | 2 | AL5 + AL7 + AL11 | `AppSchema.swift`, `GetTuckedApp.swift`, `CaptureView.swift`, `AnalysisMath.swift`, `AnalysisEngine.swift`, `PositionMetrics.swift`, `BikeSwap.swift`, `UserSettings.swift` (new) | **Closed** — SchemaV9, 331 green. AL11's mirror of `shoulderWidthCm` also had to reach `AnalysisEngine.swift` (Vision→metric computation) and the bike-swap rescale path — "same shape as shoulderWidthCm" pulls in more files than PositionMetrics alone. No singleton-model precedent existed for `UserSettings`; fetch-or-insert via a static helper is now that precedent. `armWidthCm` has no UI surface yet by design. |
 | 3 | AL2 seam | `AnalysisMath.swift` | **Closed** — `uncertaintyCm2(areaCm2:measuredFraction:)`, optional param defaults to 0.03. 332 green. Injection point for D2's winner: `AnalysisEngine.swift:237`, pass `userSettings.noiseFloorPct`. |
 | — | AL3a device session, J0 | — | Kah; interleaves, doesn't queue |
-| 4 | AL10 burst (D2 resolved: burst only) | `LiveCameraView.swift`, `CaptureView.swift`, `AnalysisEngine.swift`, `AnalysisMath.swift`, `UserSettings.swift` | J0 gate overridden by Kah 2026-08-06 |
+| 4 | AL10 burst (D2 resolved: burst only) | `LiveCameraView.swift`, `CaptureView.swift`, `AnalysisEngine.swift`, `AnalysisMath.swift` | **Closed** — head-on only, 3 shots 350ms apart, single calibration tap reused across all 3 (handshake folds into measured spread, judged correct per spec). Median area, 15% spread retry threshold (fixture-derived, not device-verified), noiseFloorPct via EMA α=0.3 (not running mean — no field for a sample count). Library-picker fallback path stays on fixed 0.03 uncertainty, undocumented non-goal until now. No schema bump — reused AL9's SchemaV10. 340 green. |
 | 5 | AL8a spike → AL8b | `tools/matte-lab`, then new | Verdict before UI |
 | 6 | AL9 events | `AppSchema.swift`, `LeaderboardView.swift` | **Closed** — `Event` model (id/name/date/notes) + `Position.events` relationship, SchemaV10. Leaderboard gets an event chip filter, AND-combined with the bike filter. Inline "+ NEW" create only — no dedicated events screen, no edit/delete, `notes` field unwritten until one exists. 332 green. |
 | 7 | AL13, AL14 | `CLAUDE.md`, checklist | Docs |

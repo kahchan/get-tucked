@@ -161,10 +161,55 @@ enum AnalysisMath {
         return count
     }
 
-    /// `measuredFraction` is the seam for a measured noise floor (AL6/AL10,
-    /// not yet built); falls back to the fixed placeholder when absent.
+    /// `measuredFraction` is the seam for a measured noise floor (AL10),
+    /// falls back to the fixed placeholder when absent.
     static func uncertaintyCm2(areaCm2: Double, measuredFraction: Double? = nil) -> Double {
         areaCm2 * (measuredFraction ?? uncertaintyFraction)
+    }
+
+    // MARK: - Burst capture (AL10, §7/§9)
+
+    /// Three head-on shots per position (Touch ID enrolment pacing) feed the
+    /// same `measuredFraction` seam above instead of the fixed 0.03 — this is
+    /// the physical quantity the placeholder was standing in for.
+    ///
+    /// Retry gate: reject a burst whose spread exceeds this fraction. A
+    /// stationary rider's three quick shots vary only by segmentation-edge
+    /// jitter and sub-pixel handshake, which stays within a few percent on
+    /// every fixture measured in matte-lab; 15% is roughly 5x that noise
+    /// floor, so it only fires when the rider visibly shifted position
+    /// between shots, not on ordinary micro-sway.
+    static let burstSpreadRetryThreshold = 0.15
+
+    /// Middle value of an odd-length sample — burst size is fixed at 3, so
+    /// no even-length averaging case is needed.
+    static func median(_ values: [Double]) -> Double {
+        values.sorted()[values.count / 2]
+    }
+
+    /// (max − min) / median — the noise-floor input spec §7/§9 asks for,
+    /// scale-free so it composes with `uncertaintyCm2`'s fractional API.
+    static func spreadFraction(_ values: [Double]) -> Double {
+        guard let lo = values.min(), let hi = values.max() else { return 0 }
+        let mid = median(values)
+        guard mid > 0 else { return 0 }
+        return (hi - lo) / mid
+    }
+
+    /// `UserSettings.noiseFloorPct` accumulates across positions as an
+    /// exponential moving average rather than a plain running mean — a
+    /// plain mean needs a persisted sample count, which is a schema field
+    /// this wave doesn't otherwise need. EMA gets the same "converges over
+    /// time" property spec §9 asks for and self-corrects if the rider's
+    /// technique or phone changes, without the extra field. alpha = 0.3
+    /// weights each new burst meaningfully (not dominated by one noisy
+    /// early sample) while still smoothing out one-off bad bursts.
+    static let noiseFloorEmaAlpha = 0.3
+
+    static func updatedNoiseFloorPct(existing: Double?, newSpreadFraction: Double) -> Double {
+        let newPct = newSpreadFraction * 100
+        guard let existing else { return newPct }
+        return existing + noiseFloorEmaAlpha * (newPct - existing)
     }
 
     /// Single ± cm² voice for a displayed area — rounds like

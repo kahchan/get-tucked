@@ -24,6 +24,10 @@ struct LiveCameraView: View {
     var skipLabel: String = "SKIP"
     var onPickFromLibrary: ((UIImage, String?) -> Void)? = nil
     let onCapture: (UIImage) -> Void
+    // AL10: head-on capture only — set, the shutter fires a 3-shot burst via
+    // `CameraSession.captureBurst` and `onCapture` above never runs.
+    // Side-on stays single-shot (nil here), unchanged.
+    var onBurstCapture: (([UIImage]) -> Void)? = nil
     let onCancel: () -> Void
     // "Match this position" (Plan P2) — nil for every ordinary capture, in
     // which case no ghost affordance appears at all.
@@ -251,11 +255,21 @@ struct LiveCameraView: View {
                 session.toggleZoom()
             }
             CaptureButton(enabled: session.allPassed) {
-                session.capturePhoto { image in
-                    captureFlash = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        captureFlash = false
-                        onCapture(image)
+                if let onBurstCapture {
+                    session.captureBurst { images in
+                        captureFlash = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            captureFlash = false
+                            onBurstCapture(images)
+                        }
+                    }
+                } else {
+                    session.capturePhoto { image in
+                        captureFlash = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            captureFlash = false
+                            onCapture(image)
+                        }
                     }
                 }
             }
@@ -718,6 +732,28 @@ final class CameraSession: NSObject, ObservableObject {
             }
             self.photoOutput.capturePhoto(with: settings, delegate: self)
         }
+    }
+
+    /// AL10: 3 photos in quick succession (Touch ID enrolment pacing) —
+    /// reuses `capturePhoto` 3x on a short interval rather than a new
+    /// AVFoundation burst API, which needs no new capability and matches
+    /// the single-shot path exactly for rotation/permission handling. 350ms
+    /// is long enough for `didFinishProcessingPhoto` to land before the next
+    /// shot is requested, short enough that the whole burst reads as one
+    /// gesture rather than three separate button presses.
+    func captureBurst(count: Int = 3, intervalMs: Int = 350, completion: @escaping ([UIImage]) -> Void) {
+        var images: [UIImage] = []
+        func next() {
+            capturePhoto { [weak self] image in
+                images.append(image)
+                if images.count >= count {
+                    completion(images)
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(intervalMs)) { next() }
+                }
+            }
+        }
+        next()
     }
 
     // MARK: - Session setup (runs on sessionQueue)

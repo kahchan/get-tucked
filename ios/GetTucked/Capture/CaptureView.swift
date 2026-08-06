@@ -54,6 +54,10 @@ struct CaptureView: View {
     @State private var selectedImage: UIImage?
     @State private var assetIdentifier: String?
     @State private var tapPoints: [CGPoint] = []
+    // AL10: the 3 head-on burst shots, in capture order — empty for a
+    // library-picked photo (single-shot, no spread to measure), in which
+    // case runAnalysis falls back to analysing selectedImage alone.
+    @State private var burstImages: [UIImage] = []
     // Optional cross-scale verification taps (Plan K3) — never gates capture.
     @State private var wheelTapPoints: [CGPoint] = []
     @State private var pendingResult: AnalysisResult?
@@ -198,16 +202,26 @@ struct CaptureView: View {
                         // Q6: solo library fallback — no saveToCameraRoll
                         // (the photo is already in the library, that's the
                         // point), mirroring the side-on call site exactly.
+                        // AL10's burst is a live-capture-only feature (a
+                        // single picked photo has no 3-shot spread to
+                        // measure) — burstImages stays empty and runAnalysis
+                        // falls back to the single-photo path.
                         selectedImage = image
                         assetIdentifier = identifier
+                        burstImages = []
                         tapPoints = []
                         step = .calibrate
-                    }, onCapture: { image in
-                        selectedImage = image  // already normalised in photoOutput delegate
+                    }, onCapture: { _ in }, onBurstCapture: { images in
+                        // Only the first of the 3 goes to the camera roll —
+                        // saving all 3 near-duplicate frames would clutter
+                        // the library for no benefit (AL10).
+                        guard let first = images.first else { return }
+                        selectedImage = first  // already normalised in photoOutput delegate
                         assetIdentifier = nil  // live capture has no PHAsset identifier
+                        burstImages = images
                         tapPoints = []
                         step = .calibrate
-                        Task { await saveToCameraRoll(image) }
+                        Task { await saveToCameraRoll(first) }
                     }, onCancel: { requestExitCaptureFlow() }, ghost: headOnGhost)
                     .transition(.identity)
                 }
@@ -340,14 +354,36 @@ struct CaptureView: View {
         do {
             let wheelTaps: (ground: CGPoint, top: CGPoint)? =
                 wheelTapPoints.count == 2 ? (wheelTapPoints[0], wheelTapPoints[1]) : nil
-            let result = try await AnalysisEngine.analyse(
-                image: image,
-                handlebarWidthMm: bike.handlebarWidthMm,
-                tapPoint0: tapPoints[0],
-                tapPoint1: tapPoints[1],
-                wheelTaps: wheelTaps,
-                wheelDiameterMm: bike.wheelDiameterMm
-            )
+            let result: AnalysisResult
+            // AL10: a live-capture burst (3 shots) measures its own spread;
+            // a library-picked single photo has nothing to spread and stays
+            // on the pre-AL10 fixed-uncertainty path.
+            if burstImages.count == 3 {
+                let burst = try await AnalysisEngine.analyseBurst(
+                    images: burstImages,
+                    handlebarWidthMm: bike.handlebarWidthMm,
+                    tapPoint0: tapPoints[0],
+                    tapPoint1: tapPoints[1],
+                    wheelTaps: wheelTaps,
+                    wheelDiameterMm: bike.wheelDiameterMm
+                )
+                result = burst.result
+                if let userSettings {
+                    userSettings.noiseFloorPct = AnalysisMath.updatedNoiseFloorPct(
+                        existing: userSettings.noiseFloorPct, newSpreadFraction: burst.spreadFraction
+                    )
+                    userSettings.noiseFloorLastCalibrated = Date()
+                }
+            } else {
+                result = try await AnalysisEngine.analyse(
+                    image: image,
+                    handlebarWidthMm: bike.handlebarWidthMm,
+                    tapPoint0: tapPoints[0],
+                    tapPoint1: tapPoints[1],
+                    wheelTaps: wheelTaps,
+                    wheelDiameterMm: bike.wheelDiameterMm
+                )
+            }
             await waitForMinimumAnalysingDisplay(since: stepEnteredAt)
             pendingResult = result
             usedHandlebarWidthMm = bike.handlebarWidthMm
@@ -383,6 +419,7 @@ struct CaptureView: View {
     /// so the next one starts clean. Keeps the same bike selected.
     private func resetForNewCapture() {
         tapPoints = []
+        burstImages = []
         wheelTapPoints = []
         pendingResult = nil
         usedHandlebarWidthMm = nil

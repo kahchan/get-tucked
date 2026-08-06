@@ -50,6 +50,10 @@ enum AnalysisError: LocalizedError {
     case segmentationFailed
     case scaleNotCalibrated
     case poseNotDetected
+    /// AL10, spec §12: the three burst shots disagreed by more than
+    /// `AnalysisMath.burstSpreadRetryThreshold` — copy is spec-mandated,
+    /// not ours to reword.
+    case burstSpreadTooHigh
 
     var errorDescription: String? {
         switch self {
@@ -60,6 +64,7 @@ enum AnalysisError: LocalizedError {
         case .segmentationFailed: "Couldn't compute a segmentation mask."
         case .scaleNotCalibrated: "Scale reference not set. Tap both ends of your handlebars first."
         case .poseNotDetected: "Couldn't detect body pose. Make sure your full body is visible."
+        case .burstSpreadTooHigh: "You moved between shots. Hold still and try again."
         }
     }
 }
@@ -93,6 +98,25 @@ struct AnalysisResult {
     /// size on record). Verification only; the bar taps stay the ruler
     /// (Plan K).
     let wheelCheckDisagreementFraction: Double?
+
+    /// AL10: swaps in the burst's median area and spread-derived
+    /// uncertainty, keeping every other field (mask, pose, warnings) from
+    /// this result untouched — used on the median-area shot of a head-on
+    /// burst, which stays the representative photo/mask for reveal/save.
+    func withBurstMedian(areaCm2: Double, uncertaintyCm2: Double) -> AnalysisResult {
+        AnalysisResult(
+            frontalAreaCm2: areaCm2,
+            frontalAreaUncertaintyCm2: uncertaintyCm2,
+            pixelsPerCm: pixelsPerCm,
+            foregroundPixelCount: foregroundPixelCount,
+            maskImage: maskImage,
+            subjectMaskImage: subjectMaskImage,
+            subjectLiftFailureReason: subjectLiftFailureReason,
+            headOnPose: headOnPose,
+            scaleWarning: scaleWarning,
+            wheelCheckDisagreementFraction: wheelCheckDisagreementFraction
+        )
+    }
 }
 
 /// Pose metrics computable from the head-on photo.
@@ -264,6 +288,54 @@ struct AnalysisEngine {
             scaleWarning: scaleWarning,
             wheelCheckDisagreementFraction: wheelCheckDisagreementFraction
         )
+    }
+
+    /// AL10: runs `analyse` independently over each of the 3 burst photos
+    /// (same tap calibration for all three — quick-succession shots, camera
+    /// held in place, only the rider's micro-posture and segmentation edge
+    /// noise vary), then reports the median area with a spread-derived
+    /// uncertainty in place of the fixed placeholder. Throws
+    /// `.burstSpreadTooHigh` instead of returning when the shots disagree
+    /// too much to trust (spec §12) — callers must not save that result.
+    static func analyseBurst(
+        images: [UIImage],
+        handlebarWidthMm: Double,
+        tapPoint0: CGPoint,
+        tapPoint1: CGPoint,
+        wheelTaps: (ground: CGPoint, top: CGPoint)? = nil,
+        wheelDiameterMm: Double? = nil
+    ) async throws -> (result: AnalysisResult, spreadFraction: Double) {
+        var results: [AnalysisResult] = []
+        for image in images {
+            let result = try await analyse(
+                image: image,
+                handlebarWidthMm: handlebarWidthMm,
+                tapPoint0: tapPoint0,
+                tapPoint1: tapPoint1,
+                wheelTaps: wheelTaps,
+                wheelDiameterMm: wheelDiameterMm
+            )
+            results.append(result)
+        }
+
+        let areas = results.map(\.frontalAreaCm2)
+        let spread = AnalysisMath.spreadFraction(areas)
+        guard spread <= AnalysisMath.burstSpreadRetryThreshold else {
+            throw AnalysisError.burstSpreadTooHigh
+        }
+
+        let medianArea = AnalysisMath.median(areas)
+        // The shot whose own area is closest to the median stays the
+        // representative photo/mask/pose for reveal and save — no
+        // interpolation across three different masks. `results` always has
+        // 3 elements (the loop above either populated it or threw), so the
+        // empty-array fallback never actually runs.
+        let representative = results.min {
+            abs($0.frontalAreaCm2 - medianArea) < abs($1.frontalAreaCm2 - medianArea)
+        } ?? results[0]
+        let uncertainty = AnalysisMath.uncertaintyCm2(areaCm2: medianArea, measuredFraction: spread)
+        let burstResult = representative.withBurstMedian(areaCm2: medianArea, uncertaintyCm2: uncertainty)
+        return (burstResult, spread)
     }
 
     // MARK: - Side-on analysis (posture metrics, Phase 2.5)

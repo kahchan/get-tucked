@@ -156,6 +156,52 @@ final class AnalysisMathTests: XCTestCase {
         )
     }
 
+    // MARK: - Burst capture (AL10)
+
+    func testMedianOfThreeValues() {
+        XCTAssertEqual(AnalysisMath.median([100, 102, 98]), 100, accuracy: acc)
+        XCTAssertEqual(AnalysisMath.median([98, 100, 102]), 100, accuracy: acc)
+    }
+
+    func testSpreadFractionOfThreeValues() {
+        // (102 - 98) / 100 = 0.04
+        XCTAssertEqual(AnalysisMath.spreadFraction([100, 102, 98]), 0.04, accuracy: acc)
+    }
+
+    func testSpreadFractionIsZeroForIdenticalValues() {
+        XCTAssertEqual(AnalysisMath.spreadFraction([100, 100, 100]), 0, accuracy: acc)
+    }
+
+    func testSpreadFractionIsZeroForEmptyInput() {
+        XCTAssertEqual(AnalysisMath.spreadFraction([]), 0, accuracy: acc)
+    }
+
+    func testBurstWithinThresholdDoesNotExceedRetryGate() {
+        XCTAssertLessThanOrEqual(
+            AnalysisMath.spreadFraction([100, 102, 98]), AnalysisMath.burstSpreadRetryThreshold
+        )
+    }
+
+    func testBurstBeyondThresholdExceedsRetryGate() {
+        // (130 - 90) / 100 = 0.4, well over the 0.15 gate.
+        XCTAssertGreaterThan(
+            AnalysisMath.spreadFraction([100, 130, 90]), AnalysisMath.burstSpreadRetryThreshold
+        )
+    }
+
+    func testUpdatedNoiseFloorPctSeedsFromFirstBurst() {
+        XCTAssertEqual(
+            AnalysisMath.updatedNoiseFloorPct(existing: nil, newSpreadFraction: 0.04), 4, accuracy: acc
+        )
+    }
+
+    func testUpdatedNoiseFloorPctIsExponentialMovingAverage() {
+        // existing 4%, new sample 10% → 4 + 0.3 * (10 - 4) = 5.8
+        XCTAssertEqual(
+            AnalysisMath.updatedNoiseFloorPct(existing: 4, newSpreadFraction: 0.10), 5.8, accuracy: acc
+        )
+    }
+
     func testUncertaintyDisplayRoundsAndFormats() {
         XCTAssertEqual(AnalysisMath.uncertaintyDisplay(154.7), "±155 cm²")
         XCTAssertEqual(AnalysisMath.uncertaintyDisplay(12.0), "±12 cm²")
