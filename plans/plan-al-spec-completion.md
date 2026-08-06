@@ -80,13 +80,25 @@ scale-reference dependence on accurate bar width, segmentation accuracy under po
 lighting). The screen has method steps, IS/ISN'T, noise-floor note, formula hero, time
 estimate — neither of the above.
 
-**Blocked on decision D1: a coder agent handed "cite Defraeye et al" will invent a
-title, journal, and year.** Reference strings must come from Kah or be web-verified
-first; the two "accessible overviews" are unnamed in the spec and cannot be guessed.
-The LIMITATIONS block is unblocked and can ship ahead of REFERENCES.
+**D1 RESOLVED 2026-08-07 — web-verified by research agent, locked in by Kah:**
 
-Fix: `LIMITATIONS` and `REFERENCES` sections at the foot. Text only, no outbound links
-(offline app; a dead link is worse than a plain citation line).
+1. Defraeye, T., Blocken, B., Koninckx, E., Hespel, P., & Carmeliet, J. (2010).
+   Aerodynamic study of different cyclist positions: CFD analysis and full-scale
+   wind-tunnel tests. *Journal of Biomechanics*, 43(7), 1262–1268.
+2. Crouch, T. N., Burton, D., LaBry, Z. A., & Blair, K. B. (2017). Riding against the
+   wind: a review of competition cycling aerodynamics. *Sports Engineering*, 20(2),
+   81–110. (verified via secondary aggregators, not publisher page — paywalled)
+3. García-López, J., Rodríguez-Marroyo, J. A., Juneau, C.-E., Peleteiro, J., Córdova
+   Martínez, A., & Villa, J. G. (2008). Reference values and improvement of aerodynamic
+   drag in professional cyclists. *Journal of Sports Sciences*, 26(3), 277–286.
+4. "What Is CdA? Aerodynamic Drag Coefficient Explained for Cyclists and Triathletes."
+   Best Bike Split.
+5. Debraux, P. "Field method for assessing the cycling frontal area." Sci-Sport.
+
+Fix: `REFERENCES` section at the foot of `HowItWorksView.swift`, below the already-shipped
+`LIMITATIONS` block. Text only, no outbound links (offline app; a dead link is worse than
+a plain citation line) — plain author/title/journal/year strings for 1–3, plain
+title/publisher for 4–5.
 
 Verify: every entry in §11's contents list has a visible home on that screen.
 
@@ -158,14 +170,20 @@ Largest remaining slice and the second headline in §2 ("tap any bag… see what
 of luggage costs"). Entirely unbuilt: no `BagSegment`, no tap-to-segment, no per-bag
 area/colour, no comparison toggle.
 
-**Split — AL8a is a research spike, not a coder task.**
-- **AL8a:** feasibility in `tools/matte-lab` on real loaded-bike photos. Does a
-  tap-selected `VNGenerateForegroundInstanceMaskRequest` instance isolate a bag from the
-  frame? Plan AJ's finding says instance splits on a loaded bike are unreliable. Returns
-  a verdict to `plans/matte-verdict.md`, no UI.
-- **AL8b:** model + UI, only if AL8a survives.
+**AL8a CLOSED 2026-08-07 — verdict: no.** See `plans/matte-verdict.md`. Vision returns
+exactly one foreground instance for a loaded bike (rider+bike+bags fused) — AJ's
+unloaded-bike finding confirmed to hold with bags present. Tap-to-segment via
+`VNGenerateForegroundInstanceMaskRequest` is not buildable. J0 gate overridden by Kah
+2026-08-07 for this spike (Mac-only Vision via matte-lab, no device needed).
 
-Gated on J0 (subject-matte eyeball) — same discipline as Plan J.
+**AL8b is no longer "model + UI on a working primitive."** If the feature survives, it
+needs a manual-region design instead — user taps/draws a rough region over a bag, area
+computed by intersecting that region with the subject mask Vision already returns (no
+segmentation model, same pixel-to-cm² scale as the rest of the pipeline). That's a real
+design decision, not a mechanical follow-on — **needs a Kah decision (D3) on whether to
+build the manual-region variant at all** before any coder task, same discipline as D1/D2.
+Fixture coverage for it is thin: only 2 of 9 fixtures show a loaded bike, both the same
+ride — a second ride's bag setup should go on the human-steps backlog if D3 says build.
 
 ### AL9 — Events + timeline: Phase 4's tagging half
 
@@ -223,12 +241,16 @@ launch-marketing memory).
 
 ## Decisions for Kah
 
-- **D1 — AL4 reference strings.** Supply the citations, or approve web-verifying them.
-  Do not let an agent generate them.
+- **D1 — AL4 reference strings. RESOLVED 2026-08-07** — web-verified, 5 citations locked
+  in AL4 above.
 - **D2 — one noise measurement or two? RESOLVED 2026-08-06: burst only (AL10).** AL6
   dropped. `UserSettings.noiseFloorPct` is populated by accumulating burst spread across
   positions, not a separate onboarding self-test. J0 gate overridden by Kah (2026-08-06)
   — building AL10 without the subject-matte device eyeball.
+- **D3 — build the manual-region bag variant, or drop AL8b for v1?** AL8a's verdict
+  (2026-08-07) killed tap-to-segment; the only remaining path is manual polygon/box
+  tapping over the subject mask, no Vision instance model involved. Real UI scope, one
+  ride's worth of fixture coverage. Open.
 
 ---
 
@@ -244,7 +266,7 @@ Grouped so no two parallel agents touch the same file.
 | 3 | AL2 seam | `AnalysisMath.swift` | **Closed** — `uncertaintyCm2(areaCm2:measuredFraction:)`, optional param defaults to 0.03. 332 green. Injection point for D2's winner: `AnalysisEngine.swift:237`, pass `userSettings.noiseFloorPct`. |
 | — | AL3a device session, J0 | — | Kah; interleaves, doesn't queue |
 | 4 | AL10 burst (D2 resolved: burst only) | `LiveCameraView.swift`, `CaptureView.swift`, `AnalysisEngine.swift`, `AnalysisMath.swift` | **Closed** — head-on only, 3 shots 350ms apart, single calibration tap reused across all 3 (handshake folds into measured spread, judged correct per spec). Median area, 15% spread retry threshold (fixture-derived, not device-verified), noiseFloorPct via EMA α=0.3 (not running mean — no field for a sample count). Library-picker fallback path stays on fixed 0.03 uncertainty, undocumented non-goal until now. No schema bump — reused AL9's SchemaV10. 340 green. |
-| 5 | AL8a spike → AL8b | `tools/matte-lab`, then new | Verdict before UI |
+| 5 | AL8a spike | `tools/matte-lab`, `plans/matte-verdict.md` | **Closed** — verdict: no, not buildable as tap-to-segment. AL8b blocked on D3 (manual-region variant, Kah decision). |
 | 6 | AL9 events | `AppSchema.swift`, `LeaderboardView.swift` | **Closed** — `Event` model (id/name/date/notes) + `Position.events` relationship, SchemaV10. Leaderboard gets an event chip filter, AND-combined with the bike filter. Inline "+ NEW" create only — no dedicated events screen, no edit/delete, `notes` field unwritten until one exists. 332 green. |
 | 7 | AL13, AL14 | `CLAUDE.md`, checklist | Docs |
 
