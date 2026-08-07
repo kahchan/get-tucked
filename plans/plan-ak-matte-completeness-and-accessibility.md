@@ -116,13 +116,20 @@ pattern to copy. Current schema ceiling: `SchemaV10`.
   `PositionMetrics.correctedFrontalAreaCm2: Double?`. Everywhere `frontalAreaCm2` is
   read for display/comparison/leaderboard, use `metrics.correctedFrontalAreaCm2 ??
   metrics.frontalAreaCm2` — one seam, not a sweep of every call site independently.
-- **Edit UI, MASK tab:** an EDIT toggle enters freehand-draw mode — a `Canvas` overlay
-  on the existing static mask image, two brush modes (INCLUDE / EXCLUDE) as a small
-  segmented control, one fixed brush size for v1 (no size slider — avoids a precision
-  knob nothing validates), undo-last-stroke, a RESET action that deletes the correction
-  fields entirely (reverts to automated). SAVE rasterizes the accumulated strokes onto
-  a copy of the decoded original mask, recomputes via the pure-function seam above,
-  encodes back to the same DeviceGray PNG format, persists both new fields.
+- **Edit UI, MASK tab — REVISED 2026-08-08: combo of tap-blob AND brush, not brush
+  alone.** Two tools, one correction pipeline underneath (both just edit the same
+  working mask copy before SAVE):
+  - **TAP** — tap a point; flood-fill the contiguous connected region touching that
+    point (same foreground/background threshold `countForegroundPixels` already uses)
+    and flip its state in one action. Coarse, fast, good for "this whole chunk is
+    wrong" (a mis-included background blob, a mis-excluded limb).
+  - **BRUSH** — freehand, INCLUDE/EXCLUDE sub-modes, one fixed size, for fine edges the
+    tap tool is too coarse for (a strap, a boundary sliver).
+  Tool switcher (TAP / BRUSH) as a small segmented control, matching this project's
+  design tokens. Undo-last-action (covers both a tap-flip and a brush stroke as one
+  undo step each). RESET deletes the correction fields entirely (reverts to
+  automated). SAVE rasterizes the edited working copy, recomputes via the pure-function
+  seam above, encodes back to the same DeviceGray PNG format, persists both new fields.
 - **Non-goal for v1:** `bikeCoverageFraction` and the two-tone matte composite
   (`MatteRenderer.swift:124-152`, `PositionDetailView.swift:490`,
   `ComparisonView.swift:384`) stay derived from the *original* mask, not the
