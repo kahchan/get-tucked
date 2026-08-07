@@ -422,5 +422,35 @@ enum MatteRenderer {
         guard let scaled = context.makeImage() else { return nil }
         return UIImage(cgImage: scaled).pngData()
     }
+
+    /// The inverse of `downscaledMaskPNGData` (Plan AK5): a stored mask PNG
+    /// back into a *mutable* buffer that can be drawn into and re-encoded.
+    /// Redraws into a freshly allocated DeviceGray, alpha-none context of
+    /// the same dimensions rather than handing back the decoded `CGImage`'s
+    /// own provider data — that backing store is immutable, and a PNG
+    /// decode isn't guaranteed to hand back this exact format either.
+    /// Nothing about the pixels changes: same size, same colour space, and
+    /// `.none` interpolation so a 1:1 blit can't resample.
+    static func editableMaskContext(mask: CGImage) -> CGContext? {
+        guard let context = CGContext(
+            data: nil, width: mask.width, height: mask.height, bitsPerComponent: 8,
+            bytesPerRow: mask.width, space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .none
+        context.draw(mask, in: CGRect(x: 0, y: 0, width: mask.width, height: mask.height))
+        return context
+    }
+
+    /// Re-encodes an `editableMaskContext` buffer into the same lossless
+    /// DeviceGray PNG the store already holds, so a corrected mask is
+    /// byte-format-identical to an automated one and every existing reader
+    /// (`countForegroundPixels`, `tintedOverlay`, `contourPaths`) consumes
+    /// it unchanged. No downscale pass: the context came from an
+    /// already-capped stored mask.
+    static func maskPNGData(from context: CGContext) -> Data? {
+        guard let image = context.makeImage() else { return nil }
+        return UIImage(cgImage: image).pngData()
+    }
 }
 #endif

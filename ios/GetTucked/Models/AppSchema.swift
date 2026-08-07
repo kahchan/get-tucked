@@ -12,8 +12,8 @@ enum AppSchema {
 }
 
 enum AppMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self, SchemaV10.self] }
-    static var stages: [MigrationStage] { [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7, migrateV7toV8, migrateV8toV9, migrateV9toV10] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self, SchemaV10.self, SchemaV11.self] }
+    static var stages: [MigrationStage] { [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7, migrateV7toV8, migrateV8toV9, migrateV9toV10, migrateV10toV11] }
 
     // All V2 additions are optional properties, so SwiftData can infer the
     // mapping without a custom stage.
@@ -57,6 +57,13 @@ enum AppMigrationPlan: SchemaMigrationPlan {
     // lightweight stage, same reasoning as migrateV8toV9's UserSettings
     // addition.
     static let migrateV9toV10 = MigrationStage.lightweight(fromVersion: SchemaV9.self, toVersion: SchemaV10.self)
+
+    // Plan AK5: Position.correctedSubjectMaskData and
+    // PositionMetrics.correctedFrontalAreaCm2 (both added, both optional) —
+    // purely additive per-position data, nothing existing is rewritten, so
+    // the same lightweight reasoning as every stage above holds. Existing
+    // positions migrate with both nil, which reads as "never corrected".
+    static let migrateV10toV11 = MigrationStage.lightweight(fromVersion: SchemaV10.self, toVersion: SchemaV11.self)
 }
 
 // The pre-Plan-O shape, frozen here as the migration's "before" snapshot —
@@ -1011,11 +1018,162 @@ extension SchemaV9 {
     }
 }
 
-// The current shape (Plan AL9: Event model + Position.events many-to-many)
-// — the live top-level classes, which the rest of the app builds against
-// directly.
+// Plan AL9's shape (Event model + Position.events many-to-many), frozen
+// here as the V10→V11 migration's "before" snapshot — same reasoning as
+// every other frozen schema above: nested, not the live top-level classes,
+// so it can never silently drift.
 enum SchemaV10: VersionedSchema {
     static var versionIdentifier = Schema.Version(10, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [
+            SchemaV10.Bike.self, SchemaV10.Position.self, SchemaV10.PositionMetrics.self,
+            SchemaV10.UserSettings.self, SchemaV10.Event.self,
+        ]
+    }
+}
+
+extension SchemaV10 {
+    @Model
+    final class Bike {
+        var id: UUID
+        var nickname: String
+        var handlebarWidthMm: Double
+        var bikeType: BikeType
+        var barType: BarType?
+        var rimStandard: RimStandard?
+        var tireWidthMm: Double?
+        var wheelbaseMm: Double?
+        var notes: String?
+        var createdAt: Date
+
+        @Relationship(deleteRule: .cascade, inverse: \Position.bike)
+        var positions: [Position]
+
+        init(nickname: String, handlebarWidthMm: Double, bikeType: BikeType = .road) {
+            self.id = UUID()
+            self.nickname = nickname
+            self.handlebarWidthMm = handlebarWidthMm
+            self.bikeType = bikeType
+            self.createdAt = Date()
+            self.positions = []
+        }
+    }
+
+    @Model
+    final class Position {
+        var id: UUID
+        var capturedAt: Date
+        var label: String
+        var packingList: String?
+        var bike: Bike?
+        var photosData: Data?
+        var maskData: Data?
+        var subjectMaskData: Data?
+        var sideOnMaskData: Data?
+        var sideOnSubjectMaskData: Data?
+        var headOnPhotoIdentifier: String?
+        var sideOnPhotoIdentifier: String?
+        var sideOnPhotoData: Data?
+        var handlebarTapPoints: [Double]?
+        var sideOnTapPoints: [Double]?
+        var wheelTapPoints: [Double]?
+
+        @Relationship(deleteRule: .cascade)
+        var metrics: PositionMetrics?
+
+        var isBaseline: Bool
+
+        @Relationship(inverse: \Event.positions)
+        var events: [Event]
+
+        init(label: String, bike: Bike?) {
+            self.id = UUID()
+            self.capturedAt = Date()
+            self.label = label
+            self.bike = bike
+            self.isBaseline = false
+            self.events = []
+        }
+    }
+
+    @Model
+    final class PositionMetrics {
+        var frontalAreaCm2: Double
+        var frontalAreaUncertainty: Double
+        var pixelsPerCm: Double
+        var foregroundPixelCount: Int
+        var computedAt: Date
+        var pipelineVersion: String
+        var shoulderWidthCm: Double?
+        var armWidthCm: Double?
+        var handlebarWidthMmUsed: Double?
+        var wheelCheckDisagreementFraction: Double?
+        var torsoAngleDeg: Double?
+        var hipAngleDeg: Double?
+        var headDropCm: Double?
+        var headOnSkeletonPoints: [Double]?
+        var headOnArmPoints: [Double]?
+        var sideOnSkeletonPoints: [Double]?
+        var sideOnPixelsPerCm: Double?
+        var headOnHipPoints: [Double]?
+        var headOnKneePoints: [Double]?
+        var sideOnArmPoints: [Double]?
+        var sideOnAnklePoint: [Double]?
+
+        init(
+            frontalAreaCm2: Double,
+            frontalAreaUncertainty: Double,
+            pixelsPerCm: Double,
+            foregroundPixelCount: Int
+        ) {
+            self.frontalAreaCm2 = frontalAreaCm2
+            self.frontalAreaUncertainty = frontalAreaUncertainty
+            self.pixelsPerCm = pixelsPerCm
+            self.foregroundPixelCount = foregroundPixelCount
+            self.computedAt = Date()
+            self.pipelineVersion = "2.0"
+        }
+    }
+
+    @Model
+    final class UserSettings {
+        var noiseFloorPct: Double?
+        var noiseFloorLastCalibrated: Date?
+        var preferredUnits: PreferredUnits
+        var hasCompletedOnboarding: Bool
+        var consentToCaptureOthers: Bool
+
+        init() {
+            self.preferredUnits = .metric
+            self.hasCompletedOnboarding = false
+            self.consentToCaptureOthers = false
+        }
+    }
+
+    @Model
+    final class Event {
+        var id: UUID
+        var name: String
+        var date: Date
+        var notes: String?
+
+        var positions: [Position]
+
+        init(name: String, date: Date = Date(), notes: String? = nil) {
+            self.id = UUID()
+            self.name = name
+            self.date = date
+            self.notes = notes
+            self.positions = []
+        }
+    }
+}
+
+// The current shape (Plan AK5: Position.correctedSubjectMaskData +
+// PositionMetrics.correctedFrontalAreaCm2) — the live top-level classes,
+// which the rest of the app builds against directly.
+enum SchemaV11: VersionedSchema {
+    static var versionIdentifier = Schema.Version(11, 0, 0)
     static var models: [any PersistentModel.Type] {
         AppSchema.models
     }

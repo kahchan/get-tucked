@@ -505,3 +505,28 @@ struct FacingChip: View {
         .accessibilityHint("Double tap to correct which way the rider is facing")
     }
 }
+
+// MARK: - CorrectedAreaNote (Plan AK5)
+
+/// Discloses that a displayed frontal area carries a rider's hand-drawn
+/// matte correction. Same amber, same weight, same exception-based
+/// placement as the shoulder-width and wheel-check advisories that already
+/// sit under the hero number — a caveat on a number, not a new visual
+/// language. `.compact` is the one-word form for list rows, leaderboard
+/// rows and the comparison columns, where a sentence has nowhere to go.
+struct CorrectedAreaNote: View {
+    enum Style {
+        case sentence
+        case compact
+    }
+
+    var style: Style = .sentence
+
+    var body: some View {
+        Text(style == .sentence ? "This area includes a manual correction to the matte." : "CORRECTED")
+            .font(Theme.mono(style == .sentence ? 12 : 10))
+            .kerning(style == .sentence ? 0 : 0.5)
+            .foregroundStyle(Theme.Palette.amb)
+            .accessibilityLabel("This area includes a manual correction to the matte")
+    }
+}

@@ -23,7 +23,7 @@ struct LeaderboardView: View {
     }
 
     private var ranked: [Position] {
-        filtered.sorted { ($0.metrics?.frontalAreaCm2 ?? .infinity) < ($1.metrics?.frontalAreaCm2 ?? .infinity) }
+        filtered.sorted { ($0.metrics?.effectiveFrontalAreaCm2 ?? .infinity) < ($1.metrics?.effectiveFrontalAreaCm2 ?? .infinity) }
     }
 
     // AK11: was a bespoke `FilterBar` (hand-rolled underline/tap, no swipe)
@@ -120,15 +120,15 @@ private struct RankRow: View {
     // per push into first place.
     @State private var underlineProgress: Double = 0
 
-    private var area: Double? { position.metrics?.frontalAreaCm2 }
-    private var bestArea: Double? { best?.metrics?.frontalAreaCm2 }
+    private var area: Double? { position.metrics?.effectiveFrontalAreaCm2 }
+    private var bestArea: Double? { best?.metrics?.effectiveFrontalAreaCm2 }
 
     private var deltaText: String? {
         guard let a = area, let b = bestArea, rank > 1 else { return nil }
         // A delta smaller than the combined noise floor isn't a real ranking
         // difference — don't claim it as one (Plan A4).
-        if let uA = position.metrics?.frontalAreaUncertainty,
-           let uB = best?.metrics?.frontalAreaUncertainty,
+        if let uA = position.metrics?.effectiveFrontalAreaUncertainty,
+           let uB = best?.metrics?.effectiveFrontalAreaUncertainty,
            !AnalysisMath.isDistinguishable(areaA: a, areaB: b, uncertaintyA: uA, uncertaintyB: uB) {
             return nil
         }
@@ -167,6 +167,9 @@ private struct RankRow: View {
                     Text(d)
                         .font(Theme.mono(11))
                         .foregroundStyle(Theme.Palette.amb)
+                }
+                if position.metrics?.isManuallyCorrected == true {
+                    CorrectedAreaNote(style: .compact)
                 }
             }
         }

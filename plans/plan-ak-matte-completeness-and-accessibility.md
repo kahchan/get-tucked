@@ -1,8 +1,8 @@
 # Plan AK — Bike matte completeness, and accessibility (Dynamic Type + VoiceOver)
 
 **Status:** All four parts closed. Part 1: disclosure (AK7) is the outcome, no automated
-route beat the current mask; AK5 (rider-assisted correction) reopened 2026-08-08, see
-below. Part 2 ✅ shipped (82df573). Part 3/4: swipe-back and tab-swipe shipped and
+route beat the current mask; AK5 (rider-assisted correction) reopened and implemented
+2026-08-08, uncommitted, device pass outstanding. Part 2 ✅ shipped (82df573). Part 3/4: swipe-back and tab-swipe shipped and
 **device-verified 2026-08-06** (cafa71a) — see AK15–AK19.
 **Origin:** Kah, 2026-07-29: fix the matte's missing bike, plus Dynamic Type and
 accessibility labels. Part 3 added 2026-07-29.
@@ -84,62 +84,65 @@ AK1b/AK2 showed no IoU gain to take (A) and AK2 didn't succeed cleanly enough to
 found," not "found and gated." Revisit only if AK2 gets a proper plain-background
 fixture and finds something.
 
-## AK5 — Rider-assisted correction — REOPENED 2026-08-08, scope decided
+## AK5 — Rider-assisted correction — ✅ IMPLEMENTED 2026-08-08 (uncommitted)
 
-Show the matte, let the rider freehand include/exclude regions by drawing. Two open
-questions resolved by Kah: **the correction changes the real, stored, displayed
-`frontalAreaCm2`** (not a visual-only annotation), via a **freehand brush**, not
-discrete region-toggling. Matches Kah's explicit-controls preference; measurement
-becomes partly manual for corrected positions — needs an honesty-bar treatment (§3:
-explainable in two sentences, and the UI should make clear a position carries a manual
-correction, consistent with how the app already flags uncertainty and cross-bike
-comparisons).
+Rider corrects the head-on subject matte with TAP (flood-fill flip of the contiguous
+region under the finger) + BRUSH (freehand INCLUDE/EXCLUDE), and the correction changes
+the real stored/displayed `frontalAreaCm2`. SchemaV11 adds
+`Position.correctedSubjectMaskData` and `PositionMetrics.correctedFrontalAreaCm2`; the
+originals are never overwritten. 374 tests green (baseline 351, +23).
 
-**Grounding (2026-08-08 research pass):** `Position.subjectMaskData: Data?`
-(`Models/Position.swift:32`) is a lossless DeviceGray PNG, produced by
-`MatteRenderer.downscaledMaskPNGData` and persisted at capture
-(`CaptureView.swift:654`). `frontalAreaCm2` is a **cheap pure-function recompute** from
-a mask, not a Vision re-run: `AnalysisMath.countForegroundPixels` →
-`AnalysisMath.frontalAreaCm2(foregroundPixelCount:maskPixelsPerCm:)`
-(`AnalysisMath.swift:141`), and `AnalysisMath.maskPixelsPerCm(foregroundPixelCount:
-areaCm2:)` (`:84`) exists specifically to reconstruct scale from already-stored
-data — the exact seam this needs. The MASK tab today (`PositionDetailView.swift`,
-`buildMaskOverlay`/`BonesDrawOnOverlay`, ~lines 524-687) is a static, non-interactive
-`Image` — no gesture on it. **No freehand-drawing precedent exists anywhere in this
-codebase** (no PencilKit, no `Canvas` path-accumulation) — this is new UI, not a
-pattern to copy. Current schema ceiling: `SchemaV10`.
+**Files:** `Analysis/MaskCorrection.swift` (new — actions replay, flood fill, recompute),
+`Analysis/MatteRenderer.swift` (`editableMaskContext` / `maskPNGData(from:)` — the
+decode/encode inverse of `downscaledMaskPNGData`), `Views/MaskCorrectionEditor.swift`
+(new), `Models/{Position,PositionMetrics,AppSchema}.swift`, `App/GetTuckedApp.swift`,
+`Views/{PositionDetailView,ComparisonView,LeaderboardView,PositionListView,BikeSwap}.swift`,
+`Design/Components.swift` (`CorrectedAreaNote`), `GetTuckedTests/MaskCorrectionTests.swift`.
 
-**Proposed design (needs a go/no-go before a coder starts):**
-- **SchemaV11.** Add `Position.correctedSubjectMaskData: Data?` — the *original*
-  `subjectMaskData` is never overwritten, kept as the audit trail (matches this
-  project's auditability stance elsewhere, e.g. AL13 on hand-taps). Add
-  `PositionMetrics.correctedFrontalAreaCm2: Double?`. Everywhere `frontalAreaCm2` is
-  read for display/comparison/leaderboard, use `metrics.correctedFrontalAreaCm2 ??
-  metrics.frontalAreaCm2` — one seam, not a sweep of every call site independently.
-- **Edit UI, MASK tab — REVISED 2026-08-08: combo of tap-blob AND brush, not brush
-  alone.** Two tools, one correction pipeline underneath (both just edit the same
-  working mask copy before SAVE):
-  - **TAP** — tap a point; flood-fill the contiguous connected region touching that
-    point (same foreground/background threshold `countForegroundPixels` already uses)
-    and flip its state in one action. Coarse, fast, good for "this whole chunk is
-    wrong" (a mis-included background blob, a mis-excluded limb).
-  - **BRUSH** — freehand, INCLUDE/EXCLUDE sub-modes, one fixed size, for fine edges the
-    tap tool is too coarse for (a strap, a boundary sliver).
-  Tool switcher (TAP / BRUSH) as a small segmented control, matching this project's
-  design tokens. Undo-last-action (covers both a tap-flip and a brush stroke as one
-  undo step each). RESET deletes the correction fields entirely (reverts to
-  automated). SAVE rasterizes the edited working copy, recomputes via the pure-function
-  seam above, encodes back to the same DeviceGray PNG format, persists both new fields.
-- **Non-goal for v1:** `bikeCoverageFraction` and the two-tone matte composite
-  (`MatteRenderer.swift:124-152`, `PositionDetailView.swift:490`,
-  `ComparisonView.swift:384`) stay derived from the *original* mask, not the
-  correction. Only the hero metric (frontal area) is user-correctable this round —
-  propagating a hand-edit into every derived display is a bigger honesty-bar question
-  than this pass should absorb. Revisit if AK5 ships and Kah wants more.
-- **Disclosure:** any screen showing a corrected position's area gets a small
-  "manually corrected" marker (exact treatment — inline badge vs. detail-disclosure
-  line — left to implementation, matching existing patterns like the uncertainty ±
-  band and cross-bike warning).
+**Decisions taken during implementation** (the plan left these open):
+- **Editor is a `fullScreenCover`, not an inline MASK-tab mode.** The detail photo already
+  carries `.pinchZoomable` + `.segmentedSwipe`; a freehand drag can't share that hit
+  region without one of the three losing. MASK tab gains a `CORRECT THE MATTE` link.
+- **Preview is the pipeline's own output**, re-rendered off-main after each committed
+  action — a flood fill has no cheap vector equivalent, and a preview that can disagree
+  with the measurement is exactly the number §3 forbids. Only the in-flight brush stroke
+  is drawn as vectors.
+- **Read seam:** `PositionMetrics.effectiveFrontalAreaCm2` + `.isManuallyCorrected` +
+  `.effectiveFrontalAreaUncertainty`. The last one is an addition the plan missed — the ±
+  band is stored as an absolute cm² but is a fixed *fraction* of area, so an uncorrected
+  band next to a corrected number silently claims the wrong precision. Rescaled by the
+  same ratio; no new stored field.
+- **`BikeSwap.apply` rescales `correctedFrontalAreaCm2` by the same r²** — the plan didn't
+  mention it, and without it a swap strands the displayed area on the pre-swap ruler.
+- **Ghost-compare (`ComparisonView.buildGhostCompareLayer`) takes the corrected
+  mask+area as a PAIR.** It reconstructs its own scale from the two, so a corrected area
+  against an uncorrected mask mis-sizes the ghost. Not a non-goal violation — the AK5
+  non-goals name `bikeCoverageFraction` and the two-tone composite, both of which stay on
+  the automated `subjectMaskData` as written.
+- **MASK tab shows the corrected matte** once one exists (it's the matte that produced the
+  displayed number); `bikeCoverageFraction` beside it deliberately does not.
+- **Disclosure:** `CorrectedAreaNote` — amber, same exception-based slot as the
+  shoulder-width/wheel-check advisories. Sentence form under the hero number, `CORRECTED`
+  compact form on list/leaderboard/comparison rows. Detail's tier-4 disclosure gains an
+  `Automated area` row, so the automated number stays visible, not just stored.
+
+**Verified by test, no device needed** (`MaskCorrectionTests`, 23 tests): PNG
+decode→edit→recompute→encode→decode round trip byte-exact; zero-actions is a true no-op on
+the number; flood fill respects padded `bytesPerRow`, is 4-connected, and selects
+background when seeded on background; tap-flip removes a detached blob with an exact area
+change; both tools confirmed TOP-left origin (the brush flips to CG's y-up, the fill
+doesn't — the one place the two conventions meet); action order is load-bearing; replay is
+pure so UNDO truly reverts and the original mask is never mutated. Plus a container-build
+test guarding the `Schema(versionedSchema:)` standing trap directly.
+
+**Needs Kah on a device** (scripted simulator input proves nothing about touch — see
+standing traps): does the drag feel right and track the finger; is the fixed brush
+(`MaskCorrection.brushRadiusUnit = 0.03` of the long edge) the right size, or does v2 need
+a size control after all; does TAP select regions at a useful granularity on a real matte
+(a leaky 1-px bridge between rider and background would make one tap flip everything —
+the pure tests can't predict this on real segmentation output); does the preview keep up
+between strokes at full mask resolution; does `CorrectedAreaNote` read as disclosure
+rather than as an error.
 
 ## AK6 — Migration decision — moot, AK7 shipped instead
 

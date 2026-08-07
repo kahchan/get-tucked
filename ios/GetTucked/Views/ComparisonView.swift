@@ -61,10 +61,10 @@ struct ComparisonView: View {
     private var metricsA: PositionMetrics? { positionA.metrics }
     private var metricsB: PositionMetrics? { positionB.metrics }
 
-    private var areaA: Double? { metricsA?.frontalAreaCm2 }
-    private var areaB: Double? { metricsB?.frontalAreaCm2 }
-    private var uncertaintyA: Double? { metricsA?.frontalAreaUncertainty }
-    private var uncertaintyB: Double? { metricsB?.frontalAreaUncertainty }
+    private var areaA: Double? { metricsA?.effectiveFrontalAreaCm2 }
+    private var areaB: Double? { metricsB?.effectiveFrontalAreaCm2 }
+    private var uncertaintyA: Double? { metricsA?.effectiveFrontalAreaUncertainty }
+    private var uncertaintyB: Double? { metricsB?.effectiveFrontalAreaUncertainty }
 
     // % change from A to B (positive = B is larger)
     private var deltaPct: Double? {
@@ -350,17 +350,23 @@ struct ComparisonView: View {
     /// plain values into the detached work.
     private func loadOverlayLayers() async {
         // Traces whichever mask actually drove each position's area (Plan
-        // W2 audit) — subjectMaskData once adopted, falling back to the
-        // person-only maskData for positions captured before W2.
+        // W2 audit) — the rider's correction once one exists (Plan AK5),
+        // else subjectMaskData, falling back to the person-only maskData
+        // for positions captured before W2. Mask and area must move as a
+        // PAIR: this layer reconstructs its own scale from the two via
+        // `maskPixelsPerCm(foregroundPixelCount:areaCm2:)`, so a corrected
+        // area against an uncorrected mask would silently mis-size the ghost.
         async let a = buildGhostCompareLayer(
-            maskData: positionA.subjectMaskData ?? positionA.maskData, photosData: positionA.photosData,
-            frontalAreaCm2: positionA.metrics?.frontalAreaCm2,
+            maskData: positionA.correctedSubjectMaskData ?? positionA.subjectMaskData ?? positionA.maskData,
+            photosData: positionA.photosData,
+            frontalAreaCm2: positionA.metrics?.effectiveFrontalAreaCm2,
             handlebarTapPoints: positionA.handlebarTapPoints, wheelTapPoints: positionA.wheelTapPoints,
             tintColor: UIColor(Theme.Palette.acc), strokeColor: Theme.Palette.acc
         )
         async let b = buildGhostCompareLayer(
-            maskData: positionB.subjectMaskData ?? positionB.maskData, photosData: positionB.photosData,
-            frontalAreaCm2: positionB.metrics?.frontalAreaCm2,
+            maskData: positionB.correctedSubjectMaskData ?? positionB.subjectMaskData ?? positionB.maskData,
+            photosData: positionB.photosData,
+            frontalAreaCm2: positionB.metrics?.effectiveFrontalAreaCm2,
             handlebarTapPoints: positionB.handlebarTapPoints, wheelTapPoints: positionB.wheelTapPoints,
             tintColor: UIColor(Theme.Palette.amb), strokeColor: Theme.Palette.amb
         )
@@ -798,10 +804,13 @@ private struct PositionPanel: View {
                 .font(Theme.mono(13, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg)
                 .lineLimit(2)
-            if let area = position.metrics?.frontalAreaCm2 {
+            if let area = position.metrics?.effectiveFrontalAreaCm2 {
                 Text("\(AnalysisMath.areaDisplay(area)) cm²")
                     .font(Theme.mono(24, weight: .bold))
                     .foregroundStyle(Theme.Palette.acc)
+            }
+            if position.metrics?.isManuallyCorrected == true {
+                CorrectedAreaNote(style: .compact)
             }
             if let bike = position.bike {
                 Text(bike.nickname)
@@ -1300,9 +1309,9 @@ private struct DiffTable: View {
             // (derived, small, numerous); rows just cascade with the table.
             DiffRow(
                 key: "Frontal area",
-                valA: metricsA.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
-                valB: metricsB.map { "\(AnalysisMath.areaDisplay($0.frontalAreaCm2)) cm²" },
-                diff: formatDiff(metricsA?.frontalAreaCm2, metricsB?.frontalAreaCm2, unit: "cm²", fmt: "%.0f")
+                valA: metricsA.map { "\(AnalysisMath.areaDisplay($0.effectiveFrontalAreaCm2)) cm²" },
+                valB: metricsB.map { "\(AnalysisMath.areaDisplay($0.effectiveFrontalAreaCm2)) cm²" },
+                diff: formatDiff(metricsA?.effectiveFrontalAreaCm2, metricsB?.effectiveFrontalAreaCm2, unit: "cm²", fmt: "%.0f")
             )
             .cascadeIn(index: 1, trigger: appeared, duration: Theme.Motion.base, stagger: cascadeStagger)
 

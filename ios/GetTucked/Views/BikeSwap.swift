@@ -61,6 +61,14 @@ enum BikeSwap {
         )
         let result = AnalysisMath.rescaledMetrics(input)
 
+        // A hand-correction (Plan AK5) is measured at the old bike's ruler
+        // like every other number here, so it rescales by the same area
+        // ratio — leaving it alone would strand the *displayed* area on the
+        // pre-swap scale while everything around it moved.
+        if let corrected = metrics.correctedFrontalAreaCm2, metrics.frontalAreaCm2 > 0 {
+            metrics.correctedFrontalAreaCm2 = corrected * (result.frontalAreaCm2 / metrics.frontalAreaCm2)
+        }
+
         metrics.pixelsPerCm = result.pixelsPerCm
         metrics.frontalAreaCm2 = result.frontalAreaCm2
         metrics.frontalAreaUncertainty = result.frontalAreaUncertainty

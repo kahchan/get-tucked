@@ -39,7 +39,7 @@ struct PositionListView: View {
     private var sortedPositions: [Position] {
         let byID = Dictionary(uniqueKeysWithValues: positions.map { ($0.id, $0) })
         let entries = positions.map {
-            PositionSort.Entry(id: $0.id, capturedAt: $0.capturedAt, areaCm2: $0.metrics?.frontalAreaCm2)
+            PositionSort.Entry(id: $0.id, capturedAt: $0.capturedAt, areaCm2: $0.metrics?.effectiveFrontalAreaCm2)
         }
         return PositionSort.sorted(entries, order: sortOrder).compactMap { byID[$0.id] }
     }
@@ -308,10 +308,15 @@ private struct PositionRow: View {
 
                     Spacer()
 
-                    if let area = position.metrics?.frontalAreaCm2 {
-                        Text("\(AnalysisMath.areaDisplay(area)) cm²")
-                            .font(Theme.mono(13, weight: .bold))
-                            .foregroundStyle(Theme.Palette.acc)
+                    if let area = position.metrics?.effectiveFrontalAreaCm2 {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(AnalysisMath.areaDisplay(area)) cm²")
+                                .font(Theme.mono(13, weight: .bold))
+                                .foregroundStyle(Theme.Palette.acc)
+                            if position.metrics?.isManuallyCorrected == true {
+                                CorrectedAreaNote(style: .compact)
+                            }
+                        }
                     } else {
                         Text("···")
                             .font(Theme.mono(13))

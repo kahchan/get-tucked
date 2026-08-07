@@ -32,6 +32,7 @@ struct PositionDetailView: View {
     @State private var frontalPhotoSegment: PhotoSegment = .photo
     @State private var sideOnPhotoSegment: PhotoSegment = .photo
     @State private var showDeleteConfirm = false
+    @State private var showingMaskCorrection = false
     // AB11/AK14: fed into the photo's `.segmentedSwipe` as `disabled` — a
     // pinch-zoomed pan must never also be read as a tab swipe. Reset per
     // photo via `.id(showingSideOn)` resetting the whole pinch-zoom modifier,
@@ -179,6 +180,16 @@ struct PositionDetailView: View {
                             SegmentedToggleBar(labels: frontalSegments.map(\.label), selectedIndex: frontalPhotoSegmentBinding)
                                 .transition(.opacity)
                         }
+                        // AK5: only offered where it means something — on
+                        // the matte the rider is looking at, for a position
+                        // that has both an automated mask to correct and a
+                        // stored area to reconstruct scale from.
+                        if !showingSideOn, frontalPhotoSegment == .mask, canCorrectMatte {
+                            HeaderLink("CORRECT THE MATTE") { showingMaskCorrection = true }
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.bottom, Theme.Space.md)
+                                .transition(.opacity)
+                        }
                         if showingSideOn, sideOnSegments.count > 1 {
                             SegmentedToggleBar(labels: sideOnSegments.map(\.label), selectedIndex: sideOnPhotoSegmentBinding)
                                 .transition(.opacity)
@@ -274,6 +285,21 @@ struct PositionDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        #if canImport(UIKit)
+        .fullScreenCover(isPresented: $showingMaskCorrection) {
+            if let maskData = position.subjectMaskData, let metrics = position.metrics {
+                MaskCorrectionEditor(
+                    photo: headOnImage,
+                    originalMaskData: maskData,
+                    originalAreaCm2: metrics.frontalAreaCm2,
+                    aspectRatio: headOnAspectRatio,
+                    hasExistingCorrection: metrics.isManuallyCorrected,
+                    onSave: { applyCorrection($0) },
+                    onReset: { clearCorrection() }
+                )
+            }
+        }
+        #endif
         .sheet(isPresented: $showingWrongBikeSheet) {
             WrongBikeSheet(
                 position: position,
@@ -286,6 +312,30 @@ struct PositionDetailView: View {
     private var otherBikes: [Bike] {
         BikeSwap.otherBikes(allBikes: allBikes, excluding: position.bike)
     }
+
+    /// A correction needs an automated mask to edit and a stored area to
+    /// reconstruct the mask's scale from — without both there's no defensible
+    /// number to recompute (spec §3).
+    private var canCorrectMatte: Bool {
+        position.subjectMaskData != nil && (position.metrics?.frontalAreaCm2 ?? 0) > 0
+    }
+
+    #if canImport(UIKit)
+    /// Both new fields move together, always: a corrected area with no
+    /// corrected mask behind it would be a number with nothing to audit it
+    /// against.
+    private func applyCorrection(_ result: MaskCorrection.Result) {
+        position.correctedSubjectMaskData = result.maskPNGData
+        position.metrics?.correctedFrontalAreaCm2 = result.frontalAreaCm2
+        Task { await loadPhotos() }
+    }
+
+    private func clearCorrection() {
+        position.correctedSubjectMaskData = nil
+        position.metrics?.correctedFrontalAreaCm2 = nil
+        Task { await loadPhotos() }
+    }
+    #endif
 
     private var photoPlaceholder: some View {
         Rectangle()
@@ -455,7 +505,13 @@ struct PositionDetailView: View {
         let sideOnData = position.sideOnPhotoData
         let sideOnIdentifier = position.sideOnPhotoIdentifier
         let maskData = position.maskData
-        let subjectMaskData = position.subjectMaskData
+        // Plan AK5: the MASK tab shows the rider's correction once one
+        // exists — it's the matte that produced the displayed number.
+        // `bikeCoverageFraction` below deliberately stays on the automated
+        // `subjectMaskData` (AK5 non-goal): it's a diagnostic of what the
+        // segmentation found, and a hand-edit would make it read as a
+        // measurement of the rider's drawing instead.
+        let subjectMaskData = position.correctedSubjectMaskData ?? position.subjectMaskData
         let sideOnMaskData = position.sideOnMaskData
         let sideOnSubjectMaskData = position.sideOnSubjectMaskData
 
@@ -475,7 +531,9 @@ struct PositionDetailView: View {
 
         async let maskTask = buildMaskOverlay(maskData: maskData, subjectMaskData: subjectMaskData, photo: decodedHeadOn)
         async let sideOnMaskTask = buildMaskOverlay(maskData: sideOnMaskData, subjectMaskData: sideOnSubjectMaskData, photo: decodedSideOn)
-        async let coverageTask = Self.bikeCoverageFraction(subjectMaskData: subjectMaskData, personMaskData: maskData)
+        async let coverageTask = Self.bikeCoverageFraction(
+            subjectMaskData: position.subjectMaskData, personMaskData: maskData
+        )
         let (overlay, sideOnOverlay, coverage) = await (maskTask, sideOnMaskTask, coverageTask)
         withAnimation(Theme.Motion.entrance()) {
             maskOverlay = overlay
@@ -796,7 +854,7 @@ private struct MetricsSection: View {
                 // settles, it doesn't perform. Everything else below renders
                 // immediately, no animation at all.
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text(AnalysisMath.areaDisplay(metrics.frontalAreaCm2))
+                    Text(AnalysisMath.areaDisplay(metrics.effectiveFrontalAreaCm2))
                         .font(Theme.mono(60, weight: .bold))
                         .foregroundStyle(Theme.Palette.acc)
                         .kerning(Theme.Typography.tracking(forSize: 60))
@@ -813,11 +871,16 @@ private struct MetricsSection: View {
                 }
                 // "7488 cm²" reads as bare glyphs otherwise (Plan AK9).
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(frontalAreaAccessibilityLabel(metrics.frontalAreaCm2))
+                .accessibilityLabel(frontalAreaAccessibilityLabel(metrics.effectiveFrontalAreaCm2))
 
-                Text(AnalysisMath.uncertaintyDisplay(metrics.frontalAreaUncertainty))
+                Text(AnalysisMath.uncertaintyDisplay(metrics.effectiveFrontalAreaUncertainty))
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.Palette.fg3)
+
+                if metrics.isManuallyCorrected {
+                    CorrectedAreaNote()
+                        .padding(.top, Theme.Space.xs)
+                }
 
                 // Tier 2 (Plan T): warnings only, exception-based — nothing
                 // here is a standing number, it's evidence something needs a
@@ -846,7 +909,7 @@ private struct MetricsSection: View {
             // AB12: the solo "so what" — cost, not impact (spec §3: a lone
             // position has no baseline to diff against, so this is a bare
             // watts figure, never a fake time-over-distance delta).
-            SoloEffortRow(areaCm2: metrics.frontalAreaCm2)
+            SoloEffortRow(areaCm2: metrics.effectiveFrontalAreaCm2)
 
             // Tier 3: the one posture number riders actually talk about
             // (bar drop / head position) — shown only when a real wheelbase
@@ -882,6 +945,15 @@ private struct MetricsSection: View {
                         MetricRow(key: "Wheel check", value: wheelCheck.text)
                     }
                     MetricRow(key: "Foreground pixels", value: "\(metrics.foregroundPixelCount)")
+                    // Plan AK5: the automated measurement stays visible and
+                    // auditable in tier 4 once a correction has replaced it
+                    // above — a correction is additive, not an overwrite.
+                    if metrics.isManuallyCorrected {
+                        MetricRow(
+                            key: "Automated area",
+                            value: "\(AnalysisMath.areaDisplay(metrics.frontalAreaCm2)) cm²"
+                        )
+                    }
                     // Diagnostic, not a standing metric (Plan Z4): always
                     // present, "—" when there's no subject mask, so a
                     // near-zero reading on a night shot is legible as "the

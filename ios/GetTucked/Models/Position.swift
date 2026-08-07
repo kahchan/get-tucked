@@ -31,6 +31,17 @@ final class Position {
     // as before, single-tone, numbers unchanged.
     var subjectMaskData: Data?
 
+    // Rider-corrected head-on subject matte (Plan AK5, SchemaV11) — the
+    // same DeviceGray PNG format as subjectMaskData above, produced by
+    // rasterising freehand include/exclude strokes onto a decoded copy of
+    // it. Additive, never a replacement: subjectMaskData stays exactly as
+    // the automated pipeline produced it, so the automated measurement
+    // remains auditable and every correction is re-derivable from scratch
+    // (the editor always re-rasterises from the original, never from a
+    // previous correction). nil for every position the rider hasn't
+    // hand-corrected, which is all of them until they do.
+    var correctedSubjectMaskData: Data?
+
     // Side-on segmentation mask (Plan O), untinted grayscale PNG — mirrors
     // maskData's storage and tint-at-display-time rationale. Presentational
     // only: side-on posture metrics never depended on segmentation, so a

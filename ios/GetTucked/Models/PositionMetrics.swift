@@ -11,6 +11,15 @@ final class PositionMetrics {
     var computedAt: Date
     var pipelineVersion: String
 
+    // Frontal area recomputed from the rider's hand-corrected matte (Plan
+    // AK5, SchemaV11) — nil until the rider corrects this position. Derived
+    // from `Position.correctedSubjectMaskData` through the same pure
+    // count → scale → area path the automated pipeline uses, at the scale
+    // reconstructed from the ORIGINAL mask/area pair, so the two numbers
+    // share a ruler and differ only by the pixels the rider added or
+    // removed. `frontalAreaCm2` above is never overwritten by a correction.
+    var correctedFrontalAreaCm2: Double?
+
     // Head-on pose (populated after Phase 2.4 pose estimation on head-on frame)
     var shoulderWidthCm: Double?
 
@@ -108,5 +117,31 @@ final class PositionMetrics {
         self.foregroundPixelCount = foregroundPixelCount
         self.computedAt = Date()
         self.pipelineVersion = "2.0"
+    }
+}
+
+// MARK: - Corrected-area read seam (Plan AK5)
+
+extension PositionMetrics {
+    /// The frontal area every display, comparison and ranking site should
+    /// read — one seam, so a hand-correction can't reach some screens and
+    /// miss others. Deliberately NOT the seam for anything derived from the
+    /// matte's shape (`bikeCoverageFraction`, the two-tone composite): those
+    /// stay on the automated mask, since only the hero number is
+    /// user-correctable in this round.
+    var effectiveFrontalAreaCm2: Double { correctedFrontalAreaCm2 ?? frontalAreaCm2 }
+
+    /// Drives the "manually corrected" disclosure wherever the number shows.
+    var isManuallyCorrected: Bool { correctedFrontalAreaCm2 != nil }
+
+    /// The ± band is a fixed *fraction* of area (`AnalysisMath
+    /// .uncertaintyCm2`), stored as an absolute cm² — so a corrected area
+    /// needs it rescaled by the same ratio or the band silently claims the
+    /// automated area's precision on a different number. Nothing about a
+    /// hand-correction is claimed to be more or less certain than the
+    /// automated measurement; this only keeps the stored fraction intact.
+    var effectiveFrontalAreaUncertainty: Double {
+        guard let corrected = correctedFrontalAreaCm2, frontalAreaCm2 > 0 else { return frontalAreaUncertainty }
+        return frontalAreaUncertainty * (corrected / frontalAreaCm2)
     }
 }

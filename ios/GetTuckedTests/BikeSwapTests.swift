@@ -165,4 +165,34 @@ final class BikeSwapTests: XCTestCase {
         XCTAssertEqual(position.metrics?.headDropCm ?? -1, originalHeadDrop, accuracy: 1e-9)
         XCTAssertEqual(position.metrics?.handlebarWidthMmUsed ?? -1, 400, accuracy: 1e-9)
     }
+
+    // MARK: - Corrected area (Plan AK5)
+
+    /// A hand-correction is measured at the old bike's ruler like every
+    /// other number here, so a swap has to carry it — leaving it alone
+    /// would strand the *displayed* area on the pre-swap scale while the
+    /// automated one moved underneath it.
+    func testApplyRescalesAManualCorrectionByTheSameRatio() {
+        let oldBike = makeBike(nickname: "A", barMm: 400)
+        let newBike = makeBike(nickname: "B", barMm: 500)
+        let position = makePosition(bike: oldBike, barMmUsed: 400)
+        position.metrics?.correctedFrontalAreaCm2 = 380
+
+        XCTAssertTrue(BikeSwap.apply(to: position, newBike: newBike, imageAspect: CGSize(width: 1, height: 1)))
+
+        // Same 1.25^2 factor the automated area takes.
+        XCTAssertEqual(position.metrics?.correctedFrontalAreaCm2 ?? -1, 593.75, accuracy: 1e-9)
+        XCTAssertEqual(position.metrics?.effectiveFrontalAreaCm2 ?? -1, 593.75, accuracy: 1e-9)
+    }
+
+    func testApplyLeavesAnUncorrectedPositionUncorrected() {
+        let oldBike = makeBike(nickname: "A", barMm: 400)
+        let newBike = makeBike(nickname: "B", barMm: 500)
+        let position = makePosition(bike: oldBike, barMmUsed: 400)
+
+        XCTAssertTrue(BikeSwap.apply(to: position, newBike: newBike, imageAspect: CGSize(width: 1, height: 1)))
+
+        XCTAssertNil(position.metrics?.correctedFrontalAreaCm2)
+        XCTAssertEqual(position.metrics?.effectiveFrontalAreaCm2 ?? -1, 625, accuracy: 1e-9)
+    }
 }
