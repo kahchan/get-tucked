@@ -198,20 +198,31 @@ an event filter.
 
 ### AL13 — Deliberate deviations: write them down, don't build them
 
-Start: a `## Deviations from the code spec` section in `CLAUDE.md`.
-
-Three so far: §7 perpendicular-to-wheel-plane (AL1), §8 `shoulderRollDeg` (AL11), and §7
-handlebar auto-detection — Vision endpoint detection is spec-primary and the app is
-tap-only. Bar-end detection against clutter is a research problem with a silent-failure
-mode; hand taps are auditable and already carry Plan AE's correction UX. **Record, don't
-build.**
+**CLOSED 2026-08-08** — `## Deviations from the code spec` section added to `CLAUDE.md`,
+three entries: §7 perpendicular-to-wheel-plane (AL1), §8 `shoulderRollDeg` (AL11), §7
+handlebar auto-detection (tap-only by design, Plan AE correction UX covers it).
 
 ### AL14 — Failure-state audit (§12, Phase 5)
 
-Read-and-report, produces a checklist, not code. Camera and Photo Library denial have
-Settings deep-links. Unverified: storage full surfaced *before* capture, backgrounded
-mid-capture discarding cleanly, motion-permission denial, ARKit-unsupported fallback.
-One pass over §12's two tables, each row ticked against real code.
+**CLOSED 2026-08-08** — `plans/al14-failure-state-audit.md`. Read-and-report, one pass
+over §12's capture-failures table plus its two failure-mode lists (not "two tables" as
+this section used to say). Real findings, none fixed here:
+
+- **Camera denial has a Settings deep-link; Photo Library denial does not** — this
+  section previously claimed both did, wrongly. Two silent-failure paths
+  (`CaptureView.swift:551`, `PositionDetailView.swift:537`) swallow denial with no
+  message.
+- **Motion-permission denial silently fakes LEVEL/TILT as passing** — worse than
+  refusing: a confident-looking pass with no real measurement behind it
+  (`LiveCameraView.swift:855-859`).
+- **Storage-full-before-capture and backgrounded-mid-capture are both flatly missing**,
+  confirming the prior suspicion — no code found for either.
+- ARKit-unsupported-fallback row is moot: the app never adopted ARKit at all
+  (`CMMotionManager` throughout, per the AL1 deviation). A stale doc comment at
+  `LiveCameraView.swift:9` still says otherwise — cosmetic cleanup, not urgent.
+
+Three of these (Photo Library deep-link, motion-denial fake-pass, storage-full check)
+are real fix candidates for a future wave, not built here.
 
 **Cut from this plan: re-analysis offer (§10).** `pipelineVersion` is stored but nothing
 compares it. Poor value for v1 — it depends on `PHAsset` identifiers the user can delete,
@@ -270,7 +281,7 @@ Grouped so no two parallel agents touch the same file.
 | 4 | AL10 burst (D2 resolved: burst only) | `LiveCameraView.swift`, `CaptureView.swift`, `AnalysisEngine.swift`, `AnalysisMath.swift` | **Closed** — head-on only, 3 shots 350ms apart, single calibration tap reused across all 3 (handshake folds into measured spread, judged correct per spec). Median area, 15% spread retry threshold (fixture-derived, not device-verified), noiseFloorPct via EMA α=0.3 (not running mean — no field for a sample count). Library-picker fallback path stays on fixed 0.03 uncertainty, undocumented non-goal until now. No schema bump — reused AL9's SchemaV10. 340 green. |
 | 5 | AL8a spike | `tools/matte-lab`, `plans/matte-verdict.md` | **Closed** — verdict: no, not buildable as tap-to-segment. AL8b blocked on D3 (manual-region variant, Kah decision). |
 | 6 | AL9 events | `AppSchema.swift`, `LeaderboardView.swift` | **Closed** — `Event` model (id/name/date/notes) + `Position.events` relationship, SchemaV10. Leaderboard gets an event chip filter, AND-combined with the bike filter. Inline "+ NEW" create only — no dedicated events screen, no edit/delete, `notes` field unwritten until one exists. 332 green. |
-| 7 | AL13, AL14 | `CLAUDE.md`, checklist | Docs |
+| 7 | AL13, AL14, §11 inputs/outputs addendum | `CLAUDE.md`, `plans/al14-failure-state-audit.md`, `HowItWorksView.swift` | **Closed** — 340 green. Audit found 3 real fix candidates, none built (see AL14). |
 
 ## Verification
 

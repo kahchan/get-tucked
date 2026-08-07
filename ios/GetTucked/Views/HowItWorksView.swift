@@ -39,6 +39,15 @@ struct HowItWorksView: View {
                                 lead: "We sum the lit silhouette into one figure: your frontal area, in cm² (the surface the wind actually sees).",
                                 detail: nil
                             )
+                            // AL4/§11 gap: itemizes inputs/outputs the three
+                            // steps above only imply — phone pose (ARKit) and
+                            // percent delta aren't named anywhere else on
+                            // this screen.
+                            Text("In: photo, handlebar width, phone pose. Out: area in cm², percent change between positions.")
+                                .font(Theme.mono(12))
+                                .foregroundStyle(Theme.Palette.fg3)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.horizontal, Theme.Space.screenMargin)
                         }
 
                         SectionDivider()

@@ -133,6 +133,22 @@ Agents start cold and pay to re-derive everything. Brief them accordingly:
 - **`fixtures/IMG_*` is gitignored** (b7fae52) and silently swallows truth files —
   reference mattes go in `fixtures/truth/`.
 
+## Deviations from the code spec
+
+Deliberate, not oversights — record and don't build.
+
+- **§7 perpendicular-to-wheel-plane tolerance.** Spec wants rider squareness measured
+  against the bike's wheel plane, ±5°. The app only has phone pitch from
+  `CMMotionManager` — it can't see the wheel plane. Relabeled PERP→TILT rather than
+  claim a measurement it doesn't make (Plan AL1, `ios/GetTucked/Capture/LiveCameraView.swift`).
+- **§8 `shoulderRollDeg` posture metric.** Not built. Needs a bar line to roll against;
+  a 2° roll read off two hand-placed taps sits inside tap noise, fails the §3 honesty
+  bar (Plan AL11).
+- **§7 handlebar auto-detection.** Spec treats Vision endpoint detection as primary;
+  the app is tap-only. Bar-end detection against clutter is a research problem with a
+  silent-failure mode — hand taps are auditable and already have Plan AE's correction
+  UX.
+
 ## History — the segmentation spike (retired)
 
 Before committing to native, a throwaway browser spike (`src/`, `verifier/`, `fixtures/`,
