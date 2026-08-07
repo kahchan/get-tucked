@@ -228,7 +228,7 @@ struct LiveCameraView: View {
     /// down (Kah, on-device). The blank string reserves the exact line height
     /// without a magic number, so nothing moves as the reason comes and goes.
     private var blockedReasonSlot: some View {
-        let reason = CaptureGate.blockedReason(levelOK: session.levelOK, tiltOK: session.tiltOK)
+        let reason = CaptureGate.blockedReason(levelOK: session.levelOK, tiltOK: session.tiltOK, motionAvailable: session.motionAvailable, storageOK: session.storageOK)
         return Text(reason ?? " ")
             .font(Theme.mono(12, weight: .bold))
             .foregroundStyle(Theme.Palette.amb)
@@ -643,13 +643,43 @@ enum ZoomFactorDerivation {
 /// Explains `CameraSession.allPassed`'s existing level/tilt gate; does not
 /// change it.
 enum CaptureGate {
-    static func blockedReason(levelOK: Bool, tiltOK: Bool) -> String? {
+    // AL14 candidate 2: `motionAvailable` defaults true so every existing
+    // level/tilt call site (and CaptureGateTests) is unaffected — only a
+    // device with no motion sensing at all takes this branch, and it refuses
+    // outright rather than reporting a level/tilt reading that was never
+    // actually measured.
+    // AL14 candidate 3: `storageOK` defaults true for the same reason —
+    // checked ahead of level/tilt since there's no point coaching someone to
+    // level the phone for a shot that can't be written anyway.
+    static func blockedReason(levelOK: Bool, tiltOK: Bool, motionAvailable: Bool = true, storageOK: Bool = true) -> String? {
+        guard motionAvailable else { return "Can't verify level — motion sensing unavailable" }
+        guard storageOK else { return "Not enough storage to save this capture" }
         switch (levelOK, tiltOK) {
         case (true, true):   return nil
         case (false, true):  return "Hold the phone level"
         case (true, false):  return "Tilt the phone upright"
         case (false, false): return "Hold the phone level and upright"
         }
+    }
+}
+
+// MARK: - Storage gate (AL14 candidate 3)
+
+/// Pure threshold check, kept free of `FileManager`/`URL` so it's
+/// unit-testable without touching the real filesystem.
+enum StorageGate {
+    /// A burst (AL10) writes 3 photos plus the in-memory frames already held
+    /// during capture; a live-capture JPEG at this app's photo preset runs a
+    /// few MB each. 50MB leaves a wide margin over that worst case without
+    /// being so conservative it blocks a device that actually has room.
+    static let minimumFreeBytes: Int64 = 50 * 1024 * 1024
+
+    /// `availableBytes` nil (the volume query failed) doesn't block — an
+    /// unreadable value isn't evidence storage is full, and refusing to
+    /// shoot over a query failure would be its own silent-feeling trap.
+    static func hasSufficientStorage(availableBytes: Int64?, minimum: Int64 = minimumFreeBytes) -> Bool {
+        guard let availableBytes else { return true }
+        return availableBytes >= minimum
     }
 }
 
@@ -663,6 +693,14 @@ final class CameraSession: NSObject, ObservableObject {
     @Published var tiltDeg: Double = 0
     @Published var levelOK = false
     @Published var tiltOK = false
+    // AL14 candidate 2: true unless `startMotion` finds no device motion at
+    // all — gates the shutter alongside LEVEL/TILT rather than letting
+    // `startMotion`'s old true/true fallback fake a pass with no real reading.
+    @Published var motionAvailable = true
+    // AL14 candidate 3: checked at session start and re-checked on a timer
+    // (storage can fill up mid-session) rather than only once — gates the
+    // shutter the same way LEVEL/TILT/motion do.
+    @Published var storageOK = true
     @Published var bgOK = false
     // AL3a: raw value behind bgOK, published so a device session can judge
     // whether the metric separates good/bad backgrounds at all (plan-al) —
@@ -679,7 +717,7 @@ final class CameraSession: NSObject, ObservableObject {
 
     // LEVEL + TILT are physically enforced and gate the shutter. BG is advisory —
     // a low-contrast background degrades the matte but shouldn't dead-lock capture.
-    var allPassed: Bool { levelOK && tiltOK }
+    var allPassed: Bool { motionAvailable && levelOK && tiltOK && storageOK }
 
     private var photoOutput = AVCapturePhotoOutput()
     private var videoOutput = AVCaptureVideoDataOutput()
@@ -687,6 +725,7 @@ final class CameraSession: NSObject, ObservableObject {
     private var captureCompletion: ((UIImage) -> Void)?
     private var bike: Bike?
     private var device: AVCaptureDevice?
+    private var storageCheckTimer: Timer?
 
     // AVFoundation session must be configured and run on a dedicated serial queue.
     private let sessionQueue = DispatchQueue(label: "com.gettucked.camera.session", qos: .userInitiated)
@@ -706,11 +745,30 @@ final class CameraSession: NSObject, ObservableObject {
         self.bike = bike
         sessionQueue.async { [weak self] in self?.configureSession() }
         startMotion()
+        checkStorage()
+        // Re-checked periodically, not just once at session start (AL14
+        // candidate 3) — a rider can fill storage (other apps, other photos)
+        // during a capture session that's already open.
+        storageCheckTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+            self?.checkStorage()
+        }
     }
 
     func stop() {
         sessionQueue.async { [weak self] in self?.captureSession.stopRunning() }
         motionManager.stopDeviceMotionUpdates()
+        storageCheckTimer?.invalidate()
+        storageCheckTimer = nil
+    }
+
+    // MARK: - Storage check (AL14 candidate 3)
+
+    private func checkStorage() {
+        let available = try? URL(fileURLWithPath: NSHomeDirectory())
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage
+        let ok = StorageGate.hasSufficientStorage(availableBytes: available ?? nil)
+        DispatchQueue.main.async { self.storageOK = ok }
     }
 
     func capturePhoto(completion: @escaping (UIImage) -> Void) {
@@ -854,7 +912,15 @@ final class CameraSession: NSObject, ObservableObject {
 
     private func startMotion() {
         guard motionManager.isDeviceMotionAvailable else {
-            DispatchQueue.main.async { self.levelOK = true; self.tiltOK = true }
+            // AL14 candidate 2: was `levelOK = true; tiltOK = true` — a
+            // confident-looking pass backed by no real measurement. Refuse
+            // instead; `allPassed` and `CaptureGate.blockedReason` both key
+            // off `motionAvailable` now.
+            DispatchQueue.main.async {
+                self.motionAvailable = false
+                self.levelOK = false
+                self.tiltOK = false
+            }
             return
         }
         motionManager.deviceMotionUpdateInterval = 1.0 / 30.0

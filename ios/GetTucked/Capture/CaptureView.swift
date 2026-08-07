@@ -13,6 +13,9 @@ struct CaptureView: View {
     // give the newest row a brief highlight once the user gets back there.
     var onSaved: (UUID) -> Void = { _ in }
     @Environment(\.modelContext) private var context
+    // AL14 candidate 4: only source of "is real async work in flight" this
+    // view has — used to discard cleanly on backgrounding.
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var bikes: [Bike]
     @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
     // GetTuckedApp.fetchOrCreate guarantees exactly one row exists by the
@@ -103,6 +106,14 @@ struct CaptureView: View {
     // gated on UserSettings.consentToCaptureOthers so it never shows again
     // once acknowledged.
     @State private var showingConsentReminder = false
+    // AL14 candidate 1: Photo Library denial today silently dropped the save
+    // — this surfaces it the same way camera denial does (Settings deep-link),
+    // via the same alert mechanism `showingError` already uses.
+    @State private var showingPhotoLibraryDenied = false
+    // AL14 candidate 4: the in-flight analysis Task, if any — cancelled and
+    // reset if the app backgrounds mid-analysis rather than left to resolve
+    // into a step the user never returns to see.
+    @State private var analysisTask: Task<Void, Never>?
 
     enum CaptureStep: Equatable {
         case pickPhoto          // head-on · 1 OF 2
@@ -114,6 +125,13 @@ struct CaptureView: View {
         case reveal             // frontal-area result reveal
         case namePosition
         case done
+    }
+
+    /// AL14 candidate 4: pure predicate behind the `scenePhase` handler —
+    /// testable without SwiftUI's environment plumbing. Only the analysing
+    /// steps have real async work in flight to discard.
+    static func shouldDiscardOnBackground(newPhase: ScenePhase, step: CaptureStep) -> Bool {
+        newPhase != .active && (step == .analysing || step == .analysingSideOn)
     }
 
     var body: some View {
@@ -148,6 +166,20 @@ struct CaptureView: View {
                 Button("Cancel", role: .cancel) { requestExitCaptureFlow() }
             } message: { error in
                 Text(error.errorDescription ?? "Unknown error.")
+            }
+            // AL14 candidate 1: mirrors LiveCameraView's camera-denial
+            // Settings deep-link — doesn't block the capture flow (the photo
+            // is already analysed, just not mirrored to the library), so no
+            // "Try again"/"Cancel" pair, just acknowledge or fix it.
+            .alert("Photo Library access needed", isPresented: $showingPhotoLibraryDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Not now", role: .cancel) {}
+            } message: {
+                Text("Go to Settings → Get Tucked → Photos and allow access to save this capture to your camera roll.")
             }
             .confirmationDialog("Discard this capture?", isPresented: $showingDiscardConfirm, titleVisibility: .visible) {
                 Button("Discard", role: .destructive) { exitCaptureFlow() }
@@ -190,6 +222,21 @@ struct CaptureView: View {
         .onDisappear {
             OrientationLock.allowsLandscape = false
         }
+        // AL14 candidate 4: only the analysing steps have real async work in
+        // flight (a live-camera burst mid-shutter isn't a Task this view
+        // holds, and resolves in well under a second either way) — discard
+        // and reset rather than let a background/foreground cycle land on a
+        // step whose result the user never asked to see mid-capture.
+        .onChange(of: scenePhase) { _, newPhase in
+            guard Self.shouldDiscardOnBackground(newPhase: newPhase, step: step) else { return }
+            discardInFlightCapture()
+        }
+    }
+
+    private func discardInFlightCapture() {
+        analysisTask?.cancel()
+        analysisTask = nil
+        resetForNewCapture()
     }
 
     @ViewBuilder
@@ -236,7 +283,7 @@ struct CaptureView: View {
                         caveatBanner: dropBarCaveatBanner
                     ) {
                         step = .analysing
-                        Task { await runAnalysis() }
+                        analysisTask = Task { await runAnalysis() }
                     }
                     .transition(.opacity)
                 }
@@ -277,13 +324,13 @@ struct CaptureView: View {
                         onConfirm: { pixelsPerCm in
                             sideOnPixelsPerCmValue = pixelsPerCm
                             step = .analysingSideOn
-                            Task { await runSideOnAnalysis() }
+                            analysisTask = Task { await runSideOnAnalysis() }
                         },
                         onSkip: {
                             sideOnTapPoints = []
                             sideOnPixelsPerCmValue = nil
                             step = .analysingSideOn
-                            Task { await runSideOnAnalysis() }
+                            analysisTask = Task { await runSideOnAnalysis() }
                         }
                     )
                     .transition(.opacity)
@@ -385,15 +432,22 @@ struct CaptureView: View {
                 )
             }
             await waitForMinimumAnalysingDisplay(since: stepEnteredAt)
+            // AL14 candidate 4: backgrounding mid-analysis already reset
+            // `step` back to .pickPhoto via discardInFlightCapture() — this
+            // await can still resolve after that reset, so don't let a
+            // cancelled task's result land on top of it.
+            guard !Task.isCancelled else { return }
             pendingResult = result
             usedHandlebarWidthMm = bike.handlebarWidthMm
             buildRevealMaskOverlay(for: result)
             step = .pickSideOnPhoto   // head-on done → proceed to side-on
         } catch let error as AnalysisError {
+            guard !Task.isCancelled else { return }
             analysisError = error
             showingError = true
             step = .calibrate
         } catch {
+            guard !Task.isCancelled else { return }
             analysisError = .segmentationFailed
             showingError = true
             step = .calibrate
@@ -541,6 +595,9 @@ struct CaptureView: View {
             pendingSideOnSubjectMask = analysis.subjectMaskImage
         }
         await waitForMinimumAnalysingDisplay(since: stepEnteredAt)
+        // AL14 candidate 4: same race guard as runAnalysis() — a backgrounded
+        // reset may already have fired by the time this await resolves.
+        guard !Task.isCancelled else { return }
         step = .reveal
     }
 
@@ -552,7 +609,10 @@ struct CaptureView: View {
         if status == .notDetermined {
             status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         }
-        guard status == .authorized || status == .limited else { return }
+        guard status == .authorized || status == .limited else {
+            showingPhotoLibraryDenied = true
+            return
+        }
         try? await PHPhotoLibrary.shared().performChanges {
             PHAssetCreationRequest.forAsset().addResource(with: .photo, data: image.jpegData(compressionQuality: 0.9) ?? Data(), options: nil)
         }

@@ -17,6 +17,9 @@ struct PositionDetailView: View {
     @State private var sideOnImage: UIImage?
     @State private var maskOverlay: UIImage?
     @State private var sideOnMaskOverlay: UIImage?
+    // AL14 candidate 1: set when `loadAsset` finds the library denied — the
+    // photo placeholder stays blank forever otherwise, with no explanation.
+    @State private var photoLibraryDenied = false
     #endif
     // Bike coverage diagnostic (Plan Z4) — subject-minus-person pixel share
     // of the subject mask, as a fraction; nil when there's no subject mask
@@ -87,6 +90,13 @@ struct PositionDetailView: View {
                             // frame — the decoded photo(s) fade in over it below,
                             // so there's never a size jump (N5).
                             Theme.Palette.bg1
+
+                            // AL14 candidate 1: the placeholder above would
+                            // otherwise sit blank forever with no explanation
+                            // of why the photo never showed up.
+                            if photoLibraryDenied, headOnImage == nil, sideOnImage == nil {
+                                PhotoLibraryDeniedNotice()
+                            }
 
                             if let image = headOnImage {
                                 Image(uiImage: image)
@@ -534,11 +544,14 @@ struct PositionDetailView: View {
         guard let identifier else { return nil }
         // PHAsset re-fetch needs library read authorization; PhotosPicker itself
         // is permissionless, so without this the saved photo silently won't reload.
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         if status == .notDetermined {
-            _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+            status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
         }
-        guard PHPhotoLibrary.authorizationStatus(for: .readWrite) != .denied else { return nil }
+        guard status != .denied, status != .restricted else {
+            photoLibraryDenied = true
+            return nil
+        }
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
         guard let asset = result.firstObject else { return nil }
         let size = CGSize(width: 800, height: 800)
@@ -556,6 +569,39 @@ struct PositionDetailView: View {
     }
     #endif
 }
+
+#if canImport(UIKit)
+/// AL14 candidate 1: same copy shape as `LiveCameraView`'s camera-denial
+/// overlay, scaled down to fit inside the photo placeholder rather than a
+/// full screen — this view has no dedicated "capture blocked" chrome to hang
+/// a full-screen overlay off of.
+private struct PhotoLibraryDeniedNotice: View {
+    var body: some View {
+        VStack(spacing: Theme.Space.md) {
+            Text("PHOTO LIBRARY ACCESS NEEDED")
+                .font(Theme.heading(16))
+                .foregroundStyle(Theme.Palette.fg)
+                .multilineTextAlignment(.center)
+            Text("Go to Settings → Get Tucked → Photos and allow access to load this photo.")
+                .font(Theme.mono(12))
+                .foregroundStyle(Theme.Palette.fg3)
+                .multilineTextAlignment(.center)
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Text("OPEN SETTINGS")
+                    .font(Theme.mono(12, weight: .bold))
+                    .foregroundStyle(Theme.Palette.acc)
+                    .kerning(0.5)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(Theme.Space.lg)
+    }
+}
+#endif
 
 // MARK: - BONES draw-on (Plan Z6 + Z7)
 

@@ -38,14 +38,21 @@ Read-and-report against `ios/GetTucked/` source, 2026-08-08. No code changed.
 
 ## Candidates worth a future fix (flagged, not built here)
 
-1. **Photo Library denial has no deep-link or user message** — two silent-failure paths
-   (`CaptureView.swift:551`, `PositionDetailView.swift:537`). Worse than camera denial:
-   a user who denies library access gets no explanation, just a photo that never saves
-   or never reloads.
-2. **Motion denial silently fakes level/tilt as OK** — capture proceeds ungated with no
-   real level data and no warning. Arguably worse than refusing, since the user gets a
-   confident-looking LEVEL/TILT pill pair that means nothing.
-3. **No storage-full check before capture** — spec explicitly calls out "before, not
-   after" as the hard part; nothing in source addresses it.
-4. **No backgrounded-mid-capture handling** — unclear what state a half-finished
-   `CaptureView` flow is left in if the app backgrounds; untested territory.
+1. **Fixed.** `saveToCameraRoll` now surfaces denial via a dedicated `.alert` (Settings
+   deep-link, matching camera-denial copy shape); `PositionDetailView.loadAsset` sets
+   `photoLibraryDenied`, shown as an in-placeholder `PhotoLibraryDeniedNotice` instead of
+   a permanently blank photo box. `ios/GetTucked/Capture/CaptureView.swift`,
+   `ios/GetTucked/Views/PositionDetailView.swift`.
+2. **Fixed.** `CameraSession.startMotion`'s no-motion fallback now sets
+   `motionAvailable = false` (and `levelOK`/`tiltOK` false) instead of faking a pass;
+   `CaptureGate.blockedReason` and `allPassed` both gate on it. `CaptureGateTests`
+   covers the new branch. `ios/GetTucked/Capture/LiveCameraView.swift`.
+3. **Fixed.** New `StorageGate` (50MB floor, sized for a 3-shot burst) checked at
+   session start and on a 3s timer; gates `allPassed`/`blockedReason` alongside
+   LEVEL/TILT/motion. `StorageGateTests` covers the pure threshold.
+   `ios/GetTucked/Capture/LiveCameraView.swift`.
+4. **Fixed.** `CaptureView` now reads `\.scenePhase`; backgrounding during `.analysing`/
+   `.analysingSideOn` cancels the in-flight `Task` and calls `resetForNewCapture()`, with
+   a `Task.isCancelled` guard in both analysis functions so a resolving-late continuation
+   can't stomp the reset. Pure predicate `shouldDiscardOnBackground` covered by
+   `CaptureBackgroundDiscardTests`. `ios/GetTucked/Capture/CaptureView.swift`.
