@@ -32,26 +32,37 @@ enum MaskCorrection {
     /// mask's frame, TOP-left origin y-down (plain SwiftUI view space, the
     /// same convention as `Position.handlebarTapPoints` — NOT the
     /// bottom-left Vision convention the pose landmarks use).
+    ///
+    /// `radiusUnit` (AK22) is captured at the zoom the stroke was drawn at,
+    /// not read live off the editor's current zoom — so replay is
+    /// deterministic and a later zoom change can't retroactively resize an
+    /// already-committed stroke.
     struct Stroke: Equatable {
         let brush: Brush
         let points: [CGPoint]
+        let radiusUnit: CGFloat
 
-        init(brush: Brush, points: [CGPoint]) {
+        init(brush: Brush, points: [CGPoint], radiusUnit: CGFloat = MaskCorrection.brushRadiusUnit) {
             self.brush = brush
             self.points = points
+            self.radiusUnit = radiusUnit
         }
     }
 
     /// One undoable correction. `tapFlip`'s point uses the same top-left
-    /// unit convention as `Stroke.points`.
+    /// unit convention as `Stroke.points`; its radius is the same
+    /// zoom-captured value as `Stroke.radiusUnit` (AK22).
     enum Action: Equatable {
         case stroke(Stroke)
-        case tapFlip(CGPoint)
+        case tapFlip(CGPoint, radiusUnit: CGFloat)
     }
 
-    /// Brush radius as a fraction of the mask's long edge, so one constant
-    /// covers every stored mask resolution and both orientations. Fixed for
-    /// v1 — a size slider is a precision knob nothing in the app validates.
+    /// Radius as a fraction of the mask's long edge at 1× zoom, so one
+    /// constant covers every stored mask resolution and both orientations.
+    /// AK22: both tools bind their radius in *screen* points via
+    /// `MaskCorrectionEditor.radiusUnit(atZoom:)`, of which this is the
+    /// zoom-1 case — so brush footprint and TAP's flood bound are the same
+    /// knob, and existing 1× behaviour is bit-identical.
     static let brushRadiusUnit: CGFloat = 0.03
 
     struct Result: Equatable {
@@ -138,8 +149,8 @@ enum MaskCorrection {
             switch action {
             case .stroke(let stroke):
                 draw(stroke: stroke, into: context)
-            case .tapFlip(let point):
-                flipRegion(at: point, in: context)
+            case .tapFlip(let point, let radiusUnit):
+                flipRegion(at: point, radiusUnit: radiusUnit, in: context)
             }
         }
     }
@@ -156,7 +167,7 @@ enum MaskCorrection {
     private static func draw(stroke: Stroke, into context: CGContext) {
         guard !stroke.points.isEmpty else { return }
         let width = CGFloat(context.width), height = CGFloat(context.height)
-        let radius = brushRadiusUnit * max(width, height)
+        let radius = stroke.radiusUnit * max(width, height)
         guard radius > 0 else { return }
 
         let gray: CGFloat = stroke.brush == .include ? 1 : 0
@@ -187,18 +198,20 @@ enum MaskCorrection {
 
     // MARK: - Tap flood-fill
 
-    /// Flips the contiguous same-state region touching `point` — a
-    /// mis-included background blob out, a mis-excluded limb in, in one
-    /// action. Foreground/background is decided by the same threshold
-    /// `countForegroundPixels` measures with, so what the fill treats as one
-    /// region is exactly what the area math treats as one region.
+    /// Flips the contiguous same-state region touching `point`, bounded to a
+    /// disc of `radiusUnit` (AK22) — a mis-included background blob out, a
+    /// mis-excluded limb in, in one action, without the unbounded flood
+    /// reaching the far side of the frame. Foreground/background is decided
+    /// by the same threshold `countForegroundPixels` measures with, so what
+    /// the fill treats as one region is exactly what the area math treats as
+    /// one region.
     ///
     /// Writes straight into the bitmap rather than going through `CGContext`
     /// drawing, so this is the one edit that reads the buffer in its own
     /// row order: bitmap-context memory is stored TOP row first, while
     /// `CGContext` drawing coordinates are y-up — hence no `1 -` flip here
     /// and one in `draw(stroke:)`.
-    private static func flipRegion(at point: CGPoint, in context: CGContext) {
+    private static func flipRegion(at point: CGPoint, radiusUnit: CGFloat, in context: CGContext) {
         guard let buffer = context.data else { return }
         let width = context.width, height = context.height, bytesPerRow = context.bytesPerRow
         let bytes = buffer.assumingMemoryBound(to: UInt8.self)
@@ -207,9 +220,10 @@ enum MaskCorrection {
         let seedY = Int((point.y * CGFloat(height)).rounded(.down))
         guard seedX >= 0, seedX < width, seedY >= 0, seedY < height else { return }
 
+        let radius = radiusUnit * CGFloat(max(width, height))
         let region = connectedRegion(
             bytes: bytes, width: width, height: height, bytesPerRow: bytesPerRow,
-            seedX: seedX, seedY: seedY
+            seedX: seedX, seedY: seedY, radius: radius
         )
         let seedIsForeground = bytes[seedY * bytesPerRow + seedX] >= foregroundThreshold
         let flipped: UInt8 = seedIsForeground ? 0 : 255
@@ -222,20 +236,24 @@ enum MaskCorrection {
     /// the fill and the count can't drift apart silently.
     static let foregroundThreshold: UInt8 = 128
 
-    /// Every buffer offset 4-connected to the seed and on the same side of
-    /// `threshold` as it. Offsets (not x/y pairs) because they're what the
-    /// caller writes through, and because striding by `bytesPerRow` rather
-    /// than `width` is the whole point — a padded row would otherwise let
-    /// the fill leak from the end of one row into the start of the next.
+    /// Every buffer offset 4-connected to the seed, on the same side of
+    /// `threshold` as it, and within `radius` pixels of the seed (AK22;
+    /// `.infinity` — the default — is the pre-AK22 unbounded walk, which the
+    /// existing structural tests below still exercise directly). Offsets
+    /// (not x/y pairs) because they're what the caller writes through, and
+    /// because striding by `bytesPerRow` rather than `width` is the whole
+    /// point — a padded row would otherwise let the fill leak from the end
+    /// of one row into the start of the next.
     ///
     /// Iterative, with an explicit stack: a recursive fill blows the stack
     /// on a full-height rider silhouette at stored mask resolution.
     static func connectedRegion(
         bytes: UnsafePointer<UInt8>, width: Int, height: Int, bytesPerRow: Int,
-        seedX: Int, seedY: Int, threshold: UInt8 = foregroundThreshold
+        seedX: Int, seedY: Int, threshold: UInt8 = foregroundThreshold, radius: CGFloat = .infinity
     ) -> [Int] {
         guard seedX >= 0, seedX < width, seedY >= 0, seedY < height else { return [] }
         let seedIsForeground = bytes[seedY * bytesPerRow + seedX] >= threshold
+        let radiusSquared = radius * radius
 
         var visited = [Bool](repeating: false, count: width * height)
         var stack = [(x: Int, y: Int)]()
@@ -248,6 +266,10 @@ enum MaskCorrection {
             for (nx, ny) in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)] {
                 guard nx >= 0, nx < width, ny >= 0, ny < height, !visited[ny * width + nx] else { continue }
                 guard (bytes[ny * bytesPerRow + nx] >= threshold) == seedIsForeground else { continue }
+                if radius.isFinite {
+                    let dx = CGFloat(nx - seedX), dy = CGFloat(ny - seedY)
+                    guard dx * dx + dy * dy <= radiusSquared else { continue }
+                }
                 visited[ny * width + nx] = true
                 stack.append((nx, ny))
             }

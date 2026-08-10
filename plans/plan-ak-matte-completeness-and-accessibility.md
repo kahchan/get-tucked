@@ -451,6 +451,11 @@ Calibrate so nothing changes at 1×: screen radius = `0.03 × content long edge`
 a portrait canvas is ~15pt (≈30pt across, a fingertip). Then existing brush behaviour at
 1× is bit-identical and only zoomed behaviour is new.
 
+The derivation is just `radiusUnit(atZoom:) = brushRadiusUnit / zoom` — no second
+constant and no screen-point→mask-fraction conversion, because `canvasSize` is measured
+pre-`.scaleEffect` and so is already constant across zoom. Dividing the mask fraction by
+zoom and letting `.scaleEffect` magnify it back is the whole trick.
+
 Build:
 
 - `Action.tapFlip` and `Stroke` both carry the radius in unit space, captured at the zoom
@@ -468,10 +473,19 @@ tapped repeatedly along an edge. The brush has the same round-cap property, so p
 not — but it's an eyeball call, not an argument.
 
 Verify: **this one is testable**, unlike AK20/AK21 — it's pure and the Simulator runs it.
-`testTapFlipOnBackgroundFillsTheWholeCanvas` and `testTapFlipUsesTopLeftOriginCoordinates`
-both assert the unbounded behaviour and must be rewritten; the latter needs a new
-mechanism for probing the y-convention. Add: a tap on open background flips only a disc;
-a small detached blob still flips whole; the same tap at two radii flips proportionally.
+Three existing tests assert the unbounded behaviour and must be rewritten —
+`testTapFlipOnBackgroundFillsTheWholeCanvas`, `testTapFlipUsesTopLeftOriginCoordinates`
+(needs a new mechanism for probing the y-convention, which must stay covered), and
+`testActionOrderChangesTheOutcome`, whose whole-canvas/zero assertions both depended on
+the flood reaching the far side. Add: a tap on open background flips only a disc; a small
+detached blob still flips whole; the same tap at two radii flips proportionally.
+
+Two traps for whoever writes those: `corrected` returns nil on an all-background mask
+(`originalCount == 0`, per `testRejectsEmptyMask`), so a radius-proportionality fixture
+needs some foreground somewhere. And don't reach for an oversized radius to keep an old
+assertion alive — the editor can only produce `brushRadiusUnit / zoom` for
+`zoom` in `1...maxZoom`, so anything above `brushRadiusUnit` is unreachable and a test
+needing one is asserting against a configuration that cannot occur.
 
 ## AK23 — Zoom feel on the correction canvas
 

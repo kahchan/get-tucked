@@ -185,10 +185,15 @@ final class MaskCorrectionTests: XCTestCase {
     /// The headline case: tap the mis-included detached blob, and the area
     /// drops by exactly that blob's share. Exact (not approximate) because
     /// the fill writes raw bytes with no antialiasing to round off.
+    /// The headline case doubles as AK22's "a small detached blob still
+    /// flips whole": at the default radius (3px on this 100×100 canvas) the
+    /// 5×5 blob's farthest corner (2.83px from the tap) is still inside the
+    /// disc, so the bound doesn't change this result.
     func testTapFlipRemovesADetachedBlobAndRescalesAreaExactly() throws {
         let mask = try makeTwoBlobMask()
         let result = try XCTUnwrap(MaskCorrection.corrected(
-            originalMask: mask, actions: [.tapFlip(CGPoint(x: 0.075, y: 0.075))],
+            originalMask: mask,
+            actions: [.tapFlip(CGPoint(x: 0.075, y: 0.075), radiusUnit: MaskCorrection.brushRadiusUnit)],
             originalAreaCm2: twoBlobArea
         ))
 
@@ -197,53 +202,95 @@ final class MaskCorrectionTests: XCTestCase {
         XCTAssertEqual(try foregroundCount(ofPNG: result.maskPNGData), 400)
     }
 
-    /// The tap point is TOP-left origin: a tap high on screen must reach the
-    /// blob that is high in the image. Seeding the bottom-left instead would
-    /// land on background and flip the entire background region — a
-    /// catastrophically visible failure this pins down.
+    /// AK22's y-convention probe: with the fill now bounded to a disc,
+    /// "flips the whole background" is no longer the failure signature to
+    /// pin down. Instead: a marker that exists only near the TOP of the
+    /// image, tapped at a top-left-origin unit point close to y=0. Correct
+    /// top-left mapping seeds on the marker and flips it out (count drops
+    /// below the marker's size); a bottom-origin bug would seed on empty
+    /// background near the bottom instead, growing the count as background
+    /// flips in.
     func testTapFlipUsesTopLeftOriginCoordinates() throws {
-        let mask = try makeTwoBlobMask()
-        let flippedVertically = try XCTUnwrap(MaskCorrection.corrected(
-            originalMask: mask, actions: [.tapFlip(CGPoint(x: 0.075, y: 0.925))],
-            originalAreaCm2: twoBlobArea
+        let markerCount = 5 * 3
+        let mask = try makeMask(width: 100, height: 100) { x, y in
+            (0 ... 2).contains(y) && (48 ... 52).contains(x) ? 255 : 0
+        }
+        let result = try XCTUnwrap(MaskCorrection.corrected(
+            originalMask: mask,
+            actions: [.tapFlip(CGPoint(x: 0.5, y: 0.01), radiusUnit: MaskCorrection.brushRadiusUnit)],
+            originalAreaCm2: 100
         ))
-        // (0.075, 0.925) is background — the whole background flips in.
-        XCTAssertEqual(flippedVertically.foregroundPixelCount, 100 * 100)
+        XCTAssertLessThan(result.foregroundPixelCount, markerCount)
     }
 
-    /// Tapping background merges everything into one region, so the count
-    /// goes to the full canvas.
-    func testTapFlipOnBackgroundFillsTheWholeCanvas() throws {
+    /// AK22: a tap on open background flips only a disc, not the whole
+    /// frame — the fix for "it swallows everything".
+    func testTapFlipOnBackgroundFlipsOnlyADisc() throws {
         let mask = try makeTwoBlobMask()
         let result = try XCTUnwrap(MaskCorrection.corrected(
-            originalMask: mask, actions: [.tapFlip(CGPoint(x: 0.9, y: 0.9))],
+            originalMask: mask,
+            actions: [.tapFlip(CGPoint(x: 0.9, y: 0.9), radiusUnit: MaskCorrection.brushRadiusUnit)],
             originalAreaCm2: twoBlobArea
         ))
-        XCTAssertEqual(result.foregroundPixelCount, 100 * 100)
+        XCTAssertGreaterThan(result.foregroundPixelCount, twoBlobCount)
+        XCTAssertLessThan(result.foregroundPixelCount, 100 * 100)
+    }
+
+    /// AK22: the same tap at two radii flips proportionally — doubling the
+    /// radius roughly quadruples the disc's area (πr²). A lone foreground
+    /// pixel far from the tap keeps the mask non-empty (`corrected` rejects
+    /// an all-background mask) without ever falling inside either disc.
+    func testTapFlipRadiusScalesTheFlippedRegion() throws {
+        let mask = try makeMask(width: 100, height: 100) { x, y in x == 0 && y == 0 ? 255 : 0 }
+        let small = try XCTUnwrap(MaskCorrection.corrected(
+            originalMask: mask, actions: [.tapFlip(CGPoint(x: 0.5, y: 0.5), radiusUnit: 0.03)],
+            originalAreaCm2: 100
+        ))
+        let large = try XCTUnwrap(MaskCorrection.corrected(
+            originalMask: mask, actions: [.tapFlip(CGPoint(x: 0.5, y: 0.5), radiusUnit: 0.06)],
+            originalAreaCm2: 100
+        ))
+        let ratio = Double(large.foregroundPixelCount) / Double(small.foregroundPixelCount)
+        XCTAssertEqual(ratio, 4, accuracy: 0.6)
     }
 
     /// Actions replay in order, and a tap reads whatever the actions before
     /// it left behind — so the same two taps in the other order land
-    /// somewhere completely different. Guards against any future "optimise
-    /// by batching the taps" refactor.
+    /// somewhere different. Guards against any future "optimise by batching
+    /// the taps" refactor.
+    ///
+    /// Deliberately runs at the real 1× radius rather than an oversized one.
+    /// The editor can only ever produce `brushRadiusUnit / zoom` for
+    /// `zoom` in `1...maxZoom`, so a radius bigger than the canvas is
+    /// unreachable in the app — a test that needs one is asserting against a
+    /// configuration that cannot occur. Two adjacent taps of *opposite* seed
+    /// state are enough to expose the ordering, and the assertion is
+    /// inequality rather than two hand-computed pixel counts: the property
+    /// under test is that order matters, not what the flood arithmetic sums
+    /// to.
     func testActionOrderChangesTheOutcome() throws {
         let mask = try makeTwoBlobMask()
-        let blobThenBackground = try XCTUnwrap(MaskCorrection.corrected(
+        let radius = MaskCorrection.brushRadiusUnit
+        // (0.075, 0.075) is the small blob; (0.115, 0.075) is background just
+        // clear of it, close enough that each tap's disc reaches pixels the
+        // other one has already flipped.
+        let blob = CGPoint(x: 0.075, y: 0.075)
+        let background = CGPoint(x: 0.115, y: 0.075)
+
+        let blobFirst = try XCTUnwrap(MaskCorrection.corrected(
             originalMask: mask,
-            actions: [.tapFlip(CGPoint(x: 0.075, y: 0.075)), .tapFlip(CGPoint(x: 0.9, y: 0.9))],
+            actions: [.tapFlip(blob, radiusUnit: radius), .tapFlip(background, radiusUnit: radius)],
             originalAreaCm2: twoBlobArea
         ))
-        let backgroundThenBlob = try XCTUnwrap(MaskCorrection.corrected(
+        let backgroundFirst = try XCTUnwrap(MaskCorrection.corrected(
             originalMask: mask,
-            actions: [.tapFlip(CGPoint(x: 0.9, y: 0.9)), .tapFlip(CGPoint(x: 0.075, y: 0.075))],
+            actions: [.tapFlip(background, radiusUnit: radius), .tapFlip(blob, radiusUnit: radius)],
             originalAreaCm2: twoBlobArea
         ))
 
-        // Blob out, then background in: everything ends up foreground.
-        XCTAssertEqual(blobThenBackground.foregroundPixelCount, 100 * 100)
-        // Background in first merges the whole canvas into one region, which
-        // the second tap then flips back out entirely.
-        XCTAssertEqual(backgroundThenBlob.foregroundPixelCount, 0)
+        XCTAssertNotEqual(blobFirst.foregroundPixelCount, backgroundFirst.foregroundPixelCount)
+        XCTAssertNotEqual(blobFirst.foregroundPixelCount, twoBlobCount)
+        XCTAssertNotEqual(backgroundFirst.foregroundPixelCount, twoBlobCount)
     }
 
     // MARK: - BRUSH through the full pipeline
@@ -329,7 +376,9 @@ final class MaskCorrectionTests: XCTestCase {
     /// leaving its pixels behind.
     func testReplayIsPureSoUndoTrulyReverts() throws {
         let mask = try makeTwoBlobMask()
-        let first: [MaskCorrection.Action] = [.tapFlip(CGPoint(x: 0.075, y: 0.075))]
+        let first: [MaskCorrection.Action] = [
+            .tapFlip(CGPoint(x: 0.075, y: 0.075), radiusUnit: MaskCorrection.brushRadiusUnit),
+        ]
         let second = first + [.stroke(.init(brush: .include, points: [CGPoint(x: 0.8, y: 0.2)]))]
 
         let a = try XCTUnwrap(MaskCorrection.corrected(originalMask: mask, actions: first, originalAreaCm2: twoBlobArea))
@@ -350,7 +399,9 @@ final class MaskCorrectionTests: XCTestCase {
     func testCorrectedPNGIsItselfAValidCorrectionInput() throws {
         let mask = try makeTwoBlobMask()
         let once = try XCTUnwrap(MaskCorrection.corrected(
-            originalMask: mask, actions: [.tapFlip(CGPoint(x: 0.075, y: 0.075))], originalAreaCm2: twoBlobArea
+            originalMask: mask,
+            actions: [.tapFlip(CGPoint(x: 0.075, y: 0.075), radiusUnit: MaskCorrection.brushRadiusUnit)],
+            originalAreaCm2: twoBlobArea
         ))
         let twice = try XCTUnwrap(MaskCorrection.corrected(
             originalMaskData: once.maskPNGData, actions: [], originalAreaCm2: once.frontalAreaCm2

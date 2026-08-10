@@ -19,11 +19,12 @@ import UIKit
 /// drawing-app convention works — **one finger draws, two fingers zoom and
 /// pan**, routed in UIKit by `DrawZoomTouchSurface`.
 ///
-/// Note what zoom does and doesn't buy today: it improves *placement*, not
-/// footprint. `brushRadiusUnit` is a fixed fraction of the mask's long edge,
-/// so the disc laid down is the same 3% of the mask however far in you are —
-/// it just grows on screen with everything else. Making zoom the size
-/// control as well is AK22.
+/// AK22 made zoom the size control too: both tools bind their radius to a
+/// fixed *screen* footprint (`radiusUnit(atZoom:)`), captured once per
+/// action so replay is deterministic. Zoomed out, a tap or dab covers more
+/// mask; zoomed to 8×, the same on-screen radius is 1/8th the mask distance —
+/// and TAP's flood fill can never exceed that disc, which is what keeps a
+/// stray tap from swallowing the whole frame.
 ///
 /// The preview is the pipeline's own output, re-rendered after every
 /// committed action (`MaskCorrection.workingMask`), not a separate
@@ -176,7 +177,10 @@ struct MaskCorrectionEditor: View {
                     context.draw(Image(uiImage: previewOverlay), in: CGRect(origin: .zero, size: size))
                 }
                 guard !activePoints.isEmpty else { return }
-                let radius = MaskCorrection.brushRadiusUnit * max(size.width, size.height)
+                // Must derive identically to what `commitStroke` will store,
+                // or the acid disc drawn while dragging disagrees with the
+                // paint that actually lands (AK22).
+                let radius = radiusUnit(atZoom: zoomScale) * max(size.width, size.height)
                 var path = Path()
                 if activePoints.count == 1, let point = activePoints.first {
                     path.addEllipse(in: CGRect(
@@ -268,9 +272,18 @@ struct MaskCorrectionEditor: View {
         )
     }
 
+    /// AK22: a screen-space radius, expressed as the mask-fraction it works
+    /// out to at `zoom`. `MaskCorrection.brushRadiusUnit` is the zoom-1 case,
+    /// so nothing changes at the default zoom level; zooming in shrinks the
+    /// unit radius (and so the mask footprint) proportionally, while
+    /// `.scaleEffect(zoom)` renders it back to the same size on screen.
+    private func radiusUnit(atZoom zoom: CGFloat) -> CGFloat {
+        MaskCorrection.brushRadiusUnit / zoom
+    }
+
     private func commitTap(at location: CGPoint) {
         guard let point = unitPoint(location) else { return }
-        actions.append(.tapFlip(point))
+        actions.append(.tapFlip(point, radiusUnit: radiusUnit(atZoom: zoomScale)))
         Task { await refreshPreview() }
     }
 
@@ -279,7 +292,9 @@ struct MaskCorrectionEditor: View {
         guard !activePoints.isEmpty else { return }
         let points = activePoints.compactMap(unitPoint)
         guard !points.isEmpty else { return }
-        actions.append(.stroke(MaskCorrection.Stroke(brush: brush, points: points)))
+        actions.append(.stroke(MaskCorrection.Stroke(
+            brush: brush, points: points, radiusUnit: radiusUnit(atZoom: zoomScale)
+        )))
         Task { await refreshPreview() }
     }
 
