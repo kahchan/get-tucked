@@ -285,6 +285,119 @@ Spec-completion follow-on work lives in [`plan-al-spec-completion.md`](plan-al-s
 
 ---
 
+# Part 5 — AK5 field failures (Kah, on-device 2026-08-10)
+
+First device pass over the shipped correction editor (28c1fd9). Two items: the brush
+does nothing, and the editor can't zoom.
+
+## AK20 — The brush never commits a stroke — ⚠️ IMPLEMENTED 2026-08-10, NEEDS DEVICE
+
+Implemented via route 1 below (374 green, uncommitted). **Not closed** — the suite
+cannot falsify this and the diagnosis is read off the code, not observed. Keep the
+analysis below until a device pass confirms it; if the brush still fails, the cause is
+somewhere else and this is the record of what was already ruled out.
+
+Symptom (Kah, on device): TAP works, BRUSH doesn't.
+
+Cause — `hideNavBar()` swallows the stroke before it ends. `HideNavBarKeepingSwipe`
+(`ios/GetTucked/Design/SharedViews.swift:103`) applies
+`.highPriorityGesture(DragGesture(minimumDistance: 24))` to the **whole screen**, and
+its left-edge test (`startLocation.x <= 24`) lives inside `.onEnded` — so the gesture
+still *recognises* anywhere on screen, it just declines to act. `MaskCorrectionEditor`
+applies `.hideNavBar()` at `MaskCorrectionEditor.swift:113`, over a canvas whose own
+`DragGesture(minimumDistance: 0)` is a plain `.gesture`. Once a stroke travels 24pt the
+parent's high-priority gesture wins and cancels the child, so the canvas's `.onEnded`
+never fires and `commitStroke()` is never called.
+
+That asymmetry is the whole symptom: a tap never travels 24pt, so TAP survives; every
+brush stroke longer than 24pt dies. Two consequences follow — `commitStroke`'s
+`defer { activePoints = [] }` also never runs, so the killed stroke's points stay in
+`activePoints` and bleed into the next stroke as a straight line back to the old
+origin.
+
+This is a gesture-layer failure only. The pure half is correct and covered — 422 lines
+of `MaskCorrectionTests` pass, including the y-flip convention
+(`MaskCorrectionTests.swift:272`) and multi-point stroke rasterisation. Do not go
+looking for the bug in `MaskCorrection.swift`.
+
+Fix — as built: `hideNavBar(edgeSwipeBack:)` gates the gesture with
+`including: .none`, and `MaskCorrectionEditor` passes `false`. Gated rather than wrapped
+in an `if`, because a conditional modifier changes view identity and would reset the
+`@State` of everything beneath it. The editor loses nothing — it's a `fullScreenCover`
+with its own CANCEL, so the "swipe back" had no back to go to. Same exclusion reasoning
+that already sends `CaptureView` to `hideNavBarFully()`.
+
+Every other `hideNavBar()` call site keeps the swipe via the default argument, and none
+of them hosts a child drag. **The general rule this establishes:** a screen that hosts a
+drag gesture of its own must pass `edgeSwipeBack: false`.
+
+Not done, and deliberately: the edge test was left in `.onEnded`. Moving it into
+recognition is the tidier fix but changes behaviour on all seven screens that keep the
+swipe, and none of them is broken — device-verified at cafa71a.
+
+Also fixed: a cancelled stroke used to leave its points in `activePoints`, so the next
+stroke drew a line back to the dead stroke's origin. `DragGesture` has no cancellation
+callback, so a new stroke is identified by a change in `value.startLocation` rather than
+by relying on one.
+
+Do not fix this by raising the canvas gesture's `minimumDistance` — that re-breaks the
+brush dab, which is exactly what `minimumDistance: 0` is there for.
+
+Verify: **device only** — scripted simulator input triggers neither SwiftUI drags nor
+the edge pop (standing trap; this is the same class of bug that cost Part 4). A green
+suite proves nothing here. On device: a stroke well clear of the left edge paints and
+commits; a stroke starting in the left edge band still leaves the editor; consecutive
+strokes don't join up; UNDO drops exactly one.
+
+## AK21 — Zoom while correcting
+
+Symptom (Kah): the correction canvas doesn't zoom, and the edges that need correcting
+are exactly the ones too small to hit at fit-to-width. The 0.03-of-long-edge brush is
+a fixed size (AK5, deliberately — no size slider), so zoom is the only way to get
+precision at an edge.
+
+This reverses AK5's own reasoning at `MaskCorrectionEditor.swift:11-15` ("a freehand
+drag can't share a hit region with pinch-zoom and a paging swipe without one of the
+three losing"). That held for the *detail screen*, which also carries a paging swipe.
+The dedicated editor has no paging swipe, so only two gestures need to coexist, and
+the drawing-app convention separates them cleanly: **one finger paints, two fingers
+zoom and pan.**
+
+`pinchZoomable` cannot be reused as-is — its pan is a one-finger `DragGesture` applied
+via `.highPriorityGesture` (`PinchZoom.swift:119`), which would steal the brush the
+moment the canvas is zoomed. Needs a two-finger-only pan: `MagnifyGesture` covers zoom
+(inherently two-finger), and pan needs a `UIPanGestureRecognizer` with
+`minimumNumberOfTouches = 2` wrapped in a `UIViewRepresentable`. No new dependency.
+
+**The trap worth naming:** painting while zoomed must resolve to the same unit point it
+would at 1×. Attach the brush gesture to the *inner, untransformed* content and put
+`.scaleEffect`/`.offset` on a parent, so gesture locations arrive already in content
+space and `unitPoint(_:)` keeps working unchanged. Mapping screen points back through
+the zoom transform by hand is the version of this that ships subtly-offset strokes.
+
+Also: the brush must stay a constant size **on the mask**, not on screen — it already
+does, since `MaskCorrection.brushRadiusUnit` is relative to the mask's long edge, but
+the `Canvas` preview computes its radius from the on-screen `size`
+(`MaskCorrectionEditor.swift:150`) and will need the zoom factor divided out or the
+preview disc will disagree with the paint that lands.
+
+Non-goals: no zoom on the TAP tool's behaviour (flood fill is resolution-independent),
+no brush-size slider (AK5's call stands), no double-tap-to-zoom unless it falls out
+free — a double tap on a painting surface is ambiguous with two dabs.
+
+Verify: **device only**, same reason as AK20. Pinch zooms, two-finger drag pans, one
+finger always paints and never pans. A stroke painted at 3× lands where the finger was
+— check against a landmark in the photo, not by eye on the overlay alone. Zoom state
+survives an UNDO.
+
+## Sequencing
+
+AK20 first and separately. It's a small fix to a known cause, and shipping it alone
+tells us whether the diagnosis was right — folding it into AK21's larger gesture rework
+would leave both unfalsifiable if the brush still misbehaves.
+
+---
+
 ## Verification
 
 - Full suite green (331 baseline as of 2026-07-31).
