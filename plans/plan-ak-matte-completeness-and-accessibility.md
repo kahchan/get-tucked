@@ -473,6 +473,30 @@ both assert the unbounded behaviour and must be rewritten; the latter needs a ne
 mechanism for probing the y-convention. Add: a tap on open background flips only a disc;
 a small detached blob still flips whole; the same tap at two radii flips proportionally.
 
+## AK23 — Zoom feel on the correction canvas
+
+Device verdict (Kah, 2026-08-10, on 5176edf): "kind of works, it's not amazing yet."
+Routing is right — it draws, it zooms, nothing catastrophic — the feel isn't.
+
+Needs specifics from Kah before building. The prime suspect, without them: **AK21 shipped
+the mechanism and none of the physics the app's other zoom surface has.**
+`PinchZoomModifier` (Plan R3/AA) rubber-bands past the legal range and settles on release
+with `interpolatingSpring` seeded from the gesture's own velocity.
+`MaskCorrectionEditor`'s pinch handler instead hard-clamps with `min(max(…))` at both the
+zoom limits and the pan bounds, with no settle. That reads as dead-stop stickiness at 1×
+and 8× and at every pan edge — exactly the seam Plan R existed to remove.
+
+`PinchPhysics.rubberband` and `PinchPhysics.normalizedVelocity` are already written and
+tested; AK21 reused `focalOffset` from the same file and skipped these two. Cheapest
+first move is to reuse them rather than invent anything.
+
+Other candidates, in the order they're worth checking: no double-tap-to-reset (AK21
+deferred it as ambiguous with a brush dab — reconsider, since returning to 1× currently
+requires a deliberate pinch-out); no zoom-level readout; pan feeling slow because it
+tracks 1:1 in container space while the content moves at `zoom ×`.
+
+Do not guess further than this without Kah naming what's wrong.
+
 ## Sequencing
 
 AK20 first and separately — done (4e0c081), confirmed on device. AK22 next: it's pure,
