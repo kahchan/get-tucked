@@ -390,11 +390,97 @@ finger always paints and never pans. A stroke painted at 3× lands where the fin
 — check against a landmark in the photo, not by eye on the overlay alone. Zoom state
 survives an UNDO.
 
+## AK22 — TAP's flood fill is unbounded and swallows the frame
+
+Symptom (Kah, on device 2026-08-10, confirming AK20's fix landed): "it swallows
+everything."
+
+Cause — `MaskCorrection.flipRegion` flips *every* pixel 4-connected to the tap on the
+same side of the threshold, with no bound. On a real matte there are only two outcomes
+that matter, and both are catastrophic:
+
+- Tap a gap to **add** something Vision missed (rear wheel, a bag) — all open background
+  is one connected region, so the whole frame becomes subject.
+- Tap mis-included bleed that **touches** the rider — contiguous with the rider, so the
+  whole rider flips out.
+
+TAP therefore only behaves on a genuinely detached blob or a fully enclosed hole. Per
+AK1b the common defect is edge bleed, which is connected by definition — so the tool
+misfires on its primary use case.
+
+This is not a regression. It is what the code has always done, and the suite asserts it
+as correct: `testTapFlipOnBackgroundFillsTheWholeCanvas` pins the whole-canvas result,
+and `testTapFlipUsesTopLeftOriginCoordinates` calls the same behaviour "a
+catastrophically visible failure" while using it as a y-convention probe. Those tests
+change with this fix; the y-convention probe needs a new mechanism.
+
+### Revised after AK21 landed — zoom changes the answer
+
+The pre-zoom proposal was: refuse any fill whose region touches the image border
+(structural, no tuned constant). **Superseded.** It stops the catastrophe but leaves TAP
+useless on its main job — bleed connected to a rider whose wheels touch the frame edge
+gets refused, and the rider is sent to the brush every time.
+
+With zoom in hand there's a better rule, and it fixes the brush too.
+
+**Bound both tools to a radius fixed in *screen* points, not in mask fraction.** Zoom
+then becomes the size control for both, and the "swallows everything" failure can't
+happen because a fill can never exceed a disc.
+
+Why this is the right shape:
+
+- **It makes zoom a control, not just a viewer.** Zoomed out, a tap flips a chunk;
+  zoomed to 8×, the same gesture is surgical — 1/8th the mask distance for the same
+  finger travel (`CanvasZoomTests.testZoomShrinksContentDisplacement`).
+- **It fixes a brush limitation AK21 did not.** `brushRadiusUnit` is 3% of the mask's
+  long edge at every zoom level, so today zoom improves placement but the disc laid down
+  is always the same 3%. Screen-space radius is what actually makes an edge paintable.
+- **It retires AK5's rejected knob honestly.** "A size slider is a precision knob nothing
+  in the app validates" still holds — this replaces the slider with a spatial control the
+  rider already has their fingers on.
+- **Small blobs still flip whole, for free.** A flood that terminates naturally inside the
+  disc has already taken the entire region, so a detached blob smaller than the bound
+  behaves exactly as it does today. Only oversized regions degrade, and they degrade to a
+  local flip instead of a catastrophe.
+- **TAP stays meaningfully different from BRUSH.** The brush lays a hard disc regardless
+  of content and spills across an edge; a bounded fill only flips contiguous same-state
+  pixels, so it stops dead at the matte boundary. That's precisely the tool edge cleanup
+  wants.
+
+Calibrate so nothing changes at 1×: screen radius = `0.03 × content long edge`, which on
+a portrait canvas is ~15pt (≈30pt across, a fingertip). Then existing brush behaviour at
+1× is bit-identical and only zoomed behaviour is new.
+
+Build:
+
+- `Action.tapFlip` and `Stroke` both carry the radius in unit space, captured at the zoom
+  the action was made at, so replay is deterministic. **Not a schema change** — only
+  `MaskCorrection.Result` is persisted (the corrected mask, count and area); the action
+  list is editor `@State` and dies with the sheet.
+- `flipRegion` takes the same radius and stops the flood outside the disc — a bound in
+  the existing `connectedRegion` walk, no second pass.
+- The `Canvas` preview must derive its radius identically or the acid disc will disagree
+  with the paint that lands (`MaskCorrectionEditor.swift:168`).
+- Drop the border rule entirely. One bound, not two.
+
+Open question for the device pass: whether a bounded fill leaves visible scalloping when
+tapped repeatedly along an edge. The brush has the same round-cap property, so probably
+not — but it's an eyeball call, not an argument.
+
+Verify: **this one is testable**, unlike AK20/AK21 — it's pure and the Simulator runs it.
+`testTapFlipOnBackgroundFillsTheWholeCanvas` and `testTapFlipUsesTopLeftOriginCoordinates`
+both assert the unbounded behaviour and must be rewritten; the latter needs a new
+mechanism for probing the y-convention. Add: a tap on open background flips only a disc;
+a small detached blob still flips whole; the same tap at two radii flips proportionally.
+
 ## Sequencing
 
-AK20 first and separately. It's a small fix to a known cause, and shipping it alone
-tells us whether the diagnosis was right — folding it into AK21's larger gesture rework
-would leave both unfalsifiable if the brush still misbehaves.
+AK20 first and separately — done (4e0c081), confirmed on device. AK22 next: it's pure,
+testable, and independent of the gesture work. AK21 last, since it's the only one that
+needs a device to falsify and it will want the tap behaviour already settled.
+
+Note AK22 and AK21 are not substitutes. Zoom does not fix an unbounded fill, and a
+bounded fill doesn't make a 3mm edge reachable at fit-to-width.
 
 ---
 

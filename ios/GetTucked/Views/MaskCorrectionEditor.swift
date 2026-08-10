@@ -10,9 +10,20 @@ import UIKit
 ///
 /// Presented as a full-screen cover rather than inline on the MASK tab: the
 /// detail screen's photo already carries a pinch-zoom and a paging swipe,
-/// and a freehand drag can't share a hit region with either without one of
-/// the three losing. A dedicated surface also gives the brush a full-width
-/// canvas, which a 0.03-of-long-edge brush needs to be usable at all.
+/// and a freehand drag can't share a hit region with all of that. A
+/// dedicated surface also gives the brush a full-width canvas, which a
+/// 0.03-of-long-edge brush needs to be usable at all.
+///
+/// AK21 narrowed that claim: pinch is back here, because with only two
+/// gestures to separate (and no paging swipe to disambiguate against) the
+/// drawing-app convention works — **one finger draws, two fingers zoom and
+/// pan**, routed in UIKit by `DrawZoomTouchSurface`.
+///
+/// Note what zoom does and doesn't buy today: it improves *placement*, not
+/// footprint. `brushRadiusUnit` is a fixed fraction of the mask's long edge,
+/// so the disc laid down is the same 3% of the mask however far in you are —
+/// it just grows on screen with everything else. Making zoom the size
+/// control as well is AK22.
 ///
 /// The preview is the pipeline's own output, re-rendered after every
 /// committed action (`MaskCorrection.workingMask`), not a separate
@@ -37,9 +48,8 @@ struct MaskCorrectionEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State private var actions: [MaskCorrection.Action] = []
     @State private var activePoints: [CGPoint] = []
-    /// Start location of the stroke currently being drawn — the identity a
-    /// cancelled stroke can be detected by (AK20).
-    @State private var strokeStart: CGPoint?
+    @State private var zoomScale: CGFloat = 1
+    @State private var panOffset: CGSize = .zero
     @State private var tool: Tool = .tap
     @State private var brush: MaskCorrection.Brush = .include
     @State private var previewOverlay: UIImage?
@@ -80,6 +90,16 @@ struct MaskCorrectionEditor: View {
                 canvas
                     .aspectRatio(aspectRatio, contentMode: .fit)
                     .frame(maxWidth: .infinity)
+                    // AK21: the transform is applied here, outside the
+                    // content, so `canvas` keeps drawing in its own 1×
+                    // coordinate space and the in-flight stroke scales with
+                    // the photo for free. The touch surface sits above it in
+                    // container space and maps back through `CanvasZoom`.
+                    .scaleEffect(zoomScale)
+                    .offset(x: panOffset.width, y: panOffset.height)
+                    .clipped()
+                    .overlay { touchSurface }
+                    .onGeometryChange(for: CGSize.self) { $0.size } action: { canvasSize = $0 }
 
                 SegmentedToggleBar(labels: ["TAP", "BRUSH"], selectedIndex: toolBinding)
 
@@ -180,37 +200,61 @@ struct MaskCorrectionEditor: View {
             .accessibilityLabel("Matte correction canvas")
             .accessibilityHint(toolHint)
         }
-        .contentShape(Rectangle())
-        .gesture(
-            // minimumDistance 0 so TAP registers at all, and so a brush
-            // tap-and-release dabs rather than doing nothing. This is the
-            // screen's only gesture, so unlike the detail screen's photo
-            // there's nothing here to disambiguate against.
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    guard tool == .brush else { return }
-                    // AK20: a stroke that never ends (cancelled by a
-                    // competing gesture, or interrupted) leaves its points
-                    // behind, and the next stroke would then draw a line back
-                    // to the dead stroke's origin. `DragGesture` has no
-                    // cancellation callback, so identify a new stroke by its
-                    // start location instead of relying on one.
-                    if strokeStart != value.startLocation {
-                        strokeStart = value.startLocation
-                        activePoints = []
-                    }
-                    activePoints.append(value.location)
+    }
+
+    /// AK21: replaces the SwiftUI `DragGesture` this screen used to carry.
+    /// One finger draws, two zoom and pan — enforced in UIKit, where
+    /// "two fingers never paint" is a real `minimumNumberOfTouches` rather
+    /// than a hoped-for interaction between composed SwiftUI gestures.
+    private var touchSurface: some View {
+        DrawZoomTouchSurface(
+            onDrawChanged: { point in
+                guard tool == .brush else { return }
+                activePoints.append(contentPoint(point))
+            },
+            onDrawEnded: { point in
+                if tool == .tap {
+                    commitTap(at: contentPoint(point))
+                } else {
+                    commitStroke()
                 }
-                .onEnded { value in
-                    strokeStart = nil
-                    if tool == .tap {
-                        commitTap(at: value.location)
-                    } else {
-                        commitStroke()
-                    }
-                }
+            },
+            // A stroke abandoned for a pinch must leave nothing behind, or
+            // the next stroke draws a line back to where the abandoned one
+            // started (AK20's residue bug, reachable again via zoom).
+            onDrawCancelled: { activePoints = [] },
+            onPinch: { factor, focal in
+                guard canvasSize.width > 0 else { return }
+                let base = zoomScale
+                let target = min(CanvasZoom.maxZoom, max(1, base * factor))
+                // Reuses the detail screen's focal solve (Plan AA) so the
+                // content under the fingers stays under the fingers.
+                let focalFromCentre = CGSize(
+                    width: focal.x - canvasSize.width / 2,
+                    height: focal.y - canvasSize.height / 2
+                )
+                let solved = PinchPhysics.focalOffset(
+                    scale0: base, offset0: panOffset, newScale: target, focal: focalFromCentre
+                )
+                zoomScale = target
+                panOffset = CanvasZoom.clampedPan(solved, zoom: target, containerSize: canvasSize)
+            },
+            onPan: { translation in
+                panOffset = CanvasZoom.clampedPan(
+                    CGSize(
+                        width: panOffset.width + translation.width,
+                        height: panOffset.height + translation.height
+                    ),
+                    zoom: zoomScale, containerSize: canvasSize
+                )
+            }
         )
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { canvasSize = $0 }
+    }
+
+    private func contentPoint(_ container: CGPoint) -> CGPoint {
+        CanvasZoom.contentPoint(
+            container: container, containerSize: canvasSize, zoom: zoomScale, pan: panOffset
+        )
     }
 
     /// Points arrive in the canvas's own point space; actions are stored in
