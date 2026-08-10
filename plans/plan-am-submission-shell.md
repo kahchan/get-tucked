@@ -13,6 +13,11 @@ Scope is the shell around the app, not the app. Six items:
 - AM5 — App Review notes for the no-bicycle problem.
 - AM6 — photo-library purpose string doesn't cover the access taken; missing
   encryption-exemption key.
+- AM7 — the correction experience has never had an end-to-end review; gates screenshots
+  and carries a §3 exposure. Review-and-report, not a fix.
+
+AM1–AM6 are mechanical and device-independent. **AM7 is not** — it waits on the
+AK20/AK21/AK22 device pass, so it doesn't hold up the rest.
 
 **Explicitly out of scope:** screenshots (need real captures from the device pass),
 and everything in `plans/open-human-steps.md`.
@@ -197,6 +202,48 @@ routine 5.1.1 rejection.
 Verify: `plutil -p` on the built plist shows both; the photo prompt on device shows
 the new string.
 
+## AM7 — Correction experience review (pre-submission)
+
+Not a blocker for the upload, but it gates the screenshots and it carries a §3 exposure,
+so it belongs in the submission run rather than after it.
+
+`MaskCorrectionEditor` is the newest surface in the app and the only one where the rider
+edits the measurement by hand. It shipped 2026-08-08 (AK5) and **every** subsequent
+change to it — AK20's swallowed brush, AK21's zoom, AK22's bounded fill — landed after,
+with no end-to-end pass over the whole flow. Nobody has yet sat down and used it as a
+rider rather than as a bug reporter.
+
+**Reversing a tap specifically.** There are three ways back and they don't behave alike:
+
+- **UNDO** drops the last action and replays from the original mask. Exact, always.
+- **REMOVE CORRECTION** reverts the position to its automated measurement. Exact.
+- **Tapping the same spot again** is the one a rider will reach for first, and it is
+  *not* an inverse. It was roughly one pre-AK22; it isn't now. The second flood reads the
+  state the first one left behind and bounds itself to a disc around the new seed, so
+  tap-tap leaves a different mask than it started with. Either make re-tapping a true
+  toggle, or make UNDO unmistakably the way back. Deciding that is the review's job, not
+  this plan's.
+
+**The §3 exposure.** A corrected area is a rider-authored number. The app must not give
+it the same authority as an automated one without saying which it is — check that a
+corrected position is distinguishable in the list, in the detail screen, and in a
+comparison, and that AK7's disclosure copy still reads true now that the rider can move
+the number themselves. This is the part that makes AM7 submission-relevant: it's the
+honesty bar, not a polish pass.
+
+Also worth the reviewer's attention: whether TAP vs BRUSH is understandable without the
+hint text; whether INCLUDE/EXCLUDE is discoverable at all; whether the area visibly
+changes on save; and whether zoom is discoverable now that it exists (there's no
+affordance suggesting a pinch).
+
+Read-and-report, one pass, like AL14 — findings land as items in
+[`plan-ak-matte-completeness-and-accessibility.md`](plan-ak-matte-completeness-and-accessibility.md),
+not as fixes inside this plan. Blocks any App Store screenshot that shows the correction
+flow.
+
+Depends on the AK20/AK21/AK22 device pass — there is no point reviewing the experience
+until the mechanics are known good. AK23 (zoom feel) is already open from that pass.
+
 ---
 
 ## Waves
@@ -211,6 +258,9 @@ AM3/AM6, so those are one slice.
 
 Both waves run in parallel. The orchestrator runs the full suite once after the
 merge — not per worker (delegation contract, `CLAUDE.md`).
+
+AM7 is not in a wave. It's Kah on a device, after AK20/AK21/AK22 are confirmed, and it
+runs alongside the two waves rather than queueing behind them.
 
 ## Verification
 
@@ -231,6 +281,9 @@ merge — not per worker (delegation contract, `CLAUDE.md`).
 - Monetization, IAP, or paywall work. The site advertises $20 one-time; nothing in
   this plan touches purchase.
 - Fixing failure states beyond dead ends found in AM5's no-subject walk.
+- Fixing what AM7 finds. It reports; the fixes are plan AK items. The one exception is a
+  §3 honesty failure — a corrected number presented as an automated one is a ship
+  blocker, not a backlog entry.
 
 ## Decisions for Kah
 
