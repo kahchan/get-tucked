@@ -45,9 +45,15 @@ extension View {
     /// invisible bar, that'll show up as every `NavHeader` shifting down —
     /// re-run the before/after comparison in the AK10 report rather than
     /// guessing a new offset.
-    func hideNavBar() -> some View {
+    /// `edgeSwipeBack: false` drops the AK18 edge-swipe gesture while keeping
+    /// the invisible-bar styling. Required for any screen hosting a drag
+    /// gesture of its own: the edge swipe is a screen-wide
+    /// `.highPriorityGesture`, so it recognises anywhere and cancels a child
+    /// drag at 24pt of travel (AK20 — it silently killed every brush stroke
+    /// in `MaskCorrectionEditor`).
+    func hideNavBar(edgeSwipeBack: Bool = true) -> some View {
         #if canImport(UIKit)
-        HideNavBarKeepingSwipe { self }
+        HideNavBarKeepingSwipe(edgeSwipeBack: edgeSwipeBack) { self }
         #else
         self
         #endif
@@ -87,6 +93,7 @@ extension View {
 /// with a plain SwiftUI edge-gated `DragGesture` that calls
 /// `@Environment(\.dismiss)` directly, independent of that recognizer.
 private struct HideNavBarKeepingSwipe<Content: View>: View {
+    var edgeSwipeBack: Bool = true
     @ViewBuilder var content: () -> Content
     @Environment(\.dismiss) private var dismiss
 
@@ -100,6 +107,13 @@ private struct HideNavBarKeepingSwipe<Content: View>: View {
             .navigationBarBackButtonHidden(true)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
+            // AK20: `including:` rather than wrapping the modifier in an `if`
+            // — a conditional modifier changes the view's identity, which
+            // would reset the @State of everything below it on any screen
+            // that ever flipped the flag. The edge test still lives in
+            // `.onEnded` (it needs the translation), so on screens that keep
+            // the swipe this gesture does still recognise screen-wide; that's
+            // tolerable there only because none of them host a child drag.
             .highPriorityGesture(
                 DragGesture(minimumDistance: 24)
                     .onEnded { value in
@@ -110,7 +124,8 @@ private struct HideNavBarKeepingSwipe<Content: View>: View {
                               abs(horizontal) > 50,
                               abs(horizontal) > abs(vertical) * 1.5 else { return }
                         dismiss()
-                    }
+                    },
+                including: edgeSwipeBack ? .all : .none
             )
     }
 }

@@ -37,6 +37,9 @@ struct MaskCorrectionEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State private var actions: [MaskCorrection.Action] = []
     @State private var activePoints: [CGPoint] = []
+    /// Start location of the stroke currently being drawn — the identity a
+    /// cancelled stroke can be detected by (AK20).
+    @State private var strokeStart: CGPoint?
     @State private var tool: Tool = .tap
     @State private var brush: MaskCorrection.Brush = .include
     @State private var previewOverlay: UIImage?
@@ -110,7 +113,13 @@ struct MaskCorrectionEditor: View {
                 .padding(.bottom, Theme.Space.lg)
             }
         }
-        .hideNavBar()
+        // AK20: `edgeSwipeBack: false` is load-bearing, not tidying. The
+        // default screen-wide edge gesture is `.highPriorityGesture`, so it
+        // recognises anywhere on screen and cancels the canvas's drag at 24pt
+        // of travel — `.onEnded` never fired and no brush stroke ever
+        // committed. Nothing is lost here: this is a `fullScreenCover` with
+        // its own CANCEL, not a pushed screen with a back destination.
+        .hideNavBar(edgeSwipeBack: false)
         .animation(Theme.Motion.entrance(Theme.Motion.fast), value: tool)
         .task { await refreshPreview() }
         .confirmationDialog(
@@ -180,9 +189,20 @@ struct MaskCorrectionEditor: View {
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
                     guard tool == .brush else { return }
+                    // AK20: a stroke that never ends (cancelled by a
+                    // competing gesture, or interrupted) leaves its points
+                    // behind, and the next stroke would then draw a line back
+                    // to the dead stroke's origin. `DragGesture` has no
+                    // cancellation callback, so identify a new stroke by its
+                    // start location instead of relying on one.
+                    if strokeStart != value.startLocation {
+                        strokeStart = value.startLocation
+                        activePoints = []
+                    }
                     activePoints.append(value.location)
                 }
                 .onEnded { value in
+                    strokeStart = nil
                     if tool == .tap {
                         commitTap(at: value.location)
                     } else {
