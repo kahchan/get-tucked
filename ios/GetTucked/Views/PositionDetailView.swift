@@ -929,7 +929,7 @@ private struct MetricsSection: View {
                         MetricRow(key: "Shoulder width", value: "\(String(format: "%.1f", w)) cm")
                     }
                     if let t = metrics.torsoAngleDeg {
-                        MetricRow(key: "Torso angle", value: "\(String(format: "%.0f", t))°")
+                        MetricRow(key: "Torso angle", value: "\(String(format: "%.0f", t))° — \(AnalysisMath.positionLabel(torsoDeg: t))")
                     }
                     if let h = metrics.hipAngleDeg {
                         MetricRow(key: "Hip angle", value: "\(String(format: "%.0f", h))°")

@@ -434,6 +434,14 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(deg, 45, accuracy: 1e-9)
     }
 
+    // MARK: - positionLabel (Plan AN, label-only)
+
+    /// Boundary behaviour is PostureCd's to test — this just proves the wiring.
+    func testPositionLabelDelegatesToPostureCdBin() {
+        let label = AnalysisMath.positionLabel(torsoDeg: 24.9)
+        XCTAssertEqual(label, PostureCd.bin(torsoDeg: 24.9).rawValue)
+    }
+
     func testHipAngleStraight() {
         // Shoulder up, knee down from hip → 180°.
         let deg = AnalysisMath.hipAngleDeg(

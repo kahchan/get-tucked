@@ -98,6 +98,11 @@ struct HowItWorksView: View {
                         LimitationsSection()
                             .padding(.horizontal, Theme.Space.screenMargin)
 
+                        // Plan AN: posture is labeled, not quantified yet —
+                        // it's a limitation, so it sits here.
+                        PostureLimitationSection()
+                            .padding(.horizontal, Theme.Space.screenMargin)
+
                         // AL4: spec §11's citations — the research this
                         // screen's claims rest on, plus two accessible
                         // overviews. Text only, no outbound links (offline
@@ -239,6 +244,42 @@ private struct LimitationsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.sm) {
             Text("LIMITATIONS")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.amb)
+                .kerning(1.2)
+            ForEach(items, id: \.self) { item in
+                HStack(alignment: .top, spacing: Theme.Space.sm) {
+                    Text("−")
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.amb)
+                    Text(item)
+                        .font(Theme.mono(12))
+                        .foregroundStyle(Theme.Palette.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(Theme.Space.md)
+        .background(Theme.Palette.bg2)
+        .overlay(Rectangle().stroke(Theme.Palette.line3, lineWidth: 1))
+    }
+}
+
+// MARK: - Posture limitation (Plan AN, label-only fallback)
+
+/// AN1 (`plans/plan-an-posture-cd.md`) hasn't cleared its literature gate, so
+/// this stays words, not numbers — no ratio, no percentage, matching the
+/// "position detail" row which shows a bin name only.
+private struct PostureLimitationSection: View {
+    private let items = [
+        "Position changes drag two ways: how big you are, and how slippery.",
+        "We measure the first. The second we can't see from a photo.",
+        "A tuck also makes you more slippery, which we can't measure — so this estimate is conservative for tucked positions.",
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.sm) {
+            Text("WHAT WE DON'T MEASURE")
                 .font(Theme.mono(11, weight: .bold))
                 .foregroundStyle(Theme.Palette.amb)
                 .kerning(1.2)

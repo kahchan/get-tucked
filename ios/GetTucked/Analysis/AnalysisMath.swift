@@ -434,6 +434,13 @@ enum AnalysisMath {
         (shoulderY - earY) * Double(imageHeightPx) / pixelsPerCm
     }
 
+    // MARK: - Posture label (Plan AN, label-only — AN1 gate not cleared)
+
+    /// Bin name only — `torsoDeg` is the sole selector (`PostureCd.bin`).
+    static func positionLabel(torsoDeg: Double) -> String {
+        PostureCd.bin(torsoDeg: torsoDeg).rawValue
+    }
+
     // MARK: - Pose delta (Plan P1) — is this even the same position?
 
     /// Distinct from the ±3% noise floor (`isDistinguishable`), which asks
