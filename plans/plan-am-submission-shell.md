@@ -9,6 +9,8 @@ archive clean. Open: signed archive (blocked on Developer Program enrolment), ic
 the home screen, no letterboxing at launch. Found on the way: the asset catalog had
 never compiled (`excludes:` + a `resources:` key XcodeGen ignores), so the Phase 1
 placeholder green `AccentColor` was dormant; it is now set to acid `#D9F020`.
+**iPhone-only** (Kah, 2026-10-13): `TARGETED_DEVICE_FAMILY: "1"` in `project.yml`;
+XcodeGen defaulted to iPhone + iPad, which would have required iPad screenshots and iPad review.
 Review fix: manifest gained `NSPrivacyAccessedAPICategoryDiskSpace` / `E174.1` (StorageGate).
 
 Scope is the shell around the app, not the app. Six items:
