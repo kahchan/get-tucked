@@ -184,6 +184,30 @@ h1.wordmark{
 .stage{--bones-at:.85s} /* after the wipe lands */
 .pair{--bones-at:.35s}  /* after the figures rise in */
 @keyframes draw{ to{ stroke-dashoffset:0 } }
+
+/* dimensions: DimensionOverlay's amber engineering lines, a follow-on beat
+   after the bones. The dotted line trims via its mask; the end tick, leader
+   and box pop as the line lands. */
+.dim-line, .dim-tick{stroke:var(--amb); fill:none}
+.dim-box{fill:var(--bg0); fill-opacity:.72; stroke:var(--amb)}
+.dim-label{
+  fill:var(--amb); font-family:var(--mono); font-weight:700;
+  text-anchor:middle; dominant-baseline:central;
+}
+.dim-trim{stroke-dasharray:1; stroke-dashoffset:1}
+.dim-pop{opacity:0}
+:is(.reveal, .pair.in) .dim-trim{
+  animation:draw .3s var(--ease-out) forwards;
+  animation-delay:calc(var(--dims-at,0s) + var(--d) * .12s);
+}
+:is(.reveal, .pair.in) .dim-pop{
+  animation:fade .15s var(--ease-out) forwards;
+  animation-delay:calc(var(--dims-at,0s) + var(--d) * .12s + .22s);
+}
+.stage{--dims-at:1.45s}
+.pair{--dims-at:.9s}
+@keyframes fade{ to{ opacity:1 } }
+
 @keyframes pop{ from{opacity:0; transform:scale(.2)} to{opacity:1; transform:scale(1)} }
 
 .caption{
@@ -309,14 +333,9 @@ p.body em{color:var(--fg); font-style:italic}
 .pair{grid-template-columns:repeat(2,1fr)}
 .pose-frame{position:relative; aspect-ratio:1; overflow:hidden; background:var(--bg1); border:1px solid var(--line)}
 .shot-frame{
-  aspect-ratio:3/4; background:var(--bg1); border:1px solid var(--line);
-  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  aspect-ratio:600/1298; background:var(--bg1); border:1px solid var(--line); overflow:hidden;
 }
 .shot-frame img{width:100%; height:100%; object-fit:cover; display:block}
-.shot-frame span{
-  font-family:var(--mono); font-size:11px; letter-spacing:2px;
-  text-transform:uppercase; color:var(--fg4);
-}
 .shot-cap{
   font-family:var(--mono); font-size:13px; color:var(--fg2);
   margin-top:14px; line-height:1.5;
@@ -650,6 +669,12 @@ details .figure-note{
   section.block{padding:48px 0}
   .get-grid{grid-template-columns:1fr; gap:32px}
   .shots{grid-template-columns:1fr 1fr}
+  /* tall phone screens: swipe the strip instead of stacking three */
+  .shots:not(.pair){
+    grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:minmax(200px,40%);
+    overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:8px;
+  }
+  .shots:not(.pair) > .shot{scroll-snap-align:start}
   .faq{grid-template-columns:1fr; gap:0}
   .doc > section{padding:48px 0}
   .doc-head{padding:48px 0 8px}
@@ -664,7 +689,7 @@ details .figure-note{
   .appstore .badge{height:52px}
   .get-list li{font-size:clamp(20px,6.5vw,26px)}
   .shots{grid-template-columns:1fr; max-width:320px}
-  .shot-frame{aspect-ratio:4/3}
+  .shots:not(.pair){grid-auto-columns:68%; max-width:none}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -672,6 +697,8 @@ details .figure-note{
   .reveal #scan{animation:none; opacity:0}
   .bone{stroke-dashoffset:0; animation:none !important}
   .joint{opacity:1; animation:none !important}
+  .dim-trim{stroke-dashoffset:0; animation:none !important}
+  .dim-pop{opacity:1; animation:none !important}
   .js .enter, .enter.in{opacity:1; transform:none; transition:none}
   .js :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites) > *,
   :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites).in > *{
