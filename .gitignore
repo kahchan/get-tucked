@@ -14,3 +14,6 @@ fixtures/IMG_*
 # subject cutouts, not binary masks, so they identify the rider just as the
 # source photo does.
 fixtures/truth/
+
+# reference originals for site/App Store images, not shipped
+website images/

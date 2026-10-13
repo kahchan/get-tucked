@@ -94,14 +94,10 @@
     }
   } catch (err) { /* see hero-block comment above — swallow and continue */ }
 
-  /* ---------- compare screenshot toggle ---------- */
-  document.querySelectorAll('.shot-toggle').forEach(function (group) {
-    var buttons = group.querySelectorAll('button');
-    buttons.forEach(function (btn, i) {
-      btn.addEventListener('click', function () {
-        buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
-        group.parentNode.classList.toggle('show-alt', i === 1);
-      });
+  /* ---------- compare screenshot swap ---------- */
+  document.querySelectorAll('.shot-swap').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.setAttribute('aria-pressed', String(btn.getAttribute('aria-pressed') !== 'true'));
     });
   });
 
