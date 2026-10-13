@@ -261,7 +261,7 @@ setTimeout(function () {
         <div class="shot-frame">
           <picture>
             <source srcset="img/shot-01.avif" type="image/avif">
-            <img src="img/shot-01.jpg" width="600" height="1234" loading="lazy" alt="The calibrate-scale screen with Declan's tucked head-on photo, asking for the left end of the handlebars.">
+            <img src="img/shot-01.jpg" width="600" height="1234" loading="lazy" alt="The live camera framing Declan head-on, with the level, tilt and background checks passed and the shutter ready.">
           </picture>
         </div>
         <figcaption class="shot-cap"><b>01</b> Shoot the rig against a plain wall.</figcaption>
@@ -281,8 +281,16 @@ setTimeout(function () {
             <source srcset="img/shot-03.avif" type="image/avif">
             <img src="img/shot-03.jpg" width="600" height="1234" loading="lazy" alt="The compare screen: two positions with their frontal areas, overlaid outlines, and an estimated time impact.">
           </picture>
+          <picture class="shot-alt">
+            <source srcset="img/shot-03b.avif" type="image/avif">
+            <img src="img/shot-03b.jpg" width="600" height="1234" loading="lazy" alt="The same compare screen with the photo shown under the overlaid outlines.">
+          </picture>
         </div>
         <figcaption class="shot-cap"><b>03</b> Read the area, then compare any two setups.</figcaption>
+        <div class="shot-toggle" role="group" aria-label="Compare view">
+          <button type="button" aria-pressed="true">Outline</button>
+          <button type="button" aria-pressed="false">Photo</button>
+        </div>
       </figure>
     </div>
   </section>

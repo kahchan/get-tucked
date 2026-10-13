@@ -94,6 +94,17 @@
     }
   } catch (err) { /* see hero-block comment above — swallow and continue */ }
 
+  /* ---------- compare screenshot toggle ---------- */
+  document.querySelectorAll('.shot-toggle').forEach(function (group) {
+    var buttons = group.querySelectorAll('button');
+    buttons.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
+        group.parentNode.classList.toggle('show-alt', i === 1);
+      });
+    });
+  });
+
   /* ---------- formula hover-link (Plan AB, Part 2.3) ----------
      Bidirectional highlight between the methodology equation's glyph spans
      and the decoder legend rows that share a data-term key. Hover-only;
