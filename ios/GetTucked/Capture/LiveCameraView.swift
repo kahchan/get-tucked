@@ -51,8 +51,20 @@ struct LiveCameraView: View {
                 PermissionDeniedOverlay(onCancel: onCancel)
             } else {
                 // Camera feed
+                #if DEBUG
+                if let staged = CameraSession.stagedFrame {
+                    Image(uiImage: staged)
+                        .resizable()
+                        .scaledToFill()
+                        .ignoresSafeArea()
+                } else {
+                    CameraPreviewLayer(session: session.captureSession, rotationAngle: session.orientationBucket.videoRotationAngle)
+                        .ignoresSafeArea()
+                }
+                #else
                 CameraPreviewLayer(session: session.captureSession, rotationAngle: session.orientationBucket.videoRotationAngle)
                     .ignoresSafeArea()
+                #endif
 
                 // Scrims, not solid fills (Plan AI4) — the feed must stay
                 // visible through the HUD, so legibility comes from a
@@ -741,8 +753,25 @@ final class CameraSession: NSObject, ObservableObject {
     private let tiltThresholdDeg  = 5.0
     private let bgConfidenceMin   = 0.6
 
+    #if DEBUG
+    // Store screenshots: the Simulator has no camera or motion, so launching
+    // with `-stagedCameraFrame <path>` swaps the feed for a real photo from
+    // a real shoot and passes the gates, rendering the true HUD around it.
+    static let stagedFrame: UIImage? = UserDefaults.standard
+        .string(forKey: "stagedCameraFrame")
+        .flatMap(UIImage.init(contentsOfFile:))
+    #endif
+
     func start(bike: Bike) {
         self.bike = bike
+        #if DEBUG
+        if Self.stagedFrame != nil {
+            levelOK = true
+            tiltOK = true
+            bgOK = true
+            return
+        }
+        #endif
         sessionQueue.async { [weak self] in self?.configureSession() }
         startMotion()
         checkStorage()
