@@ -12,30 +12,10 @@
   try {
     var stage = document.getElementById('stage');
     if (stage) {
-      var num = document.getElementById('areaNum');
-      var TARGET = 3860; // cm² — plausible loaded-rig frontal area
-      var fmt = function (n) { return n.toLocaleString('en-US'); };
-
-      var countUp = function () {
-        var dur = 800, start = null;
-        var step = function (ts) {
-          if (!start) start = ts;
-          var t = Math.min((ts - start) / dur, 1);
-          var e = 1 - Math.pow(1 - t, 3); // ease-out cubic
-          num.textContent = fmt(Math.round(e * TARGET));
-          if (t < 1) requestAnimationFrame(step);
-          else num.textContent = fmt(TARGET);
-        };
-        requestAnimationFrame(step);
-      };
-
       var play = function () {
         stage.classList.remove('reveal');
-        num.textContent = '0';
         void stage.offsetWidth; // reflow to restart CSS anims
-        if (reduce) { num.textContent = fmt(TARGET); stage.classList.add('reveal'); return; }
         stage.classList.add('reveal');
-        setTimeout(countUp, 450); // count overlaps the tail of the sweep
       };
 
       // Play on first view, then re-arm whenever the stage leaves the viewport

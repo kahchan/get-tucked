@@ -59,96 +59,39 @@ setTimeout(function () {
     </div>
 
     <div class="hero-stage">
-      <div class="stage" id="stage" aria-label="A rider on a loaded bike, silhouette isolated, with a frontal-area readout in square centimetres.">
-        <!-- BASE LAYER: dim 'photo' silhouette (front-on aero tuck) -->
-        <svg viewBox="202 105 396 495" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <g fill="#23272c" stroke="#33383e" stroke-width="2" stroke-linejoin="round">
-            <ellipse cx="400" cy="440" rx="20" ry="150"/>
-            <path d="M300 232 C300 176 500 176 500 232 C500 320 470 356 452 380 L348 380 C330 356 300 320 300 232 Z"/>
-            <ellipse cx="400" cy="168" rx="56" ry="46"/>
-            <path d="M330 250 C300 316 300 384 314 430 L296 430 C280 380 282 312 312 244 Z"/>
-            <path d="M470 250 C500 316 500 384 486 430 L504 430 C520 380 518 312 488 244 Z"/>
-            <path d="M372 372 C362 442 358 486 362 520 L338 520 C332 480 338 430 350 372 Z"/>
-            <path d="M428 372 C438 442 442 486 438 520 L462 520 C468 480 462 430 450 372 Z"/>
-            <rect x="280" y="420" width="240" height="20"/>
-          </g>
+      <div class="stage" id="stage" role="img" aria-label="Declan on a loaded bike, head-on and tucked, with the rider, bike and bags isolated and pose bones drawn over the shoulders and arms.">
+        <picture>
+          <source srcset="img/declan-front.avif" type="image/avif">
+          <img src="img/declan-front.jpg" width="720" height="1080" alt="">
+        </picture>
+
+        <!-- MATTE LAYER: traced from Vision's subject mask (tools/site-layers.swift), revealed by the wipe -->
+        <svg id="matteLayer" viewBox="0 0 1125 1688" aria-hidden="true">
+          <path class="matte" fill-rule="evenodd" d="M573.0 1650.5L586.0 1641.5L593.0 1622.5L595.0 1574.5L597.0 1570.5L599.0 1496.5L608.0 1441.5L608.0 1392.5L614.5 1385.0L629.5 1385.0L636.0 1377.5L641.0 1363.5L641.0 1332.5L639.0 1328.5L641.0 1264.5L639.0 1260.5L639.0 1225.5L634.0 1190.5L634.0 1153.5L632.0 1149.5L630.0 1127.5L621.0 1098.5L621.0 1079.5L623.0 1075.5L623.0 1021.5L621.0 1016.5L623.0 978.5L621.0 973.5L621.0 950.5L623.0 946.5L627.5 944.0L636.5 951.0L653.5 956.0L659.0 963.5L662.0 980.5L675.0 1008.5L682.0 1033.5L682.0 1079.5L684.0 1083.5L684.0 1098.5L691.0 1122.5L702.0 1143.5L704.0 1157.5L719.0 1195.5L726.0 1224.5L732.0 1257.5L732.0 1276.5L726.0 1287.5L721.0 1309.5L721.0 1322.5L726.0 1342.5L726.0 1352.5L732.0 1370.5L732.0 1390.5L730.0 1404.5L723.0 1427.5L723.0 1437.5L729.5 1447.0L741.5 1455.0L785.5 1455.0L792.5 1451.0L800.5 1451.0L806.0 1445.5L810.0 1438.5L810.0 1400.5L801.0 1351.5L801.0 1318.5L788.0 1298.5L779.0 1260.5L779.0 1240.5L777.0 1235.5L777.0 1180.5L779.0 1175.5L777.0 1062.5L775.0 1049.5L762.0 1010.5L757.0 986.5L757.0 965.5L760.0 954.5L758.0 929.5L764.0 898.5L764.0 876.5L766.0 872.5L762.0 742.5L764.0 738.5L764.0 723.5L766.0 719.5L768.0 687.5L771.0 674.5L771.0 644.5L775.0 637.5L782.5 631.0L806.5 631.0L808.5 629.0L830.5 631.0L833.5 628.0L838.5 631.0L844.5 627.0L856.5 631.0L877.5 616.0L887.5 616.0L895.5 612.0L919.5 612.0L929.0 602.5L935.0 581.5L936.0 564.5L927.5 548.0L915.5 548.0L912.0 545.5L909.0 532.5L902.5 524.0L895.5 520.0L886.5 520.0L879.0 514.5L872.0 482.5L850.0 443.5L839.0 429.5L832.0 411.5L821.0 392.5L816.0 368.5L792.0 329.5L773.5 313.0L765.5 309.0L741.5 290.0L729.5 286.0L724.5 282.0L720.5 282.0L687.5 263.0L679.5 262.0L677.5 259.0L671.5 258.0L657.0 246.5L655.0 240.5L656.0 186.5L663.0 164.5L663.0 139.5L658.0 114.5L642.0 92.5L635.0 77.5L621.5 67.0L607.5 67.0L596.5 59.0L565.5 59.0L562.5 56.0L552.5 53.0L550.5 55.0L539.5 55.0L528.5 63.0L514.5 63.0L508.5 67.0L503.5 67.0L472.0 93.5L464.0 105.5L456.0 126.5L451.0 145.5L451.0 156.5L457.0 176.5L458.0 192.5L470.0 209.5L471.0 219.5L475.0 226.5L480.0 245.5L479.0 256.5L460.5 270.0L442.5 278.0L438.5 278.0L424.5 286.0L394.5 309.0L390.5 310.0L354.0 346.5L339.0 364.5L328.0 385.5L319.0 409.5L303.0 429.5L295.0 435.5L277.0 468.5L253.0 499.5L244.0 530.5L236.0 537.5L230.0 547.5L229.0 569.5L238.0 594.5L244.5 600.0L264.5 600.0L275.5 608.0L282.5 608.0L293.5 619.0L304.5 626.0L315.5 623.0L320.5 627.0L329.5 627.0L334.5 623.0L339.5 623.0L348.5 627.0L354.5 623.0L360.5 627.0L377.5 627.0L389.0 632.5L394.0 645.5L403.5 651.0L407.0 656.5L407.0 662.5L403.0 669.5L396.0 701.5L385.0 721.5L381.0 736.5L374.0 778.5L374.0 795.5L368.0 806.5L368.0 813.5L376.0 831.5L374.0 878.5L376.0 882.5L379.0 923.5L387.0 960.5L387.0 970.5L394.0 993.5L398.0 1021.5L405.0 1044.5L405.0 1051.5L414.0 1088.5L414.0 1109.5L411.0 1120.5L403.0 1134.5L398.0 1155.5L375.0 1192.5L372.0 1205.5L372.0 1218.5L374.5 1221.0L384.5 1222.0L389.0 1226.5L391.0 1232.5L396.5 1237.0L410.5 1236.0L413.5 1234.0L420.5 1235.0L423.5 1233.0L451.5 1233.0L458.5 1237.0L465.5 1237.0L472.5 1234.0L488.5 1233.0L493.0 1228.5L494.0 1220.5L483.5 1219.0L479.0 1207.5L479.0 1196.5L485.0 1179.5L485.0 1147.5L476.0 1130.5L467.0 1085.5L467.0 1018.5L478.0 938.5L475.0 886.5L485.0 868.5L487.0 841.5L493.0 822.5L496.5 819.0L499.5 819.0L505.5 823.0L512.5 823.0L515.5 826.0L521.5 827.0L526.0 833.5L528.0 855.5L537.0 880.5L539.0 893.5L532.5 903.0L524.0 903.5L521.0 922.5L521.0 968.5L519.0 972.5L519.0 1030.5L517.0 1033.5L515.0 1114.5L506.0 1161.5L508.0 1168.5L508.0 1199.5L506.0 1208.5L506.0 1246.5L504.0 1251.5L504.0 1282.5L502.0 1286.5L502.0 1315.5L499.0 1326.5L497.0 1374.5L503.5 1381.0L507.5 1381.0L512.5 1385.0L517.5 1382.0L523.5 1385.0L528.0 1391.5L528.0 1583.5L530.0 1588.5L530.0 1612.5L533.0 1623.5L537.0 1633.5L553.5 1650.0L572.5 1651.0ZM552.5 899.0L548.5 899.0L546.0 896.5L540.0 881.5L535.0 856.5L529.0 843.5L530.5 827.0L534.5 826.0L540.5 830.0L548.5 830.0L552.0 833.5L552.0 854.5L554.0 859.5L554.0 880.5L556.0 886.5L556.0 892.5L553.0 898.5ZM391.5 532.0L382.5 532.0L380.0 529.5L380.0 523.5L388.0 508.5L399.5 494.0L403.5 491.0L412.5 490.0L428.5 480.0L438.0 493.5L439.0 511.5L436.0 517.5L427.5 524.0L414.5 524.0L409.5 528.0L396.5 528.0L392.0 531.5Z"/>
         </svg>
 
-        <!-- MATTE LAYER: revealed by the top->bottom wipe -->
-        <svg id="matteLayer" viewBox="202 105 396 495" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <defs>
-            <linearGradient id="mat" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#D9F020" stop-opacity=".26"/>
-              <stop offset="1" stop-color="#D9F020" stop-opacity=".08"/>
-            </linearGradient>
-          </defs>
-
-          <!-- front wheel, edge-on -->
-          <g fill="none" stroke="#D9F020" stroke-width="3" opacity=".85">
-            <ellipse cx="400" cy="440" rx="20" ry="150"/>
-          </g>
-
-          <!-- fork bags, either side of the wheel (loaded rig) -->
-          <g fill="url(#mat)" stroke="#D9F020" stroke-width="2.5" stroke-linejoin="round">
-            <ellipse cx="356" cy="500" rx="30" ry="44"/>
-            <ellipse cx="444" cy="500" rx="30" ry="44"/>
-          </g>
-
-          <!-- FILLED SYSTEM SILHOUETTE (rider + bike + bags), front-on -->
-          <g fill="url(#mat)" stroke="#D9F020" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
-            <!-- shoulders / back hump tapering to hips -->
-            <path d="M300 232 C300 176 500 176 500 232 C500 320 470 356 452 380 L348 380 C330 356 300 320 300 232 Z"/>
-            <!-- helmet -->
-            <ellipse cx="400" cy="168" rx="56" ry="46"/>
-            <!-- arms down to the bars -->
-            <path d="M330 250 C300 316 300 384 314 430 L296 430 C280 380 282 312 312 244 Z"/>
-            <path d="M470 250 C500 316 500 384 486 430 L504 430 C520 380 518 312 488 244 Z"/>
-            <!-- legs -->
-            <path d="M372 372 C362 442 358 486 362 520 L338 520 C332 480 338 430 350 372 Z"/>
-            <path d="M428 372 C438 442 442 486 438 520 L462 520 C468 480 462 430 450 372 Z"/>
-            <!-- handlebar (the width ruler) -->
-            <rect x="280" y="420" width="240" height="20"/>
-            <!-- bar bag centred on the bars -->
-            <rect x="362" y="392" width="76" height="42"/>
-          </g>
-
-          <!-- handlebar-width ruler endpoints (the scale reference) -->
-          <g stroke="#D9F020" stroke-width="2" opacity=".9">
-            <line x1="284" y1="404" x2="284" y2="456"/>
-            <line x1="516" y1="404" x2="516" y2="456"/>
-          </g>
-
-          <!-- POSE JOINTS + skeleton -->
-          <g fill="#D9F020" stroke="#0b0d0f" stroke-width="1.5">
-            <line class="joint" style="animation-delay:.30s" x1="400" y1="168" x2="335" y2="238" stroke="#D9F020" stroke-width="3"/>
-            <line class="joint" style="animation-delay:.30s" x1="400" y1="168" x2="465" y2="238" stroke="#D9F020" stroke-width="3"/>
-            <line class="joint" style="animation-delay:.40s" x1="335" y1="238" x2="308" y2="426" stroke="#D9F020" stroke-width="3"/>
-            <line class="joint" style="animation-delay:.40s" x1="465" y1="238" x2="492" y2="426" stroke="#D9F020" stroke-width="3"/>
-            <line class="joint" style="animation-delay:.50s" x1="375" y1="372" x2="360" y2="512" stroke="#D9F020" stroke-width="3"/>
-            <line class="joint" style="animation-delay:.50s" x1="425" y1="372" x2="440" y2="512" stroke="#D9F020" stroke-width="3"/>
-            <circle class="joint" style="animation-delay:.28s" cx="400" cy="150" r="8"/><!-- head -->
-            <circle class="joint" style="animation-delay:.36s" cx="335" cy="238" r="7"/><!-- L shoulder -->
-            <circle class="joint" style="animation-delay:.36s" cx="465" cy="238" r="7"/><!-- R shoulder -->
-            <circle class="joint" style="animation-delay:.46s" cx="308" cy="426" r="7"/><!-- L hand -->
-            <circle class="joint" style="animation-delay:.46s" cx="492" cy="426" r="7"/><!-- R hand -->
-            <circle class="joint" style="animation-delay:.54s" cx="375" cy="372" r="7"/><!-- L hip -->
-            <circle class="joint" style="animation-delay:.54s" cx="425" cy="372" r="7"/><!-- R hip -->
-            <circle class="joint" style="animation-delay:.64s" cx="360" cy="512" r="7"/><!-- L knee -->
-            <circle class="joint" style="animation-delay:.64s" cx="440" cy="512" r="7"/><!-- R knee -->
+        <!-- BONES LAYER: Vision body pose, app bone set and tiers -->
+        <svg class="bones-layer" viewBox="0 0 1125 1688" aria-hidden="true">
+          <g class="bones">
+            <line class="bone measured" style="--w:0" pathLength="1" x1="722.7" y1="343.3" x2="430.3" y2="342.2"/>
+            <line class="bone context" style="--w:1" pathLength="1" x1="722.7" y1="343.3" x2="831.0" y2="494.7"/>
+            <line class="bone context" style="--w:2" pathLength="1" x1="831.0" y1="494.7" x2="854.6" y2="548.4"/>
+            <line class="bone context" style="--w:1" pathLength="1" x1="430.3" y1="342.2" x2="307.4" y2="474.7"/>
+            <line class="bone context" style="--w:2" pathLength="1" x1="307.4" y1="474.7" x2="293.1" y2="539.3"/>
+            <rect class="joint context" style="--w:1" x="820.8" y="484.4" width="20.5" height="20.5"/>
+            <rect class="joint context" style="--w:2" x="844.3" y="538.1" width="20.5" height="20.5"/>
+            <rect class="joint measured" style="--w:0" x="712.4" y="333.1" width="20.5" height="20.5"/>
+            <rect class="joint context" style="--w:1" x="297.2" y="464.5" width="20.5" height="20.5"/>
+            <rect class="joint context" style="--w:2" x="282.8" y="529.0" width="20.5" height="20.5"/>
+            <rect class="joint measured" style="--w:0" x="420.0" y="332.0" width="20.5" height="20.5"/>
           </g>
         </svg>
 
         <div id="scan"></div>
-
-        <div class="readout">
-          <span class="num" id="areaNum">0</span>
-          <span class="unit">cm²</span>
-          <span class="tag">Frontal area</span>
-        </div>
       </div>
 
       <div class="cap-row">
-        <div class="caption">One photo. Silhouette isolated. Frontal area, in cm².</div>
+        <div class="caption">One photo. Rider, bike and bags isolated, ready to measure.</div>
       </div>
     </div>
   </section>
@@ -161,6 +104,71 @@ setTimeout(function () {
       can see what your bags, your bars, and your position each cost you.
       When a difference is too small to trust, the app says so.
     </p>
+  </section>
+
+  <!-- ============ SIDE-ON (pose) ============ -->
+  <section class="block">
+    <div class="sec-label">Side-on</div>
+    <h2>Same rider. Two positions.</h2>
+    <p class="body">
+      A second photo from the side reads your pose: torso angle, hip angle, and how far
+      your head drops. The head-on photo gives the area. The side-on photo shows what you
+      changed to get it.
+    </p>
+    <div class="shots pair">
+      <figure class="shot">
+        <div class="pose-frame">
+          <picture>
+            <source srcset="img/declan-side-upright.avif" type="image/avif">
+            <img src="img/declan-side-upright.jpg" width="720" height="720" loading="lazy" alt="Declan seated upright on a loaded bike, side-on, with pose bones drawn over him.">
+          </picture>
+          <svg class="bones-layer" viewBox="0 0 1050 1050" aria-hidden="true">
+            <g class="bones">
+              <line class="bone measured" style="--w:0" pathLength="1" x1="485.8" y1="150.2" x2="342.3" y2="400.7"/>
+              <line class="bone measured" style="--w:1" pathLength="1" x1="485.8" y1="150.2" x2="548.8" y2="86.7"/>
+              <line class="bone measured" style="--w:2" pathLength="1" x1="342.3" y1="400.7" x2="503.3" y2="561.6"/>
+              <line class="bone context" style="--w:1" pathLength="1" x1="485.8" y1="150.2" x2="566.7" y2="265.0"/>
+              <line class="bone context" style="--w:2" pathLength="1" x1="566.7" y1="265.0" x2="669.4" y2="384.0"/>
+              <line class="bone detail" style="--w:2" pathLength="1" x1="503.3" y1="561.6" x2="492.3" y2="809.8"/>
+              <rect class="joint measured" style="--w:1" x="538.8" y="76.6" width="20.1" height="20.1"/>
+              <rect class="joint detail" style="--w:2" x="484.7" y="802.3" width="15.1" height="15.1"/>
+              <rect class="joint context" style="--w:1" x="556.7" y="255.0" width="20.1" height="20.1"/>
+              <rect class="joint context" style="--w:2" x="659.3" y="373.9" width="20.1" height="20.1"/>
+              <rect class="joint measured" style="--w:2" x="493.3" y="551.6" width="20.1" height="20.1"/>
+              <rect class="joint measured" style="--w:0" x="475.7" y="140.1" width="20.1" height="20.1"/>
+              <rect class="joint measured" style="--w:0" x="332.3" y="390.6" width="20.1" height="20.1"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption class="shot-cap"><b>01</b> Upright.</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="pose-frame">
+          <picture>
+            <source srcset="img/declan-side-tucked.avif" type="image/avif">
+            <img src="img/declan-side-tucked.jpg" width="720" height="720" loading="lazy" alt="Declan tucked low over the bars, side-on, with pose bones drawn over him.">
+          </picture>
+          <svg class="bones-layer" viewBox="0 0 1050 1050" aria-hidden="true">
+            <g class="bones">
+              <line class="bone measured" style="--w:0" pathLength="1" x1="618.2" y1="166.9" x2="364.3" y2="315.9"/>
+              <line class="bone measured" style="--w:1" pathLength="1" x1="618.2" y1="166.9" x2="712.9" y2="142.2"/>
+              <line class="bone measured" style="--w:2" pathLength="1" x1="364.3" y1="315.9" x2="525.1" y2="476.8"/>
+              <line class="bone context" style="--w:1" pathLength="1" x1="618.2" y1="166.9" x2="536.4" y2="251.5"/>
+              <line class="bone context" style="--w:2" pathLength="1" x1="536.4" y1="251.5" x2="668.8" y2="308.2"/>
+              <line class="bone detail" style="--w:2" pathLength="1" x1="525.1" y1="476.8" x2="482.0" y2="737.1"/>
+              <rect class="joint measured" style="--w:1" x="702.8" y="132.1" width="20.1" height="20.1"/>
+              <rect class="joint detail" style="--w:2" x="474.4" y="729.5" width="15.1" height="15.1"/>
+              <rect class="joint context" style="--w:1" x="526.3" y="241.4" width="20.1" height="20.1"/>
+              <rect class="joint context" style="--w:2" x="658.8" y="298.1" width="20.1" height="20.1"/>
+              <rect class="joint measured" style="--w:2" x="515.0" y="466.7" width="20.1" height="20.1"/>
+              <rect class="joint measured" style="--w:0" x="608.1" y="156.8" width="20.1" height="20.1"/>
+              <rect class="joint measured" style="--w:0" x="354.2" y="305.8" width="20.1" height="20.1"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption class="shot-cap"><b>02</b> Tucked.</figcaption>
+      </figure>
+    </div>
   </section>
 
   <!-- ============ PROOF STRIP (see it) ============ -->

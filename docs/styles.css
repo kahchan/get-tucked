@@ -123,14 +123,22 @@ h1.wordmark{
 /* ---------- hero composite ---------- */
 .stage{
   position:relative; width:100%;
-  background:
-    radial-gradient(120% 90% at 30% 0%, #1b1f24 0%, var(--bg1) 55%, #101317 100%);
-  border:1px solid var(--line);
-  aspect-ratio:4/5; overflow:hidden;
+  background:var(--bg1); border:1px solid var(--line);
+  aspect-ratio:1125/1688; overflow:hidden;
 }
-.stage svg{position:absolute; inset:0; width:100%; height:100%}
+.stage svg, .stage img, .pose-frame svg, .pose-frame img{
+  position:absolute; inset:0; width:100%; height:100%; display:block;
+}
+/* the photo sits back so acid reads on top of it */
+.stage img, .pose-frame img{object-fit:cover; filter:brightness(.62) saturate(.7)}
 
-/* the two SVG layers: base photo-ish grey, and revealed acid matte */
+/* matte: the app's single acid subject tint (Plan AG) */
+.matte{
+  fill:var(--acc); fill-opacity:.24;
+  stroke:var(--acc); stroke-width:2; stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+
 /* top -> bottom wipe: crown to ground */
 #matteLayer{ clip-path:inset(0 0 100% 0); }
 .reveal #matteLayer{ animation:wipe var(--sweep,.9s) var(--ease-io) forwards }
@@ -151,38 +159,33 @@ h1.wordmark{
   100%{ top:100%; opacity:0 }
 }
 
-.joint{ opacity:0; transform-box:fill-box; transform-origin:center }
-.reveal .joint{ animation:pop .3s var(--ease-out) forwards }
+/* bones: mirror SkeletonOverlay — measured acid, context fg2, detail fg4
+   (quieter each step, so decoration never reads as measurement). Each
+   --w window draws on after the last; joints pop as their bone arrives. */
+.bone{
+  fill:none; stroke-width:2; vector-effect:non-scaling-stroke;
+  stroke-dasharray:1; stroke-dashoffset:1;
+}
+.bone.measured{stroke:var(--acc)} .bone.context{stroke:var(--fg2)}
+.bone.detail{stroke:var(--fg4); stroke-width:1}
+.joint{
+  stroke:var(--bg0); stroke-width:1; vector-effect:non-scaling-stroke;
+  opacity:0; transform-box:fill-box; transform-origin:center;
+}
+.joint.measured{fill:var(--acc)} .joint.context{fill:var(--fg2)} .joint.detail{fill:var(--fg4)}
+:is(.reveal, .pair.in) .bone{
+  animation:draw .2s var(--ease-out) forwards;
+  animation-delay:calc(var(--bones-at,0s) + var(--w) * .06s);
+}
+:is(.reveal, .pair.in) .joint{
+  animation:pop .15s var(--ease-out) forwards;
+  animation-delay:calc(var(--bones-at,0s) + var(--w) * .06s + .12s);
+}
+.stage{--bones-at:.85s} /* after the wipe lands */
+.pair{--bones-at:.35s}  /* after the figures rise in */
+@keyframes draw{ to{ stroke-dashoffset:0 } }
 @keyframes pop{ from{opacity:0; transform:scale(.2)} to{opacity:1; transform:scale(1)} }
 
-/* result bar pinned to the base of the stage — reads as the app's readout
-   panel, so the number never sits directly on top of the silhouette */
-.readout{
-  position:absolute; left:0; right:0; bottom:0; z-index:2;
-  display:flex; align-items:baseline; gap:12px;
-  padding:16px 22px;
-  background:linear-gradient(to top,
-    rgba(12,14,17,.97) 30%, rgba(12,14,17,.72) 78%, transparent);
-  border-top:1px solid var(--line);
-}
-.readout .num{
-  font-family:var(--mono); font-weight:700;
-  font-size:clamp(40px,6.4vw,72px); line-height:.9;
-  color:var(--acc); letter-spacing:-2px;
-  font-variant-numeric:tabular-nums;
-  text-shadow:0 2px 30px rgba(217,240,32,.25);
-}
-.readout .unit{
-  font-family:var(--mono); font-size:16px; color:var(--fg2);
-  letter-spacing:1px;
-}
-.readout .tag{
-  margin-left:auto; align-self:center;
-  font-family:var(--mono); font-size:11px; letter-spacing:2px;
-  text-transform:uppercase; color:var(--fg3);
-  border:1px solid var(--line); padding:5px 9px;
-  background:color-mix(in srgb, var(--bg0) 60%, transparent);
-}
 .caption{
   font-family:var(--mono); font-size:13px; color:var(--fg3);
   margin-top:14px; letter-spacing:.3px;
@@ -303,6 +306,8 @@ p.body em{color:var(--fg); font-style:italic}
   max-width:860px; margin-top:8px;
 }
 .shot{margin:0}
+.pair{grid-template-columns:repeat(2,1fr)}
+.pose-frame{position:relative; aspect-ratio:1; overflow:hidden; background:var(--bg1); border:1px solid var(--line)}
 .shot-frame{
   aspect-ratio:3/4; background:var(--bg1); border:1px solid var(--line);
   display:flex; align-items:center; justify-content:center; overflow:hidden;
@@ -648,7 +653,6 @@ details .figure-note{
   .faq{grid-template-columns:1fr; gap:0}
   .doc > section{padding:48px 0}
   .doc-head{padding:48px 0 8px}
-  .readout .num{text-shadow:none}
 }
 @media (max-width:420px){
   body{font-size:16px}
@@ -666,7 +670,8 @@ details .figure-note{
 @media (prefers-reduced-motion:reduce){
   .reveal #matteLayer{animation:none; clip-path:inset(0 0 0 0)}
   .reveal #scan{animation:none; opacity:0}
-  .reveal .joint{animation:none; opacity:1}
+  .bone{stroke-dashoffset:0; animation:none !important}
+  .joint{opacity:1; animation:none !important}
   .js .enter, .enter.in{opacity:1; transform:none; transition:none}
   .js :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites) > *,
   :is(section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites).in > *{
