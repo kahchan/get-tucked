@@ -20,6 +20,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Get Tucked needs camera access to photograph your riding position.</string>
 	<key>NSMotionUsageDescription</key>
@@ -27,15 +29,18 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Get Tucked saves source photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Get Tucked saves source photos to your library.</string>
+	<string>Get Tucked reads photos you pick as the source for a measurement, and reads back captures it saved to your library.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>SpaceMono-Regular.ttf</string>
 		<string>SpaceMono-Bold.ttf</string>
 		<string>BarlowCondensed-Bold.ttf</string>
 	</array>
-	<key>UILaunchStoryboardName</key>
-	<string></string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

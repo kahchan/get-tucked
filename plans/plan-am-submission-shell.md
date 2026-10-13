@@ -4,6 +4,13 @@ Status: planned 2026-08-10, from the App Store readiness audit. Everything here 
 mechanical and device-independent — it can land in full before the on-device pass
 (`plans/open-human-steps.md`) and does not depend on it.
 
+**Wave 1 (AM1/2/3/6) implemented 2026-10-13, uncommitted:** 388 tests green; unsigned
+archive clean. Open: signed archive (blocked on Developer Program enrolment), icon on
+the home screen, no letterboxing at launch. Found on the way: the asset catalog had
+never compiled (`excludes:` + a `resources:` key XcodeGen ignores), so the Phase 1
+placeholder green `AccentColor` was dormant; it is now set to acid `#D9F020`.
+Review fix: manifest gained `NSPrivacyAccessedAPICategoryDiskSpace` / `E174.1` (StorageGate).
+
 Scope is the shell around the app, not the app. Six items:
 
 - AM1 — no app icon exists; archive validation fails outright.
@@ -76,19 +83,22 @@ files (`AppNavigation.swift`, `Components.swift`, `PositionDetailView.swift`,
 `ComparisonView.swift`, `PositionListView.swift`), and `UserDefaults` is a
 required-reason API — App Store Connect rejects the upload with ITMS-91053.
 
-Fix — `ios/GetTucked/Resources/PrivacyInfo.xcprivacy`, added to the target's
-`resources:` list in `project.yml` alongside the asset catalog:
+Fix — `ios/GetTucked/Resources/PrivacyInfo.xcprivacy`. `sources: GetTucked` picks it
+up; don't add `resources:` or `excludes:` to `project.yml` (XcodeGen has no
+`resources:` key):
 
 - `NSPrivacyTracking` → `false`, `NSPrivacyTrackingDomains` → empty.
 - `NSPrivacyCollectedDataTypes` → **empty array**. The app makes no network calls at
   all (grep for `URLSession` across `ios/GetTucked` returns nothing) — this is
   literally true, not a convenient reading.
-- `NSPrivacyAccessedAPITypes` → one entry:
+- `NSPrivacyAccessedAPITypes` → two entries:
   `NSPrivacyAccessedAPICategoryUserDefaults`, reason `CA92.1` (access limited to the
-  app itself).
+  app itself); and `NSPrivacyAccessedAPICategoryDiskSpace`, reason `E174.1`
+  (`StorageGate` in `LiveCameraView.swift` reads `volumeAvailableCapacityForImportantUsageKey`
+  to warn before a capture fails).
 
-No other required-reason category applies: no file-timestamp, disk-space, boot-time
-or active-keyboard APIs are used (verified by grep). Do not pad the manifest with
+No other required-reason category applies: no file-timestamp, boot-time
+or active-keyboard APIs are used (verified by grep; disk space is the StorageGate entry above). Do not pad the manifest with
 categories the app doesn't touch.
 
 Verify: file is present in the built `.app` (`find` the archive product); `plutil
@@ -264,8 +274,9 @@ runs alongside the two waves rather than queueing behind them.
 
 ## Verification
 
-- Full suite green, 374 baseline, one run after merge.
-- `xcodebuild archive` completes clean — this is the gate AM1/AM2/AM3 exist for, and
+- Full suite green, 388 baseline, one run after merge.
+- `xcodebuild archive` completes clean (`CODE_SIGNING_ALLOWED=NO` until enrolment
+  gives the team a provisioning profile) — this is the gate AM1/AM2/AM3 exist for, and
   a passing test suite says nothing about it.
 - `plutil -p` on the archived `Info.plist`: `UILaunchScreen` present,
   `UILaunchStoryboardName` absent, `ITSAppUsesNonExemptEncryption` false, photo string

@@ -18,24 +18,21 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: GetTucked
-        excludes:
-          - "Resources/Assets.xcassets"
-    resources:
-      - path: GetTucked/Resources/Assets.xcassets
-      - path: GetTucked/Resources/Fonts
     info:
       path: GetTucked/Resources/Info.plist
       properties:
         CFBundleDisplayName: Get Tucked
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
-        UILaunchStoryboardName: ""
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: "Get Tucked needs camera access to photograph your riding position."
-        NSPhotoLibraryUsageDescription: "Get Tucked saves source photos to your library."
+        NSPhotoLibraryUsageDescription: "Get Tucked reads photos you pick as the source for a measurement, and reads back captures it saved to your library."
         NSPhotoLibraryAddUsageDescription: "Get Tucked saves source photos to your library."
         NSMotionUsageDescription: "Get Tucked uses motion data to keep the camera level during capture."
         UIAppFonts:
