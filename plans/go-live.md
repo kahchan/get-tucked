@@ -12,6 +12,11 @@ submitted. Next session: App Store submission.
 - Plan AM wave 1 (813ab4a): icon (stand-in), privacy manifest, launch screen, plist.
 - iPhone-only (4656a62).
 - `-stagedCameraFrame` DEBUG hook (302e646) for capture screenshots in the Simulator.
+- Signing: `DEVELOPMENT_TEAM` was the certificate's personal ID (LVK77WYSK8), not the
+  team. Now `EN7N37J6DU` (paid team kept the free team's ID). Release archive OK.
+- AM4 privacy + support pages and AM5 review notes (`plans/app-review-notes.md`, sample
+  photo at `/review/sample-head-on.jpg`). Contact: gettucked.app@gmail.com.
+- Camera-denied screen now offers OR CHOOSE FROM LIBRARY (was a dead end for review).
 - App Store screenshot set: `website images/appstore/`, five PNGs at 1320×2868
   (6.9"). Gitignored. The 11 Pro shots are upscaled about 18%.
 
@@ -22,17 +27,16 @@ submitted. Next session: App Store submission.
 2. Accept the Paid Apps Agreement. Add banking and the W-8BEN tax form.
 3. Create the App Store Connect record for `com.gettucked.app`. The record gives
    the App Store URL.
-4. Make the support mailbox (a separate Gmail). Send Claude the address.
 5. On the device, check: the icon on the home screen, no letterbox at launch, the
    acid accent in system sheets and dialogs. Do the AM7 correction-flow review.
 
 ## Claude — submission (Plan AM wave 2 and the upload)
 
-1. AM4: `docs/privacy.html` and `docs/support.html` on the github.io URL. Put the
-   Gmail address in both page footers.
-2. AM5: App Review notes. Sample photo: head-on upright (`IMG_0966`).
-3. Signed archive and upload, after enrolment. Then TestFlight.
-4. Store metadata: subtitle, description, keywords, privacy answers ("Data Not
+1. Upload when Kah says (`ios/ExportOptions.plist`, `xcodebuild -exportArchive
+   -allowProvisioningUpdates`). Internal TestFlight first; external group + public
+   link + Beta App Review after Kah's own pass.
+2. AM5 no-subject walk is still open (camera at a wall, photo with no person).
+3. Store metadata: subtitle, description, keywords, privacy answers ("Data Not
    Collected"), age rating, price.
    - Price: the site says $20. Apple's nearest tier is US$19.99. Make the site and
      the store say the same thing.
