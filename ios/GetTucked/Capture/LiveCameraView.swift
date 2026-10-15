@@ -48,7 +48,7 @@ struct LiveCameraView: View {
             Theme.Palette.bg0.ignoresSafeArea()
 
             if session.permissionDenied {
-                PermissionDeniedOverlay(onCancel: onCancel)
+                PermissionDeniedOverlay(onPickFromLibrary: onPickFromLibrary, onCancel: onCancel)
             } else {
                 // Camera feed
                 #if DEBUG
@@ -533,6 +533,8 @@ private struct CaptureButton: View {
 }
 
 private struct PermissionDeniedOverlay: View {
+    // A denied camera must not strand the library route (AM5: App Review has no bike).
+    let onPickFromLibrary: ((UIImage, String?) -> Void)?
     let onCancel: () -> Void
 
     var body: some View {
@@ -552,6 +554,9 @@ private struct PermissionDeniedOverlay: View {
                 }
             }
             .padding(.horizontal, Theme.Space.xl)
+            if let onPickFromLibrary {
+                LibraryFallbackLink(onPicked: onPickFromLibrary)
+            }
             Spacer()
             GhostButton(label: "CANCEL", action: onCancel)
                 .padding(.horizontal, Theme.Space.xl)
