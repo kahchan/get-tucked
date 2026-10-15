@@ -12,6 +12,7 @@ submitted. Next session: App Store submission.
 - Plan AM wave 1 (813ab4a): icon (stand-in), privacy manifest, launch screen, plist.
 - iPhone-only (4656a62).
 - `-stagedCameraFrame` DEBUG hook (302e646) for capture screenshots in the Simulator.
+- Developer Program enrolled (individual).
 - Signing: `DEVELOPMENT_TEAM` was the certificate's personal ID (LVK77WYSK8), not the
   team. Now `EN7N37J6DU` (paid team kept the free team's ID). Release archive OK.
 - AM4 privacy + support pages and AM5 review notes (`plans/app-review-notes.md`, sample
@@ -22,12 +23,11 @@ submitted. Next session: App Store submission.
 
 ## Kah — before submission
 
-1. Enrol in the Apple Developer Program as an individual (US$99/yr). No D-U-N-S.
-   The store shows your legal name as the seller.
-2. Accept the Paid Apps Agreement. Add banking and the W-8BEN tax form.
-3. Create the App Store Connect record for `com.gettucked.app`. The record gives
-   the App Store URL.
-5. On the device, check: the icon on the home screen, no letterbox at launch, the
+1. Accept the Paid Apps Agreement. Add banking and the W-8BEN tax form. Not needed
+   for TestFlight; needed before the paid release.
+2. Create the App Store Connect record for `com.gettucked.app`. The record gives
+   the App Store URL. Needed before the upload.
+3. On the device, check: the icon on the home screen, no letterbox at launch, the
    acid accent in system sheets and dialogs. Do the AM7 correction-flow review.
 
 ## Claude — submission (Plan AM wave 2 and the upload)
