@@ -62,7 +62,7 @@ WHAT IT DOES NOT DO
 • No subscription. Pay once.
 
 WHAT YOU NEED
-An iPhone on iOS 17 or later, a plain and evenly lit wall, a friend to take the photo from 5 to 6 m back, and your handlebar width.
+An iPhone XS or newer (any iPhone that runs iOS 17), a plain and evenly lit wall, a friend to take the photo from 5 to 6 m back, and your handlebar width.
 
 Made by Imprecisely Accurate Instruments, in Wellington, New Zealand.
 ```
