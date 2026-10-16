@@ -41,6 +41,11 @@ submitted. Next session: App Store submission.
    - Price: the site says $20. Apple's nearest tier is US$19.99. Make the site and
      the store say the same thing.
 
+## After 1.0 is approved
+
+- Custom product pages (App Store Connect): variants of the listing with their own
+  screenshots and promotional text, each with its own URL, for each outreach audience.
+
 ## Launch day — site
 
 1. Put the real App Store URL in the three CTAs: top bar, hero, and buy section.
