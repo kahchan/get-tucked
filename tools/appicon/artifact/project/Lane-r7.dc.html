@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round 7 pentagon layers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+.tk{transform-box:view-box;transform-origin:859px 938px;animation:tuck 3.2s infinite}
+@keyframes tuck{
+  0%,20%{transform:matrix(1,0,0,1,0,0);animation-timing-function:cubic-bezier(.2,.6,.2,1)}
+  33%,88%{transform:matrix(.78,0,.1279,.6708,0,0);animation-timing-function:linear}
+  100%{transform:matrix(1,0,0,1,0,0)}
+}
+.tkg{transform-box:view-box;transform-origin:859px 938px;animation:tuckglass 3.2s infinite}
+@keyframes tuckglass{
+  0%,15%{transform:translate(0px,0px) matrix(1,0,0,1,0,0);fill-opacity:1;animation-timing-function:cubic-bezier(.2,.6,.2,1)}
+  24%{transform:translate(0px,0px) matrix(1.07,0,0,1.07,0,0);fill-opacity:.62;animation-timing-function:cubic-bezier(.2,.6,.2,1)}
+  40%{transform:translate(0px,0px) matrix(.8346,0,.1369,.7178,0,0);fill-opacity:.62;animation-timing-function:cubic-bezier(.2,.6,.2,1)}
+  48%,88%{transform:translate(0px,0px) matrix(.78,0,.1279,.6708,0,0);fill-opacity:1;animation-timing-function:linear}
+  100%{transform:translate(0px,0px) matrix(1,0,0,1,0,0);fill-opacity:1}
+}
+@media (prefers-reduced-motion: reduce){.tk,.tkg{animation:none;transform:matrix(.78,0,.1279,.6708,0,0)}}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 24px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">ROUND 7 · REGULAR PENTAGONS, LAYERS, MOTION</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">The tuck is one transform</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 500px; line-height: 1.5">Two regular pentagons on a flat base, sheared to lean left. The tuck is the upright scaled ×0.78, flattened and leaned further, pivoting on the shared rear-base vertex: the rear wheel stays put, the rider folds forward.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 300px 460px minmax(0, 1fr); gap: 32px">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="font-size: 10px; letter-spacing: 0.14em; color: #D9F020">STATIC ICON · LEAD</div>
+      <img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="Lead icon: an acid pentagon nested inside a larger amber pentagon, both leaning left on a dark drafting grid." style="width: 300px; height: 300px; border-radius: 22.37%; display: block">
+      <div style="display: flex; gap: 10px; align-items: flex-end">
+        <img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+        <img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+        <img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+        <img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 16px; height: 16px; border-radius: 22.37%; display: block">
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="font-size: 10px; letter-spacing: 0.14em; color: #D9F020">MOTION · LOOPED FOR REVIEW</div>
+      <div style="display: flex; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+      <svg viewBox="0 0 1024 1024" width="220" height="220" role="img" aria-label="Animation: the acid pentagon starts as the upright and folds down into the tuck about the rear-base vertex, revealing the amber area that was lost." style="border-radius: 22.37%; display: block">
+        <defs>
+          <pattern id="r7minor" width="64" height="64" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="8" height="64" fill="#161616"></rect><rect x="0" y="0" width="64" height="8" fill="#161616"></rect></pattern>
+          <pattern id="r7major" width="256" height="256" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="16" height="256" fill="#262626"></rect><rect x="0" y="0" width="256" height="16" fill="#262626"></rect></pattern>
+        </defs>
+        <rect width="1024" height="1024" fill="#080808"></rect>
+        <rect width="1024" height="1024" fill="url(#r7minor)"></rect>
+        <rect width="1024" height="1024" fill="url(#r7major)"></rect>
+        <polygon points="457,142 930,446 859,938 342,938 94,446" fill="#E8A020"></polygon>
+        <polygon class="tk" points="457,142 930,446 859,938 342,938 94,446" fill="#D9F020"></polygon>
+      </svg>
+      <span style="font-size: 10px; color: #8A8A8A">A · flat fold</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+      <svg viewBox="0 0 1024 1024" width="220" height="220" role="img" aria-label="Animation with glass lift: the acid pane grows slightly about its rear-base corner and turns see-through, folds into the tuck, then lands solid." style="border-radius: 22.37%; display: block">
+        <defs>
+          <pattern id="r7minorg" width="64" height="64" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="8" height="64" fill="#161616"></rect><rect x="0" y="0" width="64" height="8" fill="#161616"></rect></pattern>
+          <pattern id="r7majorg" width="256" height="256" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="16" height="256" fill="#262626"></rect><rect x="0" y="0" width="256" height="16" fill="#262626"></rect></pattern>
+        </defs>
+        <rect width="1024" height="1024" fill="#080808"></rect>
+        <rect width="1024" height="1024" fill="url(#r7minorg)"></rect>
+        <rect width="1024" height="1024" fill="url(#r7majorg)"></rect>
+        <polygon points="457,142 930,446 859,938 342,938 94,446" fill="#E8A020"></polygon>
+        <polygon class="tkg" points="457,142 930,446 859,938 342,938 94,446" fill="#D9F020"></polygon>
+      </svg>
+      <span style="font-size: 10px; color: #D9F020">B · glass offset (recommended)</span>
+      </div>
+      </div>
+      <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">B lifts the acid pane toward you: it scales up 7% about the rear-base vertex, so that corner and the base line never move, and turns 62% see-through so the amber and grid show through the glass. It folds while lifted, then lands flush and solid. Hold upright, then fold 420 ms on the studio's plotted ease (.2, .6, .2, 1), no spring. Ships once, no loop: first-run welcome screen, the App Store preview opening, the site's method page. The home-screen icon stays static.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+      <div style="font-size: 10px; letter-spacing: 0.14em; color: #D9F020">ICON COMPOSER LAYERS · BACK TO FRONT</div>
+      <div style="display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px 14px; align-items: center; font-size: 11px; line-height: 1.45">
+        <div style="width: 64px; height: 64px; background: #080808; border: 1px solid #333333"></div>
+        <div><b>Fill</b> <span style="color: #B0B0B0">solid #080808. The system repaints it in tinted and clear.</span></div>
+        <div style="width: 64px; height: 64px; background-color: #080808; background-image: linear-gradient(to right, #262626 2px, transparent 2px), linear-gradient(to bottom, #262626 2px, transparent 2px); background-size: 16px 16px; border: 1px solid #333333"></div>
+        <div><b>Group 1 · grid</b> <span style="color: #B0B0B0">glass off, no shadow. Texture only; it may vanish in tinted, which is fine.</span></div>
+        <div style="width: 64px; height: 64px; background: #080808; display: grid; place-items: center; border: 1px solid #333333"><svg viewBox="0 0 1024 1024" width="56" height="56" aria-hidden="true"><polygon points="457,142 930,446 859,938 342,938 94,446" fill="#E8A020"></polygon></svg></div>
+        <div><b>Group 2 · upright (before)</b> <span style="color: #B0B0B0">glass off, solid. At 60 px a see-through amber turns the grid into dirt; clear mode adds see-through for free. The grid shows through only on large surfaces (site, OG, welcome).</span></div>
+        <div style="width: 64px; height: 64px; background: #080808; display: grid; place-items: center; border: 1px solid #333333"><svg viewBox="0 0 1024 1024" width="56" height="56" aria-hidden="true"><polygon points="444,404 852,608 859,938 456,938 199,608" fill="#D9F020"></polygon></svg></div>
+        <div><b>Group 3 · tuck (after)</b> <span style="color: #B0B0B0">glass on, specular on, translucency off so acid stays saturated. Tilt moves the highlight across the tuck: the only motion on the home screen.</span></div>
+      </div>
+      <div style="display: flex; gap: 14px; align-items: flex-end; border-top: 1px solid #262626; padding-top: 10px">
+        <div style="display: flex; flex-direction: column; gap: 4px; align-items: center"><img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block"><span style="font-size: 10px; color: #8A8A8A">default</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px; align-items: center"><div style="width: 64px; height: 64px; border-radius: 22.37%; overflow: hidden; background: #3a6df0"><img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 64px; height: 64px; display: block; mix-blend-mode: luminosity"></div><span style="font-size: 10px; color: #8A8A8A">tinted ≈</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px; align-items: center"><img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block; filter: grayscale(1)"><span style="font-size: 10px; color: #8A8A8A">mono</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px; align-items: center"><img src="/_blob/1e3c3e20e750299ea2c52daa13bc6c25" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block; filter: blur(2px)"><span style="font-size: 10px; color: #8A8A8A">blur</span></div>
+      </div>
+      <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">In tinted the tuck stays the brightest value and the upright drops to a mid-tone, so "smaller" survives with no colour. Confirm in Icon Composer's preview before lock.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; border-top: 1px solid #262626; padding-top: 12px">
+    <div style="font-size: 10px; letter-spacing: 0.14em; color: #D9F020">LEAN VARIANTS · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 24px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="4">
+        <div style="width: 130px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rest: [
+        { src: '/_blob/1e3c3e20e750299ea2c52daa13bc6c25', title: 'Lean .18 → .40 (lead)' },
+        { src: '/_blob/2dead36fa3d2922034b9bb09fc0490d4', title: 'Lean .12 → .30' },
+        { src: '/_blob/79b6786548e46456c9d0b7b763b7b78e', title: 'Lean .24 → .50' },
+        { src: '/_blob/f1b4bd67917b1078d95169c2614186bd', title: 'Round 6 (irregular)' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

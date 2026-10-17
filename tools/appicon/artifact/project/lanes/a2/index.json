@@ -1,0 +1,14 @@
+{
+ "name": "A2 · Silhouette",
+ "premise": "Refined a/final-3: a constructed head-on rider, upright as an amber outline over the shoulders, solid acid tuck with the head sunk below the shoulder line. Bike and legs are shared, so only the upper body changes.",
+ "items": [
+  {"file": "02.svg", "title": "Full, outline 48 / gap 24", "note": "S1 2 S2 2 S3 1 S4 2 S6 1 S7 2 = 10/12 pass; S5 2. Fill 28.6%. Best 40 px rider read: pedalling legs either side of the wheel. Halo top at y=48 sits outside the central 80%."},
+  {"file": "05.svg", "title": "Bust, heavy, outline 64", "note": "S1 2 S2 2 S3 2 S4 2 S6 1 S7 2 = 11/12 pass; S5 2. Fill 35.0%, box 87%. Heaviest strokes, so it survives the blur best. The legs merge at 40 px and the halo reaches y=22."},
+  {"file": "01.svg", "title": "Bust, outline 56 / gap 24", "note": "S1 2 S2 2 S3 1 S4 2 S6 1 S7 2 = 10/12 pass; S5 2. Fill 33.4%, box 85%. Spec bust (helmet top 110, bar 600). The legs merge into one mass at 40 px."},
+  {"file": "04.svg", "title": "Full, tight outline 56 / gap 0", "note": "S1 2 S2 1 S3 1 S4 2 S6 2 S7 2 = 10/12 pass; S5 1. Fill 28.4%. The outline hugs the shape and reads as an amber shadow, not a before. Best margins (top y=64)."},
+  {"file": "06.svg", "title": "Bust, deep tuck (drop 136)", "note": "S1 2 S2 2 S3 1 S4 2 S6 1 S7 2 = 10/12 pass; S5 2. Fill 32.4%. Head sits fully below the shoulder line, a stronger shrink. Shoulders crowd the bite at 40 px."},
+  {"file": "07.svg", "title": "Full, deep tuck (drop 136)", "note": "S1 2 S2 2 S3 1 S4 2 S6 1 S7 2 = 10/12 pass; S5 2. Fill 27.8%. As 02 with a deeper head drop."},
+  {"file": "03.svg", "title": "Bust, tight outline 40 / gap 0", "note": "S1 2 S2 1 S3 1 S4 2 S6 2 S7 2 = 10/12 pass; S5 1. Fill 29.6%, box 77%. Calmest version. The outline is too close to the shape to read as the before."},
+  {"file": "08.svg", "title": "Bust, drop-bar hoods", "note": "S1 1 S2 2 S3 1 S4 2 S6 1 S7 1 = 8/12 fail; S5 2. Fill 34.5%. The drops read as table legs and add a second idea."}
+ ]
+}

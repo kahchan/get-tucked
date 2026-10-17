@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round 4 rectangle</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">ROUND 4 · PROPOSED ICON</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Rectangle to lower centre</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 520px; line-height: 1.5">Amber is the area before; acid is the area after, shrunk toward the lower centre. The outer rectangle is 3:4, the app's portrait capture frame, and bleeds off the bottom edge like a rider on the road.</div>
+  </div>
+
+  <div style="display: flex; gap: 40px; align-items: flex-end">
+    <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="Proposed icon: an acid rectangle inside a taller amber 3:4 rectangle, both on the bottom edge of a near-black square." style="width: 320px; height: 320px; border-radius: 22.37%; display: block">
+    <div style="display: flex; gap: 20px; align-items: flex-end">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 180px; height: 180px; border-radius: 22.37%; display: block">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 120px; height: 120px; border-radius: 22.37%; display: block">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 16px; height: 16px; border-radius: 22.37%; display: block">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block; filter: blur(2px)">
+      <img src="/_blob/a8924a840eeb9f687d283d455d6bc1c5" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block; filter: grayscale(1)">
+    </div>
+  </div>
+  <div style="font-size: 12px; display: flex; gap: 24px; border-top: 1px solid #262626; padding-top: 8px"><b>3:4, deeper shrink · installed</b><span style="color: #8A8A8A">before 672×896 · after ×0.68 · kept 27% · lost 31% · 180 → 16 px, then blur and mono</span></div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">PROPORTIONS TRIED · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 24px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="6">
+        <div style="width: 120px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rest: [
+        { src: '/_blob/a8924a840eeb9f687d283d455d6bc1c5', title: '3:4, ×0.68 (chosen)' },
+        { src: '/_blob/66c8f8e56a55b76f427ec7e32258830c', title: '3:4, ×0.78' },
+        { src: '/_blob/4203adf11646babe6a76f7980a3bf078', title: '3:4, floating' },
+        { src: '/_blob/ba2173af72df0e41dd4d2b7521b66ddc', title: '4:5, ×0.75' },
+        { src: '/_blob/38935de9cdfbb1ac5e20c89abf854db0', title: 'square, ×0.75' },
+        { src: '/_blob/733ce849f272a49d05d74a472b7400e3', title: '2:3, ×0.78' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

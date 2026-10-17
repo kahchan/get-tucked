@@ -1,0 +1,66 @@
+{
+ "name": "R3a \u00b7 Cell figure + dome",
+ "premise": "One area at three cell sizes: L1 dome (128 u), L2 (64 u), L3 figure (32 u). Kept = after, lost = before minus after. Scores use the gate S1-S4, S6, S7 (max 12, pass >=9); dome S1 = area read; S5 tie-break. Fill = cells, of the full grid.",
+ "items": [
+  {
+   "file": "L1-plate-signal.svg",
+   "title": "L1 Plate, signal lost",
+   "note": "S1 2 S2 2 S3 2 S4 2 S6 1 S7 2 = 11/12 pass; S5 1 (lost shell 128 u, gutter-only gap). Dome reads \"area that got smaller\": orange shell over a paper dome, holds at 16 px and under blur. Mass sits low (rows 3-7). Lead. Kept 40.6%, lost 12.5%, box 100%."
+  },
+  {
+   "file": "L1-house-amber.svg",
+   "title": "L1 House, amber lost",
+   "note": "S1 2 S2 2 S3 1 S4 2 S6 1 S7 2 = 10/12 pass; S5 1. Same dome on house palette; amber and acid merge under blur but the crescent survives. Kept 40.6%, lost 12.5%, box 100%."
+  },
+  {
+   "file": "L3-plate-signal.svg",
+   "title": "L3 Plate, signal lost",
+   "note": "S1 1 S2 1 S3 1 S4 2 S6 2 S7 2 = 9/12 pass; S5 1. Figure: round head, neck gap, 45\u00b0 arms to a 3x3 hand on the bar, knee wedges, wheel bleeding off. Orange cap and wing bands say \"was higher\". Reads as a figure holding a bar more than a tuck at 64. Kept 29.9%, lost 7.0%, box 87.5%."
+  },
+  {
+   "file": "L1-plate-quiet.svg",
+   "title": "L1 Plate, quiet lost",
+   "note": "S1 1 S2 1 S3 2 S4 2 S6 1 S7 2 = 9/12 pass; S5 1. #5C86BC shell is calm but the loss fades at 29-40 px. Kept 40.6%, lost 12.5%, box 100%."
+  },
+  {
+   "file": "L3-house-amber.svg",
+   "title": "L3 House, amber lost",
+   "note": "S1 1 S2 1 S3 1 S4 2 S6 2 S7 2 = 9/12 pass; S5 1. As L3 plate; amber bands read as wings at 64. Kept 29.9%, lost 7.0%, box 87.5%."
+  },
+  {
+   "file": "L2-plate-signal.svg",
+   "title": "L2 Plate, signal lost",
+   "note": "S1 1 S2 1 S3 1 S4 2 S6 2 S7 2 = 9/12 pass. Favicon 32 frame. Knee wedges taper to a spade at this level; neck gap held by hand flip. Kept 35.2%, lost 4.7%, box 87.5%."
+  },
+  {
+   "file": "L2-house-amber.svg",
+   "title": "L2 House, amber lost",
+   "note": "S1 1 S2 1 S3 1 S4 2 S6 2 S7 1 = 8/12 fail. Spade/beetle read at 32 px. Kept 35.2%, lost 4.7%, box 87.5%."
+  },
+  {
+   "file": "L3-plate-quiet.svg",
+   "title": "L3 Plate, quiet lost",
+   "note": "S1 1 S2 0 S3 1 S4 2 S6 2 S7 2 = 8/12 fail. Before bands too quiet to carry the tuck. Kept 29.9%, lost 7.0%, box 87.5%."
+  },
+  {
+   "file": "L2-plate-quiet.svg",
+   "title": "L2 Plate, quiet lost",
+   "note": "S1 1 S2 0 S3 1 S4 2 S6 2 S7 1 = 7/12 fail. Kept 35.2%, lost 4.7%, box 87.5%."
+  },
+  {
+   "file": "L1-house-333.svg",
+   "title": "L1 House, #333 lost",
+   "note": "S1 1 S2 0 S3 2 S4 2 S6 1 S7 1 = 7/12 fail. Loss disappears below 64 px: a plain mound. Kept 40.6%, lost 12.5%, box 100%."
+  },
+  {
+   "file": "L3-house-333.svg",
+   "title": "L3 House, #333 lost",
+   "note": "S1 1 S2 0 S3 1 S4 2 S6 2 S7 2 = 8/12 fail. No before read. Kept 29.9%, lost 7.0%, box 87.5%."
+  },
+  {
+   "file": "L2-house-333.svg",
+   "title": "L2 House, #333 lost",
+   "note": "S1 1 S2 0 S3 1 S4 2 S6 2 S7 1 = 7/12 fail. Kept 35.2%, lost 4.7%, box 87.5%."
+  }
+ ]
+}

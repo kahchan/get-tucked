@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pictogram principles</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 24px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">03 · INSPIRATION · PRINCIPLES, NOT MARKS</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">How sport pictograms are built</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 460px; line-height: 1.5">The dome is the rider's area at 128 u cells; the figure is the same area at 32 u. One master, three resolutions, and the motion climbs between them.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; font-size: 12px; line-height: 1.5">
+    <div style="font-size: 10px; letter-spacing: 0.14em; color: #8A8A8A; padding-bottom: 8px">SOURCE</div>
+    <div style="font-size: 10px; letter-spacing: 0.14em; color: #8A8A8A; padding-bottom: 8px">PRINCIPLE</div>
+    <div style="font-size: 10px; letter-spacing: 0.14em; color: #D9F020; padding-bottom: 8px">IN CELLS</div>
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+      <div style="border-top: 1px solid #262626; padding: 10px 0"><a href="{{r.url}}" target="_blank" rel="noopener">{{r.src}}</a></div>
+      <div style="border-top: 1px solid #262626; padding: 10px 0; color: #B0B0B0">{{r.principle}}</div>
+      <div style="border-top: 1px solid #262626; padding: 10px 0">{{r.apply}}</div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rows: [
+        { src: 'NBA logo, Siegel, 1969', url: 'https://www.creativebloq.com/features/nba-logo-history', principle: 'One figure, one gesture, two colours. No outline, no interior detail; the field does the framing.', apply: 'Three colours at most: field, kept, lost. No rings or face cells. The tuck is the only gesture.' },
+        { src: 'Tokyo 1964', url: 'https://typeroom.eu/tokyo-1964-the-emblem-the-posters-the-pictograms-and-the-film-that-changed-olympics-forever', principle: 'A symmetric, contained emblem, drawn from crest design, reads at any size without words.', apply: 'The dome is the crest: symmetric, centred, never cut off at the sides.' },
+        { src: 'Munich 1972, Otl Aicher', url: 'https://www.smithsonianmag.com/innovation/this-graphic-artists-olympic-pictograms-changed-urban-design-forever-180978256/', principle: 'A modular grid, only 90° and 45°, a round separate head, a fixed kit of parts.', apply: 'Limbs at 0/45/90° only. Round head, one-row neck gap. Kit: head, torso, arm, bar, hand, knee, wheel.' },
+        { src: 'Holt on Munich, Eye', url: 'https://eyemagazine.com/blog/post/this-sporting-myth', principle: 'A diagonal limb looks thinner than an orthogonal of the same width.', apply: 'Diagonals are 3-cell rows stepping one cell per row; orthogonals are 2 cells wide.' },
+        { src: 'Sydney 2000, Beijing 2008', url: 'https://www.newington.nsw.edu.au/student-magazine/2024/08/18/olympic-pictograms/', principle: 'Build every figure from one repeated part with local meaning.', apply: 'Our one part is the square cell: the app’s measured pixel and its tap square.' },
+        { src: 'Susan Kare, Macintosh', url: 'https://www.smithsonianmag.com/innovation/how-susan-kare-designed-user-friendly-icons-for-first-macintosh-180973286/', principle: 'Design at native resolution on graph paper; count every square.', apply: 'Author on a 32×32 lattice. Approve each level at its real display size.' },
+        { src: 'Sprite craft', url: 'https://bugnet.io/blog/how-to-make-pixel-art-that-reads-clearly', principle: 'Silhouette first; cut detail that turns to mush at real size.', apply: 'Solid-fill the master and check it at 64 and 40 px before adding lost cells.' },
+        { src: 'Tokyo 2020 kinetic', url: 'https://www.itsnicethat.com/news/tokyo-2020-olympic-paralympic-kinetic-sport-pictograms-animation-260220', principle: 'Assemble from fragments, move, then freeze.', apply: 'The ladder assembles by resolution and holds on the end frame. No loop.' },
+        { src: 'Paris 2024', url: 'https://theinfinitecurve.com/archery/paris-2024-new-pictograms-out/', principle: 'Crests with no figure were harder to read; the meaning has to come from somewhere.', apply: 'The dome leans on the name beside it (home screen, search). The figure carries the large surfaces.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

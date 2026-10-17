@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round 2 grid</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">ROUND 2B · DRAFTING GRID</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">On the grid</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 520px; line-height: 1.5">The 2a pair on a drafting grid. No loop over the head: the before is a frame round the shoulders and arms, or a solid upright ghost behind a smaller tuck. Grid pitch 64 u, so each line lands on one pixel at 64 px.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+    <sc-for list="{{finals}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: flex-end; gap: 16px">
+          <img src="{{f.src}}" alt="{{f.title}}" style="width: 240px; height: 240px; border-radius: 22.37%; display: block">
+          <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+            <img src="{{f.src}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #262626; padding-top: 8px"><b>{{f.title}}</b><span style="color: #D9F020">{{f.score}}</span></div>
+        <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">{{f.note}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">ALL CANDIDATES · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 18px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="9">
+        <div style="width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+          <span style="font-size: 10px; color: #8A8A8A">{{r.score}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      finals: [
+        { src: '/_blob/f31163e4969d7b82ad4d28b33c95d047', title: 'Bust, shoulder frame', score: '11/12 · fill 25%', note: 'Amber frame round the shoulders, arms and bar ends; nothing over the head. Cleanest read at 64 and 40 px.' },
+        { src: '/_blob/71c092ada085eebc7c7665f4637c25e7', title: 'Bust, amber ghost', score: '11/12 · fill 27%', note: 'Solid amber upright behind a smaller tuck. Says "smaller" most clearly; blur merges it into one blob.' },
+        { src: '/_blob/6d9f0abfecba9034b273b5c9ea775ce2', title: 'Plate, orange frame', score: '11/12 · fill 25%', note: 'Studio palette: orange frame, paper tuck on a navy grid. Orange beats blue under blur.' }
+      ],
+      rest: [
+        { src: '/_blob/694fc924718787effc09c89447ed058f', title: 'Plate, orange ghost', score: '11' },
+        { src: '/_blob/1a48bda68a47c2a466c5b33ed680eb56', title: 'Frame, coarse grid', score: '10' },
+        { src: '/_blob/f221e830984c4fe90578f72e7ca671c9', title: 'Plate, blue ghost', score: '10' },
+        { src: '/_blob/fc2ed060a666d6bda5ae3e22c73f57d1', title: 'Full, amber ghost', score: '10' },
+        { src: '/_blob/eeaa3e08103f6c34c18622b733b0548c', title: 'Plate, blue frame', score: '9' },
+        { src: '/_blob/5c7dfdaff4580af807f277bb442a72fc', title: 'Full, amber frame', score: '9' },
+        { src: '/_blob/8b731cc5f1b097c6c4e74f636dd6b150', title: 'Upright as lit grid', score: '9' },
+        { src: '/_blob/25f2c9c28d39405194e1e101e40d4d8d', title: 'Plate full, blue ghost', score: '9' },
+        { src: '/_blob/bc4d2440bc2864431466be9fd83067cc', title: 'Ghost snapped to cells', score: '9' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

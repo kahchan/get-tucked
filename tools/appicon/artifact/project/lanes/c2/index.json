@@ -1,0 +1,66 @@
+{
+ "name": "C2 · Counted cells",
+ "premise": "Area by counting squares: the tuck as filled grid cells (cell kept if >=50% covered), the upright as its stepped cell outline or the cells lost by tucking. Scores use the round 1 gate: S1-S4, S6, S7 (max 12, pass >=9); S5 tie-breaker for the tolerance device. 11 and 12 are the no-figure fallback (refined d/08).",
+ "items": [
+  {
+   "file": "02.svg",
+   "title": "Bust, stepped ring + dim lost cells",
+   "note": "S1 2 S2 2 S3 1 S4 1 S6 2 S7 2 = 10/12 pass; S5 2 (ring 48 u, gap 48 u). Fill 29.1%, box 79%. P48 cell, 4 u gutter. Bust at 0.84 scale; acid tuck cells, amber ring is the upright's stepped cell outline one cell out, #333 cells = cells lost by tucking (the neck bite). Ring melts to an amber smudge under blur, tuck mass holds."
+  },
+  {
+   "file": "03.svg",
+   "title": "Bust, big-cell ring (P64)",
+   "note": "S1 1 S2 1 S3 2 S4 2 S6 2 S7 2 = 10/12 pass; S5 2. Fill 28.0%, box 81%. P64 (4 px cells at 64 px), ring 64 u / gap 64 u, scale 0.78. Cleanest 64 px read, but the ring bulge over the head reads as an up-arrow (K1 risk, watch it)."
+  },
+  {
+   "file": "06.svg",
+   "title": "Plate: bust, stepped ring",
+   "note": "S1 2 S2 1 S3 1 S4 2 S6 2 S7 2 = 10/12 pass; S5 2. Fill 26.0%, box 79%. Plate palette #173359 field, paper #FFFDF8 tuck cells, signal #F07C2B ring. Same build as 01. Ring fades under blur; paper mass holds. Brand call for Kah (lane c rule)."
+  },
+  {
+   "file": "01.svg",
+   "title": "Bust, stepped ring P48",
+   "note": "S1 2 S2 1 S3 1 S4 1 S6 2 S7 2 = 9/12 pass; S5 2. Fill 26.0%, box 79%. As 02 without the dim lost cells: the head drop alone carries the tuck, and at 64 px it is subtle."
+  },
+  {
+   "file": "12.svg",
+   "title": "Dome, amber lost cells (no figure)",
+   "note": "S1 1 S2 2 S3 1 S4 2 S6 2 S7 2 = 10/12 pass (area read); S5 1 (before cells touch the after cells, gap 12 u). Fill 37.2%, box 86%. Refined d/08: 7-wide dome of cells, acid after inside amber before. Reads as dome/sunrise, not figure. Abstract fallback."
+  },
+  {
+   "file": "11.svg",
+   "title": "Dome, dim lost cells (no figure)",
+   "note": "S1 1 S2 2 S3 1 S4 2 S6 2 S7 2 = 10/12 pass (area read); S5 0. Fill 37.2%, box 86%. As 12 with #333 lost cells: quieter, the loss disappears at 64 px. Reads as bars or a stack."
+  },
+  {
+   "file": "07.svg",
+   "title": "Plate: bust, dim lost cells",
+   "note": "S1 2 S2 1 S3 1 S4 2 S6 2 S7 2 = 10/12 pass; S5 0. Fill 24.4%, box 70%. Plate palette, no ring. The lost cells (#2F5687) barely show."
+  },
+  {
+   "file": "04.svg",
+   "title": "Bust, stepped ring in #333",
+   "note": "S1 2 S2 1 S3 1 S4 1 S6 2 S7 2 = 9/12 pass; S5 1. Fill 25.7%. Ring is near invisible at 64 px and low contrast at 1024. Harmless but wasted."
+  },
+  {
+   "file": "05.svg",
+   "title": "Bust, dim lost cells only",
+   "note": "S1 2 S2 1 S3 1 S4 1 S6 2 S7 2 = 9/12 pass; S5 0. Fill 24.4%, box 70%. Plain counted tuck, P48. No before device at 64 px. Pixel-sprite read is strongest here."
+  },
+  {
+   "file": "08.svg",
+   "title": "KILLED Bust, amber lost cells",
+   "note": "S1 1 S2 1 S3 1 S4 1 S6 2 S7 2 = 8/12 fail. Lost cells sit on the head and neck and read as a hat or collar."
+  },
+  {
+   "file": "10.svg",
+   "title": "KILLED Bust, hollow amber lost cells",
+   "note": "S1 2 S2 1 S3 1 S4 1 S6 2 S7 1 = 8/12 fail. Hollow squares are fiddly at 1024 and noise at 64 px."
+  },
+  {
+   "file": "09.svg",
+   "title": "KILLED Full, P32",
+   "note": "S1 1 S2 1 S3 1 S4 1 S6 1 S7 2 = 7/12 fail. Full-length counted figure reads as a walking pixel-art sprite; legs fragment."
+  }
+ ]
+}

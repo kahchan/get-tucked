@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round 3 cells ladder</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 24px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">ROUND 3A · ONE MASTER, THREE RESOLUTIONS</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Dome to rider</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 520px; line-height: 1.5">The rider's frontal area counted in cells: 8×8 (the dome, proposed icon), 16×16, 32×32 (the figure). Paper = area kept, orange = area lost by tucking. The motion climbs this ladder in 900 ms.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 150px repeat(3, minmax(0, 1fr)) 150px; gap: 16px 20px; align-items: center">
+    <span></span>
+    <span style="font-size: 10px; letter-spacing: 0.14em; color: #D9F020">L1 · 8×8 · THE DOME</span>
+    <span style="font-size: 10px; letter-spacing: 0.14em; color: #8A8A8A">L2 · 16×16</span>
+    <span style="font-size: 10px; letter-spacing: 0.14em; color: #8A8A8A">L3 · 32×32 · THE FIGURE</span>
+    <span style="font-size: 10px; letter-spacing: 0.14em; color: #8A8A8A">L1 AT SIZE</span>
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+      <div style="font-size: 11px; line-height: 1.5"><b>{{r.name}}</b><br><span style="color: #8A8A8A">{{r.score}}</span></div>
+      <img src="{{r.l1}}" alt="{{r.name}} dome" style="width: 200px; height: 200px; border-radius: 22.37%; display: block">
+      <img src="{{r.l2}}" alt="{{r.name}} 16 by 16" style="width: 200px; height: 200px; border-radius: 22.37%; display: block">
+      <img src="{{r.l3}}" alt="{{r.name}} figure" style="width: 200px; height: 200px; border-radius: 22.37%; display: block">
+      <div style="display: flex; gap: 8px; align-items: flex-end">
+        <img src="{{r.l1}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+        <img src="{{r.l1}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+        <img src="{{r.l1}}" alt="" style="width: 16px; height: 16px; border-radius: 22.37%; display: block">
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="font-size: 11px; line-height: 1.6; color: #8A8A8A; border-top: 1px solid #262626; padding-top: 12px">The dome is drawn by hand: averaging the figure down to 8×8 gives an up-arrow. The figure at 32×32 reads as "rider holding a bar"; the tuck lives only in the orange cap and wings. <a href="https://claude.ai/artifact/JATwrxYNxUtRZaSmseUgtE" target="_blank" rel="noopener">Play the motion prototype →</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rows: [
+        { name: 'Plate, signal lost', score: 'dome 11/12', l1: '/_blob/6b1ec68a8b341cefaf801c24697ba4b3', l2: '/_blob/5c5f2cf6a3d77eb5413cf408d52107e6', l3: '/_blob/4f890e6854c70314ac5a6e59744a21d1' },
+        { name: 'Plate, quiet lost', score: 'dome 9/12', l1: '/_blob/34ba98e133fef6f6478ba24f0ccab784', l2: '/_blob/211584dd337c587fe53a9bf00926e7fc', l3: '/_blob/fcd2503928e5a417d186734265aa6198' },
+        { name: 'House, amber lost', score: 'dome 10/12', l1: '/_blob/2194c9b97f4dc2b20caa118ae59c4248', l2: '/_blob/092f6dad4dec1fdadf8f71a3bae69523', l3: '/_blob/6b6c176bfec69ae98c74ea505883331e' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

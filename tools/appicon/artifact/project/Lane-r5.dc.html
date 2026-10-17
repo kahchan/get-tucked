@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round 5 pentagon rider</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">ROUND 5 · ONE PENTAGON PER POSITION</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Pentagon rider</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 520px; line-height: 1.5">A cyclist riding left, side-on, as one pentagon: rear base, hip, head, bars, front base. Amber is the upright position; acid is the tuck, its back flattened and its head pushed forward. On black with a 64 u grid at near-zero contrast.</div>
+  </div>
+
+  <div style="display: flex; gap: 40px; align-items: flex-end">
+    <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="Lead pentagon rider: a tall amber forward-leaning pentagon behind a long low acid wedge, floating on a faint grid." style="width: 320px; height: 320px; border-radius: 22.37%; display: block">
+    <div style="display: flex; gap: 20px; align-items: flex-end">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 180px; height: 180px; border-radius: 22.37%; display: block">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 120px; height: 120px; border-radius: 22.37%; display: block">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 16px; height: 16px; border-radius: 22.37%; display: block">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block; filter: blur(2px)">
+      <img src="/_blob/cf564f687c80cf852c2bf08a9af02c48" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block; filter: grayscale(1)">
+    </div>
+  </div>
+  <div style="font-size: 12px; display: flex; gap: 24px; border-top: 1px solid #262626; padding-top: 8px"><b>Floating, aero wedge · lead</b><span style="color: #8A8A8A">upright about 1.2:1, tuck about 3.4:1 wide · 180 → 16 px, then blur and mono</span></div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">VARIANTS · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 24px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="7">
+        <div style="width: 120px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rest: [
+        { src: '/_blob/cf564f687c80cf852c2bf08a9af02c48', title: 'Floating, aero wedge' },
+        { src: '/_blob/67b1865155d28f1675ae0c14dfcf5aa1', title: 'Floating, long tuck' },
+        { src: '/_blob/ae7f3877a676e0c91273995fd770633b', title: 'Wide, centred' },
+        { src: '/_blob/cd2995ec9fb5bed04b3afd599ebbc16e', title: 'Forward wedge, bleed' },
+        { src: '/_blob/4dd8f17bd1258da9ae4cb7aa99f2e006', title: 'Low flat back, bleed' },
+        { src: '/_blob/5bc6a9b4caf01008dc5db35db04d0a8b', title: 'Hip drops too, bleed' },
+        { src: '/_blob/250071fea2f8175e8f634769718d9a7b', title: 'Steep arms, bleed' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3b Resolution ladder</title>
+<style>
+:root{
+  --bg0:#080808;--bg1:#101010;--bg2:#161616;--line:#262626;--line3:#333333;
+  --fg:#EEEEEE;--fg2:#B0B0B0;--fg3:#8A8A8A;--acc:#D9F020;--amb:#E8A020;
+  --mono:"Space Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sp-xs:4px;--sp-sm:8px;--sp-md:16px;--sp-lg:24px;--sp-xl:40px;
+}
+*{box-sizing:border-box;border-radius:0}
+html{background:var(--bg0)}
+body{margin:0;background:var(--bg0);color:var(--fg);font:14px/1.45 var(--mono);padding:var(--sp-lg) var(--sp-md) var(--sp-xl);max-width:1000px;margin-inline:auto}
+h1{font:700 20px/1.1 var(--mono);text-transform:uppercase;letter-spacing:.04em;margin:0 0 var(--sp-xs)}
+h2{font:700 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--fg3);margin:0 0 var(--sp-sm)}
+p{margin:0;color:var(--fg2)}
+.sub{margin-bottom:var(--sp-lg)}
+.stage{display:grid;gap:var(--sp-lg);grid-template-columns:1fr}
+@media(min-width:760px){.stage{grid-template-columns:360px 1fr}}
+.panel{background:var(--bg2);border:1px solid var(--line3);padding:var(--sp-md)}
+.icon{border-radius:22.37%;overflow:hidden;flex:none;line-height:0}
+.icon svg{display:block;width:100%;height:100%}
+.hero{width:min(360px,100%);aspect-ratio:1}
+.hero .icon{width:100%;height:100%}
+.previews{margin-top:var(--sp-lg)}
+.row{display:flex;flex-wrap:wrap;gap:var(--sp-md);align-items:flex-end}
+.tile{display:flex;flex-direction:column;gap:var(--sp-sm);align-items:flex-start}
+.tile small{font-size:11px;color:var(--fg2)}
+.ctl{display:flex;flex-direction:column;gap:var(--sp-md)}
+.grp{display:flex;flex-direction:column;gap:var(--sp-xs)}
+.seg{display:flex;flex-wrap:wrap;gap:var(--sp-xs)}
+button{font:700 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--fg);background:var(--bg1);border:1px solid var(--line3);min-height:44px;min-width:44px;padding:0 var(--sp-md);cursor:pointer}
+button:hover{border-color:var(--fg3)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--acc);color:var(--bg0);border-color:var(--acc)}
+button.go{background:var(--acc);color:var(--bg0);border-color:var(--acc);min-width:120px}
+input[type=range]{width:100%;min-height:44px;margin:0;accent-color:var(--acc)}
+label.chk{display:flex;gap:var(--sp-sm);align-items:center;min-height:44px;cursor:pointer;color:var(--fg)}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--acc);margin:0}
+output{display:block;color:var(--acc);font-size:12px;min-height:1.45em}
+.note{font-size:11px;color:var(--fg3)}
+</style>
+</head>
+<body>
+<h1>R3b · Resolution ladder</h1>
+<p class="sub">L1 → L2 → L3, scanned top to bottom, one parent row at a time. 900 ms, then hold. No loop.</p>
+
+<div class="stage">
+  <div>
+    <h2>1024 · shown at 360</h2>
+    <div class="hero"><div class="icon" data-prev></div></div>
+  </div>
+
+  <div class="ctl panel">
+    <div class="grp">
+      <h2 id="g-play">Playback</h2>
+      <div class="seg"><button type="button" id="play" class="go">Play</button></div>
+    </div>
+    <div class="grp">
+      <label for="scrub"><h2 style="margin:0">Scrub 0–900 ms</h2></label>
+      <input type="range" id="scrub" min="0" max="900" step="1" value="0">
+      <output id="read" for="scrub" aria-live="off"></output>
+    </div>
+    <div class="grp">
+      <h2 id="g-speed">Speed</h2>
+      <div class="seg" role="group" aria-labelledby="g-speed">
+        <button type="button" data-speed="0.25" aria-pressed="false">0.25×</button>
+        <button type="button" data-speed="1" aria-pressed="true">1×</button>
+      </div>
+    </div>
+    <div class="grp">
+      <h2 id="g-level">Show level (static)</h2>
+      <div class="seg" role="group" aria-labelledby="g-level">
+        <button type="button" data-level="1" aria-pressed="false">L1 · 8×8</button>
+        <button type="button" data-level="2" aria-pressed="false">L2 · 16×16</button>
+        <button type="button" data-level="3" aria-pressed="false">L3 · 32×32</button>
+      </div>
+    </div>
+    <div class="grp">
+      <h2 id="g-pal">Palette</h2>
+      <div class="seg" role="group" aria-labelledby="g-pal">
+        <button type="button" data-pal="plate" aria-pressed="true">Plate</button>
+        <button type="button" data-pal="house" aria-pressed="false">House</button>
+      </div>
+    </div>
+    <div class="grp">
+      <h2 id="g-lost">Lost cells</h2>
+      <div class="seg" role="group" aria-labelledby="g-lost">
+        <button type="button" data-lost="signal" aria-pressed="true">Signal</button>
+        <button type="button" data-lost="quiet" aria-pressed="false">Quiet</button>
+        <button type="button" data-lost="off" aria-pressed="false">Off</button>
+      </div>
+    </div>
+    <div class="grp">
+      <label class="chk"><input type="checkbox" id="rm"> Reduce motion (L3 at once, 200 ms fade)</label>
+      <span class="note" id="src"></span>
+    </div>
+  </div>
+</div>
+
+<div class="previews">
+  <h2>Live previews · squircle mask 22.37%</h2>
+  <div class="panel row">
+    <div class="tile"><div class="icon" style="width:180px;height:180px" data-prev></div><small>180 px</small></div>
+    <div class="tile"><div class="icon" style="width:64px;height:64px" data-prev></div><small>64 px</small></div>
+    <div class="tile"><div class="icon" style="width:40px;height:40px" data-prev></div><small>40 px</small></div>
+    <div class="tile"><div class="icon" style="width:16px;height:16px" data-prev></div><small>16 px</small></div>
+  </div>
+</div>
+
+<script>
+// Embedded copy of lanes/r3a/levels.json (or the c2/07 placeholder until R3a lands). '.' off, '#' kept, '+' lost.
+const EMBEDDED={"L1":["........","........","........","..++++..",".+####+.","+######+","########","########"],"L2":[".......++.......","......+##+......","......####......","......####......","......####......","....+......+....","...+########+...","..+##########+..",".+##..####..##+.",".##...####...##.",".##############.","....########....","....########....",".....######.....","......####......",".......##......."],"L3":["..............++++..............",".............++++++.............","............++++++++............","............++####++............","............+######+............","............########............","............########............","............########............","............########............",".........+...######...+.........","........++....####....++........",".......+++............+++.......","......+++##############+++......",".....+++################+++.....","....+++###.##########.###+++....","...+++###..##########..###+++...","..+++###....########....###+++..","..++###.....########.....###++..","..+###.......######.......###+..","..###........######........###..","..############################..","..############################..","........######.##.######........","........######.##.######........","........######.##.######........",".........#####.##.#####.........","..........####.##.####..........","...........###.##.###...........","............##.##.##............","...............##...............","...............##...............","...............##..............."]};
+
+const PAL={
+  plate:{field:'#173359',kept:'#FFFDF8',signal:'#F07C2B',quiet:'#5C86BC'},
+  house:{field:'#080808',kept:'#D9F020',signal:'#E8A020',quiet:'#333333'}
+};
+const N=[0,8,16,32];
+const END=900;
+const TR=[{at:0,dur:420,from:1,to:2,rows:8},{at:480,dur:420,from:2,to:3,rows:16}];
+
+const q=new URLSearchParams(location.search);
+const st={t:0,speed:1,pal:q.get('palette')==='house'?'house':'plate',lost:['quiet','off'].includes(q.get('lost'))?q.get('lost'):'signal',
+  rm:q.has('rm')?q.get('rm')==='1':matchMedia('(prefers-reduced-motion: reduce)').matches,
+  data:EMBEDDED,played:false,playing:false};
+
+const ok=d=>d&&[1,2,3].every(l=>Array.isArray(d['L'+l])&&d['L'+l].length===N[l]&&d['L'+l].every(r=>typeof r==='string'&&r.length===N[l]));
+
+const NS='http://www.w3.org/2000/svg';
+const previews=[...document.querySelectorAll('[data-prev]')].map(host=>{
+  const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox','0 0 1024 1024');s.setAttribute('aria-hidden','true');
+  const mk=n=>s.appendChild(document.createElementNS(NS,n));
+  const o={host,field:mk('rect'),lost:mk('path'),kept:mk('path')};
+  o.field.setAttribute('width',1024);o.field.setAttribute('height',1024);
+  host.appendChild(s);return o;
+});
+
+function frame(t){
+  let cur=1;
+  for(const tr of TR){
+    if(t<tr.at)break;
+    if(t>=tr.at+tr.dur){cur=tr.to;continue;}
+    const done=Math.floor((t-tr.at)*tr.rows/tr.dur+1e-9),k=N[tr.to]/N[tr.from];
+    if(t===0)return {segs:[{lv:1,r0:0,r1:8}],label:'L1 · start'};
+    return {segs:[{lv:tr.to,r0:0,r1:done*k},{lv:tr.from,r0:done,r1:N[tr.from]}],label:`L${tr.from}→L${tr.to} · parent row ${done}/${tr.rows}`};
+  }
+  return {segs:[{lv:cur,r0:0,r1:N[cur]}],label:`L${cur} · ${t>=END?'final':'hold'}`};
+}
+
+function paths(segs){
+  let kept='',lost='';
+  for(const{lv,r0,r1}of segs){
+    const s=1024/N[lv],g=Math.max(2,s/16),w=s-g,h=g/2,rows=st.data['L'+lv];
+    for(let r=r0;r<r1;r++)for(let c=0;c<N[lv];c++){
+      const ch=rows[r][c];if(ch==='.')continue;
+      const d=`M${c*s+h} ${r*s+h}h${w}v${w}h${-w}z`;
+      if(ch==='#')kept+=d;else lost+=d;
+    }
+  }
+  return{kept,lost};
+}
+
+const $=id=>document.getElementById(id);
+function render(){
+  const t=st.t,f=frame(t),p=paths(f.segs),pal=PAL[st.pal];
+  const lostFill=st.lost==='off'?'none':pal[st.lost];
+  for(const o of previews){
+    o.field.setAttribute('fill',pal.field);
+    o.kept.setAttribute('fill',pal.kept);o.kept.setAttribute('d',p.kept);
+    o.lost.setAttribute('fill',lostFill);o.lost.setAttribute('d',st.lost==='off'?'':p.lost);
+  }
+  $('scrub').value=Math.round(t);
+  $('read').textContent=`t = ${String(Math.round(t)).padStart(3,' ')} ms · ${f.label}`;
+  const lv=t<=0?1:(Math.abs(t-450)<1?2:(t>=END?3:0));
+  document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.level===lv)));
+}
+
+let raf=0,last=null;
+function tick(now){
+  if(!st.playing)return;
+  if(last!==null)st.t=Math.min(END,st.t+(now-last)*st.speed);
+  last=now;render();
+  if(st.t>=END){st.playing=false;return;}
+  raf=requestAnimationFrame(tick);
+}
+function stop(){st.playing=false;cancelAnimationFrame(raf);}
+function play(){
+  stop();st.played=true;$('play').textContent='Replay';
+  if(st.rm){
+    st.t=END;render();
+    previews.forEach(o=>o.host.animate([{opacity:0},{opacity:1}],{duration:200,easing:'ease-out'}));
+    return;
+  }
+  st.t=0;last=null;st.playing=true;render();raf=requestAnimationFrame(tick);
+}
+function seek(t){stop();st.t=t;render();}
+
+$('play').onclick=play;
+$('scrub').oninput=e=>seek(+e.target.value);
+document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{
+  st.speed=+b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+});
+document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>seek([0,0,450,END][+b.dataset.level]));
+document.querySelectorAll('[data-pal]').forEach(b=>b.onclick=()=>{st.pal=b.dataset.pal;sync();});
+document.querySelectorAll('[data-lost]').forEach(b=>b.onclick=()=>{st.lost=b.dataset.lost;sync();});
+$('rm').checked=st.rm;$('rm').onchange=e=>{st.rm=e.target.checked;};
+function sync(){
+  document.querySelectorAll('[data-pal]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pal===st.pal)));
+  document.querySelectorAll('[data-lost]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lost===st.lost)));
+  render();
+}
+
+$('src').textContent='data: embedded copy';
+sync();
+if(q.has('t'))seek(Math.max(0,Math.min(END,+q.get('t')||0)));
+else play();
+
+// Prefer the live master when served next to r3a/; file:// and missing files fall back to the embedded copy.
+fetch('../r3a/levels.json').then(r=>r.ok?r.json():Promise.reject()).then(d=>{
+  if(!ok(d))return;
+  st.data=d;$('src').textContent='data: ../r3a/levels.json';render();
+}).catch(()=>{});
+</script>
+</body>
+</html>

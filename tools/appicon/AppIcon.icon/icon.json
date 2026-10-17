@@ -1,40 +1,36 @@
 {
-  "fill" : {
-    "solid" : "srgb:0.03137,0.03137,0.03137,1.00000"
+  "fill": {
+    "solid": "srgb:0.03137,0.03137,0.03137,1.00000"
   },
-  "groups" : [
+  "groups": [
     {
-      "layers" : [
+      "layers": [
         {
-          "glass" : true,
-          "image-name" : "caliper.svg",
-          "name" : "caliper"
+          "glass": false,
+          "image-name": "before.svg",
+          "name": "before"
         }
       ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.4
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
       }
     },
     {
-      "layers" : [
+      "layers": [
         {
-          "glass" : false,
-          "image-name" : "rider.svg",
-          "name" : "rider"
+          "glass": true,
+          "image-name": "after.svg",
+          "name": "after"
         }
       ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
       }
     }
   ],
-  "supported-platforms" : {
-    "squares" : "shared"
+  "supported-platforms": {
+    "squares": "shared"
   }
 }

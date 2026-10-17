@@ -108,3 +108,44 @@ The three picks share one idea: **area by counting squares.** The app measures a
 - Shelf test as before, without the side-on control.
 
 
+
+## Round 3 spec (Kah's picks: c2 domes 11/12 + c2/07 plate dim lost cells, 2026-10-17)
+
+**One family:** the dome is the rider's frontal area at 128 u cells; the figure is the same area at 32 u. One master, three resolutions; the motion moves between them. Counting cells is the app's own method (`AnalysisMath.swift:86`).
+
+**Principles (research, no marks copied):** one figure, one gesture, ≤3 colours, no outline or interior detail (NBA 1969) · symmetric contained emblem (Tokyo 64) · limbs only 0/45/90°, round separate head, fixed kit of parts (Munich 72) · diagonals look thinner: diagonal limbs 3-cell rows stepping 1/row, orthogonal limbs 2 cells (Holt) · one repeated part = the cell = the app's pixel and tap square · design at native resolution, approve each level at real size (Kare) · silhouette before detail (sprite craft) · assemble, hold, freeze; no loop (Tokyo 2020 kinetic) · a no-figure emblem needs the name beside it (Paris 24).
+
+### R3a · Cell figure + dome
+Output `tools/appicon/artifact/project/lanes/r3a/`: `master.txt` (32 lines × 32 chars: `.` off, `#` kept, `+` lost), SVGs per level, `index.json`.
+- **Master L3** (32 u, 32×32, symmetric about x=512; rows 0–31): headroom rows 0–2 · head rows 3–10, 8 wide, corners stepped 2-1, solid, nothing on top · neck gap row 11 · shoulders row 12, 12 wide (x 320–704), torso narrows 1/side every 2 rows · arms from shoulder edges at 45° only, 3-cell rows stepping out 1/row, 8 rows, reaching x≈64/960, never horizontal · bar rows 20–21, x 64–960 · hands 3×3 on the bar ends rows 19–21 · below the bar rows 22–31: two knee masses ≥4 cells flanking a 2-cell wheel column with 1-cell gaps, bleeding off the bottom; no legs or feet · **before** = same kit, head/neck/shoulders 3 rows higher, arms 3 rows longer; **lost = before − after**, only above the head and outside the shoulders.
+- Targets: kept fill 32–40% at L3, box ≥87%; no antenna, face cells, T-arms, leg columns. Gutter = module/16, min 2 u.
+- **Levels:** L1 128 u (8×8) = the dome, favicon 16 px at 2 px/cell · L2 64 u (16×16), favicon 32 px · L3 32 u (32×32) = the figure. Never below 32 u. Parent from 4 children: ≥2 kept → kept; else kept+lost ≥2 → lost; else off. ≤3 hand flips per level, logged.
+- **Dome L1:** ≥24 of 64 cells kept (~33%), kept+lost 45–55%, 7–8 columns, ≥1 row headroom, edges step exactly 1 cell/row or go straight; **no 2:1 steps** (bunker/pyramid).
+- Palettes: plate (primary) field `#173359`, kept `#FFFDF8`, lost `#F07C2B` or `#5C86BC` (retire `#2F5687`); house field `#080808`, kept `#D9F020`, lost `#E8A020` or `#333333`.
+- Gate: dome S1 = area read ("something got smaller"). Kill: 2:1 dome steps; any "never" part above.
+- Icon Composer: fill = field; layer 1 lost cells, glass off; layer 2 kept cells, glass on; no outline layer.
+
+### R3b · Resolution-ladder motion
+Output `tools/appicon/artifact/project/lanes/r3b/ladder.html`, one file, no dependencies; reads R3a's `master.txt` (placeholder: c2/07 cells until it lands).
+- L1 → L2 → L3, stop at 32 u. **Scan top to bottom, one parent row at a time** (echoes ScanReveal, `MotionViews.swift:79–110`); each refreshing cell splits into its 4 children in one step; rows not yet reached keep the old level (mixed frames are the look). Lost cells keep their colour throughout. No extra beats.
+- Timing (= `--dur-plot` 900 ms): 0 L1 full · 0–420 L1→L2, 8 rows `steps(8)` · 420–480 hold · 480–900 L2→L3, 16 rows `steps(16)` · hold on L3 for good, no loop.
+- Engine: rAF; `transitions=[{at:0,dur:420,from:1,to:2,rows:8},{at:480,dur:420,from:2,to:3,rows:16}]`; rows `[0,done)` at `to`, rest at `from`; SVG rects on a 1024 viewBox.
+- Controls, all visible: play/replay, scrub 0–900 ms with current row, speed 0.25×/1×, L1/L2/L3 buttons, palette plate/house, lost signal/quiet/off, reduce-motion toggle, live previews at 1024/180/64/40/16.
+- Surfaces: home icon static (L1) · **first-run WelcomeView** = main home (mark at 120 pt, ladder once, then wordmark `cascadeIn(0)`; SwiftUI `Canvas`; never on returning launches) · App Store preview via that first-run capture (2.3.4) · landing hero **no** (keeps the photo wipe) · methodology header optional, once · OG static (L3) · favicon 16 = L1, 32 = L2.
+- Reduce Motion: L3 at once; web 200 ms opacity fade; app `Theme.Motion.entrance(base)`.
+
+**Open for Kah:** which frame is the icon (rec. L1 dome; motion reads "the icon resolves into a rider") · plate lost-cell colour signal vs quiet (shelf test can settle).
+
+### R3c · Area from simple shapes (Kah, 2026-10-17)
+The area idea built only from **rectangles and pentagons** (plus at most a circle-free wheel rectangle) — no curves, no cells. Two families: (1) **constructed rider area**: helmet/torso as pentagons, bar/arms/wheel as rectangles, a handful of primitives (≤7) whose union is the head-on frontal area; before/after = the upright and tuck constructions, lost area in the lost colour; (2) **pure area**: refine `d/01` (pentagon shrinking inside its before-outline) and try rectangle-only versions — no figure. Same palettes, kept/lost language, gate and Aicher angle rule (edges at 0/45/90° where possible; pentagon apex angles exempt) as R3a. Output `tools/appicon/artifact/project/lanes/r3c/`.
+
+## Round 3 (results, 2026-10-17)
+
+- **R3a:** dome `r3a/L1-plate-signal` 11/12 — strongest icon so far; holds at 16 px. L1 is hand-drawn (the parent rule gives an up-arrow), so the ladder shows head/knees appearing as the scan passes. L3 figure 9/12 reads as rocket/robot; it is the motion's end frame, not a mark. Plate lost: signal `#F07C2B` beats quiet (fades <40 px). `house-333` retired.
+- **R3b:** ladder prototype `lanes/r3b/ladder.html`, published https://claude.ai/artifact/JATwrxYNxUtRZaSmseUgtE. rAF does not run in the Browser pane: verify motion with `?t=` frames or a real browser.
+- **R3c:** pentagon shrink `r3c/01` 11/12 is the no-figure fallback (needs the name beside it). Built rider ≤8/12: lost pieces read as clothing; closed as reference. 0/45/90 pentagons read as file/house/badge icons.
+- **Open for Kah:** icon = dome (rec.) or pentagon; figure stays motion-only.
+
+## Icon chosen (Kah, 2026-10-17)
+
+`lanes/r4/06`: house palette on `#080808`; amber 3:4 rectangle (the app's portrait capture aspect, 672×896, bleeding off the bottom) with an acid rectangle ×0.68 anchored to the lower centre. Installed as `tools/appicon/appicon.svg` → `icon-1024.png` via `make.sh`; `AppIcon.icon` layers are `before.svg` (glass off) and `after.svg` (glass on). Not yet checked in Icon Composer or on device. Site/store copy pass (Part 3) still to do.

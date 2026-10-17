@@ -1,0 +1,66 @@
+{
+ "name": "R3c · Area from simple shapes",
+ "premise": "The area idea from rectangles and pentagons only: a rider area constructed from 6 primitives with its upright before in the lost colour, and pure before/after area with no figure.",
+ "items": [
+  {
+   "file": "01.svg",
+   "title": "Pentagon shrinks, plate",
+   "note": "S1 S2 S3 S4 S6 S7 2/2/1/2/2/2 = 11/12, S5 0 (no tolerance device); kept 28.4%, lost 23.4%. Family 2. d/01 refined: filled orange before-pentagon, paper after-pentagon scaled 0.74 about its lower-left vertex; fill up from 21%. Plainest 'smaller' read on the shelf, no near-twin. Could be any app: no rider or bike read, needs the name beside it. Edges are freeform, not 0/45/90."
+  },
+  {
+   "file": "02.svg",
+   "title": "Pentagon shrinks, house",
+   "note": "S1 S2 S3 S4 S6 S7 2/2/1/1/2/2 = 10/12, S5 0 (no tolerance device); kept 28.4%, lost 23.4%. Family 2. Same in acid/amber on black. Acid on black brushes the Apple Measure palette; acid and amber close in greyscale but still split."
+  },
+  {
+   "file": "03.svg",
+   "title": "Rectangle shrinks to corner",
+   "note": "S1 S2 S3 S4 S6 S7 2/2/1/1/2/1 = 9/12, S5 0 (no tolerance device); kept 25.0%, lost 36.0%. Family 2, rectangles only. Strongest smaller read, but generic app geometry: reads as resize/crop/window. Gate pass on paper only."
+  },
+  {
+   "file": "04.svg",
+   "title": "Constructed rider, plate",
+   "note": "S1 S2 S3 S4 S6 S7 1/1/1/2/2/1 = 8/12, S5 0 (no tolerance device); kept 28.3%, lost 5.6%. Family 1, 6 primitives: head rect, torso pentagon (flat shoulders, 45 deg V hidden by the bar), two 45 deg arm rects landing inside the bar, bar, wheel stub. Before kit = head + torso 112 u higher. Rider-at-the-bar reads at 64; at 40 it turns pylon/pagoda. The orange cap reads as a hat before it reads as lost area."
+  },
+  {
+   "file": "05.svg",
+   "title": "Constructed rider, quiet lost",
+   "note": "S1 S2 S3 S4 S6 S7 1/1/1/2/2/1 = 8/12, S5 0 (no tolerance device); kept 28.3%, lost 5.6%. Family 1 with lost #5C86BC. Cap reads less like a hat, but the lost signal nearly disappears at 40."
+  },
+  {
+   "file": "06.svg",
+   "title": "Pentagon helmet rider",
+   "note": "S1 S2 S3 S4 S6 S7 1/1/1/2/2/1 = 8/12, S5 0 (no tolerance device); kept 27.1%, lost 6.7%. Family 1 with a pentagon helmet (flat top, chin point). Uses the pentagon where the brief asked; at 64 the chin point reads as a beak or pencil tip."
+  },
+  {
+   "file": "07.svg",
+   "title": "Constructed rider, full length",
+   "note": "S1 S2 S3 S4 S6 S7 1/1/1/2/2/1 = 8/12, S5 0 (no tolerance device); kept 21.5%, lost 4.1%. Family 1 at 0.86 scale with headroom. Below fill target; more air, less presence than the bust."
+  },
+  {
+   "file": "08.svg",
+   "title": "Head and shoulders blocks",
+   "note": "S1 S2 S3 S4 S6 S7 1/2/1/1/2/1 = 8/12, S5 0 (no tolerance device); kept 33.8%, lost 17.5%. Two rects kept inside two rects lost: the R3a dome idea in two blocks. Only candidate inside the 32-40% kept target, but it reads as a bottle or jar."
+  },
+  {
+   "file": "09.svg",
+   "title": "Constructed rider, house",
+   "note": "S1 S2 S3 S4 S6 S7 1/1/1/1/2/1 = 7/12, S5 0 (no tolerance device); kept 28.3%, lost 5.6%. Family 1 in acid/amber. On black it reads as a Christmas tree or pylon."
+  },
+  {
+   "file": "10.svg",
+   "title": "Constructed rider, house 333",
+   "note": "S1 S2 S3 S4 S6 S7 1/0/1/1/2/1 = 7/12, S5 0 (no tolerance device); kept 28.3%, lost 5.6%. Family 1 with #333 lost: lost cap invisible at 64, head reads as a top hat."
+  },
+  {
+   "file": "11.svg",
+   "title": "T-stack, no arms",
+   "note": "S1 S2 S3 S4 S6 S7 1/1/1/1/2/1 = 7/12, S5 0 (no tolerance device); kept 25.7%, lost 6.3%. 4 rects: head, torso, bar, wheel. Reads as a lamp or hydrant."
+  },
+  {
+   "file": "12.svg",
+   "title": "Shield pentagon shrinks",
+   "note": "S1 S2 S3 S4 S6 S7 0/2/1/1/2/1 = 7/12, S5 0 (no tolerance device); kept 22.7%, lost 25.4%. Apex-down pentagon pair. Reads as a badge or security app."
+  }
+ ]
+}

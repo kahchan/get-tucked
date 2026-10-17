@@ -1,0 +1,66 @@
+{
+ "name": "B2 · Grid",
+ "premise": "R2b: the a2 pair on a drafting grid. The before is no longer an outline over the head: either a shoulders-and-arms frame, or a solid upright ghost behind a smaller tuck. House palette (grid #161616/#262626 on #080808) and plate palette (grid #2F5687 on #173359). Grid pitch 64 u = 4 px at 64, lines 8 u, offset so each line sits inside one pixel; no moire at 64 or 40.",
+ "items": [
+  {
+   "file": "01.svg",
+   "title": "Bust, amber shoulder frame, no head loop",
+   "note": "S1 2 S2 1 S3 2 S4 2 S6 2 S7 2 = 11/12 pass; S5 1. Fill 24.6%. Best 64 and 40 px read. The frame is a 48 u band, 24 u gap, over shoulders, arms and bar ends only; nothing loops the head, so no shackle or headphones. Upright is 1.125x the tuck. Grid 64 u, major 256 u."
+  },
+  {
+   "file": "02.svg",
+   "title": "Bust, amber upright ghost behind smaller tuck",
+   "note": "S1 2 S2 2 S3 1 S4 2 S6 2 S7 2 = 11/12 pass; S5 0. Fill 26.9%. The before is a solid amber upright behind a smaller tuck: head ball above, shoulders and bar ends flank. Clearest shrink read; the ball head is odd and the blur merges it into one blob. Grid sits under the ghost, so no plaid."
+  },
+  {
+   "file": "03.svg",
+   "title": "Plate bust, orange shoulder frame",
+   "note": "S1 2 S2 1 S3 2 S4 2 S6 2 S7 2 = 11/12 pass; S5 1. Fill 24.6%. Plate palette: orange frame on blueprint, paper tuck. Orange holds up under greyscale and blur better than #5C86BC. Strongest shelf contrast of the plate set."
+  },
+  {
+   "file": "04.svg",
+   "title": "Plate bust, orange ghost",
+   "note": "S1 2 S2 2 S3 1 S4 2 S6 2 S7 2 = 11/12 pass; S5 0. Fill 26.9%. Plate palette: orange solid ghost, paper tuck, 64 u grid. Pops beside the shelf orange icons; reads as a before and after."
+  },
+  {
+   "file": "05.svg",
+   "title": "Bust, amber shoulder frame, coarse 128 u grid",
+   "note": "S1 2 S2 1 S3 2 S4 2 S6 2 S7 1 = 10/12 pass; S5 1. Fill 24.6%. As 01 with a coarse 128 u grid (8 px at 64, 5 px at 40) and no major lines. Calmest field, least drafting feel; 01 wins on S7."
+  },
+  {
+   "file": "06.svg",
+   "title": "Plate bust, blue ghost",
+   "note": "S1 2 S2 2 S3 1 S4 1 S6 2 S7 2 = 10/12 pass; S5 0. Fill 26.9%. Plate palette: #5C86BC ghost. Blue on blue loses contrast under blur; the orange ghost (04) is stronger."
+  },
+  {
+   "file": "07.svg",
+   "title": "Full, amber ghost",
+   "note": "S1 2 S2 2 S3 1 S4 1 S6 2 S7 2 = 10/12 pass; S5 0. Fill 22.9%. Full crop of 02. Whole rider with pedalling legs reads clearly, but fill is 23% and the field feels empty."
+  },
+  {
+   "file": "08.svg",
+   "title": "Plate bust, blue shoulder frame",
+   "note": "S1 2 S2 1 S3 1 S4 1 S6 2 S7 2 = 9/12 pass; S5 1. Fill 24.5%. Plate palette: #5C86BC frame. The frame fades under blur and the grey render, hairline-weak against the grid; orange (03) is the safer plate colour."
+  },
+  {
+   "file": "09.svg",
+   "title": "Full, amber shoulder frame",
+   "note": "S1 2 S2 1 S3 1 S4 1 S6 2 S7 2 = 9/12 pass; S5 1. Fill 22.2%. Full crop of 01. Fill 22%. Frame reads, rider is smaller than in the bust."
+  },
+  {
+   "file": "10.svg",
+   "title": "Bust, upright drawn as lit grid",
+   "note": "S1 2 S2 1 S3 1 S4 1 S6 2 S7 2 = 9/12 pass; S5 0. Fill 26.8%. The upright as lit graph paper: dim amber area with amber grid lines inside it. Best 1024 detail, noisy at 64, so S3 and S4 drop to 1."
+  },
+  {
+   "file": "11.svg",
+   "title": "Plate full, blue ghost",
+   "note": "S1 2 S2 2 S3 1 S4 1 S6 2 S7 1 = 9/12 pass; S5 0. Fill 22.8%. Plate palette full crop with #5C86BC ghost. Fill 23%, low contrast ghost."
+  },
+  {
+   "file": "12.svg",
+   "title": "Bust, ghost snapped to the 64 u cells",
+   "note": "S1 2 S2 1 S3 1 S4 2 S6 2 S7 1 = 9/12 pass; S5 0. Fill 25.4%. Ghost snapped to whole 64 u grid cells (counted area). Stepped head reads as a tower of blocks, so S2 and S7 drop. Overlaps R2c; kept as the dim-cells option from the brief."
+  }
+ ]
+}

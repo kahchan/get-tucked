@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round 2 counted cells</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">ROUND 2C · AREA BY COUNTING SQUARES</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Counted cells</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 520px; line-height: 1.5">The tuck as filled grid cells (a cell counts if half covered), the upright as a stepped cell ring or as the cells you lose by tucking. The two domes are the no-figure fallback.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+    <sc-for list="{{finals}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: flex-end; gap: 16px">
+          <img src="{{f.src}}" alt="{{f.title}}" style="width: 240px; height: 240px; border-radius: 22.37%; display: block">
+          <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+            <img src="{{f.src}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #262626; padding-top: 8px"><b>{{f.title}}</b><span style="color: #D9F020">{{f.score}}</span></div>
+        <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">{{f.note}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">ALL CANDIDATES · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 18px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="9">
+        <div style="width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+          <span style="font-size: 10px; color: #8A8A8A">{{r.score}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      finals: [
+        { src: '/_blob/a4a7f4001d4e701cf94b4032f01c9022', title: 'Stepped ring + lost cells', score: '10/12 · fill 29%', note: 'Amber stepped ring round the upright, dim cells where the tuck gave area back. The ring melts under blur.' },
+        { src: '/_blob/de2c75e44bbc4bc9fe24aa9f41b412ad', title: 'Big cells (4 px)', score: '10/12 · fill 28%', note: 'Cleanest 64 px read: each cell is 4 whole pixels. The ring bulge over the head risks an up-arrow.' },
+        { src: '/_blob/b4a46af549995d5deba316ca448f960f', title: 'Plate, stepped ring', score: '10/12 · fill 26%', note: 'Studio palette: paper cells, orange ring on navy.' }
+      ],
+      rest: [
+        { src: '/_blob/739d6dba9e2153c84cb88111b95ac92b', title: 'Stepped ring only', score: '9' },
+        { src: '/_blob/139f684e2f6df003809b90f824293656', title: 'Dome, amber lost (no figure)', score: '10' },
+        { src: '/_blob/8813c175e6ac96e91b7f93d03e7fa9c2', title: 'Dome, dim lost (no figure)', score: '10' },
+        { src: '/_blob/28e034e910c30b61d2e5e4a5136744ab', title: 'Plate, dim lost cells', score: '10' },
+        { src: '/_blob/3aaf47d580ad7ebf86635dd05c9b0806', title: 'Ring in #333', score: '9' },
+        { src: '/_blob/d3db5e1798489c7558cd8b704352b21a', title: 'Dim lost cells only', score: '9' },
+        { src: '/_blob/6434a273e34dfafeb27fababc908ddd7', title: 'Amber lost cells', score: '8 · killed' },
+        { src: '/_blob/dc3322b0521e5a24ad5f91361a7da76f', title: 'Hollow lost cells', score: '8 · killed' },
+        { src: '/_blob/45259a0366b27ee70a613ca2170287be', title: 'Full, small cells', score: '7 · killed' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

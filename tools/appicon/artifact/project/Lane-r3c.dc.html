@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round 3 simple shapes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">ROUND 3C · RECTANGLES AND PENTAGONS ONLY</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Simple shapes</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 520px; line-height: 1.5">The area idea with no curves and no cells. Pure area: a shape shrinking inside its own before-area. Built rider: six primitives, the before kit sitting higher. Each primitive is named, so it can move on its own.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+    <sc-for list="{{finals}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: flex-end; gap: 16px">
+          <img src="{{f.src}}" alt="{{f.title}}" style="width: 240px; height: 240px; border-radius: 22.37%; display: block">
+          <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+            <img src="{{f.src}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #262626; padding-top: 8px"><b>{{f.title}}</b><span style="color: #D9F020">{{f.score}}</span></div>
+        <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">{{f.note}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">ALL CANDIDATES · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 18px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="9">
+        <div style="width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+          <span style="font-size: 10px; color: #8A8A8A">{{r.score}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      finals: [
+        { src: '/_blob/9573d8014f7c0622093af22ff5bb2664', title: 'Pentagon shrinks, plate', score: '11/12', note: 'Plainest "smaller" read on the shelf, cleaner than the dome at 40 px. Nothing in it says rider or bike.' },
+        { src: '/_blob/89a2a98fc863cb503d2a7327a588a60c', title: 'Pentagon shrinks, house', score: '10/12', note: 'Same shape in acid and amber. Close to the Apple Measure palette.' },
+        { src: '/_blob/a1ecf2aad598fb79ac4d03a3d827e448', title: 'Built rider, plate', score: '8/12 · below gate', note: 'Six primitives. A rider at the bars at 64 px; a pylon at 40 px. The orange cap reads as a hat before it reads as lost area.' }
+      ],
+      rest: [
+        { src: '/_blob/2717394528e4ed1f82c79df3ede4faa6', title: 'Rectangle to corner', score: '9' },
+        { src: '/_blob/4a5ab785e6fbadc9119dccff5dcf6b30', title: 'Built rider, quiet', score: '8' },
+        { src: '/_blob/d7a9f25ad97dec7d4fdf540cc00f23c0', title: 'Pentagon helmet rider', score: '8' },
+        { src: '/_blob/13e36ae560adfbf1ed02bf0b413a8efa', title: 'Built rider, full', score: '8' },
+        { src: '/_blob/769d15b7f914673b96bc57b6f6da7189', title: 'Head and shoulder blocks', score: '8' },
+        { src: '/_blob/9892aff4fed5b12ca6ebd5104ed8302b', title: 'Built rider, house', score: '7' },
+        { src: '/_blob/4fde5ca8ad3665f4e29c3efb98b40d9e', title: 'Built rider, #333', score: '7' },
+        { src: '/_blob/77f45f4f138411cf01578723f8a82301', title: 'T-stack, no arms', score: '7' },
+        { src: '/_blob/0cc1d43e3e6b826f2b152e885eb09a90', title: 'Shield shrinks', score: '7' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
