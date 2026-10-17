@@ -8,7 +8,13 @@
 <meta property="og:title" content="How the number is made · Get Tucked" />
 <meta property="og:description" content="What we measure, how we measure it, and what we deliberately don't claim." />
 <meta property="og:type" content="article" />
+<meta property="og:url" content="https://kahchan.github.io/get-tucked/methodology.html" />
+<meta property="og:image" content="https://kahchan.github.io/get-tucked/og-hero.png" />
 
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preload" as="font" type="font/woff2" href="fonts/barlow-condensed-700.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-mono-400.woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
@@ -30,7 +36,7 @@ setTimeout(function () {
 <body>
 
 <div class="topbar">
-  <a class="brand" href="index.html">Get <b>Tucked</b></a>
+  <a class="brand" href="index.html"><img class="mark" src="favicon.svg" width="20" height="20" alt="">Get <b>Tucked</b></a>
   <a class="top-cta" href="#" aria-label="Download on the App Store">
     <img class="badge" src="appstore-badge-black.svg" width="120" height="40" alt="Download on the App Store">
   </a>
@@ -113,6 +119,7 @@ setTimeout(function () {
       <div data-term="g" tabindex="0"><dt>g</dt><dd>gravity</dd></div>
     </dl>
     <a class="formula-link" href="index.html#sowhat">See it on the slider →</a>
+    <p class="caption fig-cap"><b>FIG. 01 ·</b> Power equation. Frontal area is the one term the app measures.</p>
   </div>
 
   <!-- 3. Scale chain -->
@@ -203,8 +210,8 @@ setTimeout(function () {
     <h2>The measurement floor</h2>
     <p>
       No measurement is exact, and a tool that hides its own error is lying to you. So every
-      reading in Get Tucked carries a <strong>±3% margin</strong>. When you compare two setups,
-      we combine both readings' margins and check whether the difference between them is bigger
+      reading in Get Tucked carries an error bar of <strong>at least ±3%</strong>, wider when a live shot's three frames disagree. When you compare two setups,
+      we combine both readings' error bars and check whether the difference between them is bigger
       than that combined floor. If it isn't, we tell you the two are
       <strong>indistinguishable</strong>, not "1.8% better." A difference smaller than the noise
       is not a result; it's noise.
@@ -216,19 +223,21 @@ setTimeout(function () {
     </p>
 
     <details>
-      <summary>The maths behind the shrug</summary>
+      <summary>The maths behind the floor</summary>
       <div class="disc-body">
         <p>
-          The ±3% is a fixed, conservative margin applied to every computed area. It
+          The ±3% is a fixed, conservative minimum applied to every computed area. It
           stands in for the combined jitter of segmentation and scale, the two largest error
-          sources in a photo measurement. It is a model, not a per-photo error bar, and we'd
-          rather it erred toward caution than toward flattering a difference.
+          sources in a photo measurement. A live shot takes three frames; when their spread is
+          wider than 3%, the spread is the error bar, and it never goes below 3%. The floor is a
+          model, not a per-photo measurement, and we'd rather it erred toward caution than toward
+          flattering a difference.
         </p>
         <p>
-          For a comparison of two areas <em>A</em> and <em>B</em>, the two margins combine in
+          For a comparison of two areas <em>A</em> and <em>B</em>, the two error bars combine in
           quadrature, <code>√(u_A² + u_B²)</code>, the standard rule for independent errors, not
           simple addition. A difference <code>|A − B|</code> is reported as real only when it
-          exceeds that combined floor; for two similar areas the floor works out to roughly ±4% of
+          exceeds that combined floor; for two similar areas the floor is never less than about ±4.2% of
           the reading. Everything below it is shown as <em>indistinguishable</em>, and the
           comparison screen states the floor it used, so you're never asked to take the verdict on
           trust.
@@ -290,7 +299,7 @@ setTimeout(function () {
     <p>Honest answers to the questions people ask.</p>
 
     <details>
-      <summary class="fun">🙂 &nbsp;Wait, why is it called Get Tucked?</summary>
+      <summary class="fun">Wait, why is it called Get Tucked?</summary>
       <div class="disc-body">
         <p>
           Because "measure your frontal area, informed by a defensible planar projection" doesn't
@@ -302,7 +311,7 @@ setTimeout(function () {
     </details>
 
     <details>
-      <summary class="fun">🙂 &nbsp;Will this make me faster?</summary>
+      <summary class="fun">Will this make me faster?</summary>
       <div class="disc-body">
         <p>
           No. It's a tape measure, not a coach. It tells you what your position and your luggage
@@ -313,7 +322,7 @@ setTimeout(function () {
     </details>
 
     <details>
-      <summary class="fun">🙂 &nbsp;Can I measure Fabio's Chest?</summary>
+      <summary class="fun">Can I measure Fabio's Chest?</summary>
       <div class="disc-body">
         <p>
           You can measure anything you can strap to a bike, and yes, we checked. The honest,
@@ -373,7 +382,7 @@ setTimeout(function () {
     <div>
       <p class="dads">Made by Imprecisely Accurate Instruments, in Wellington, New Zealand.</p>
       <p>gettucked.app@gmail.com · <a href="index.html">Home</a> · <a href="privacy.html">Privacy</a> · <a href="support.html">Support</a></p>
-      <p>© 2026 Get Tucked. Everything on-device. No accounts, no analytics.</p>
+      <p>© 2026 Kah Chan. Everything on-device. No accounts, no analytics.</p>
     </div>
     <div class="footer-mark" aria-hidden="true">
       <svg class="seal" viewBox="0 0 64 64" role="img"><g fill="none" stroke="currentColor" stroke-linecap="butt"><circle cx="32" cy="32" r="31.1" stroke-width="0.85"></circle><circle cx="32" cy="32" r="27.2" stroke-width="0.75" opacity="0.45"></circle><path d="M32 0.9v5.7M32 56.9v5.7M0.9 32h5.7M56.9 32h5.7" stroke-width="0.75" opacity="0.55"></path><g transform="translate(19.55 22.9) scale(1.596)" stroke-width="1.7"><path d="M0 3 C2.6 -0.6 5.2 -0.6 7.8 3 C10.4 6.6 13 6.6 15.6 3"></path><path d="M0 8.4 C2.6 4.8 5.2 4.8 7.8 8.4 C10.4 12 13 12 15.6 8.4"></path></g></g></svg>

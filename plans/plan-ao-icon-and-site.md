@@ -154,3 +154,8 @@ The area idea built only from **rectangles and pentagons** (plus at most a circl
 
 `lanes/r7/01`: two regular pentagons on a flat base, sheared to lean left (amber upright ×1, shear .18; acid tuck ×0.78, sy .86, shear .40) sharing the rear-base vertex (859,938), on the 2b grid (64 u `#161616` / 256 u `#262626`) over `#080808`. Installed via `tools/appicon/make.sh`; `AppIcon.icon` groups: grid (glass off, no shadow) · upright (glass off, solid) · tuck (glass on, translucency off).
 **Motion B** (canvas board "Round 7"): tuck = upright × `matrix(.78,0,.1279,.6708)` about the rear-base vertex. Hold upright → lift (scale 1.07 about that vertex, acid 62% opacity) → fold while lifted → land flush and solid; 420 ms ease (.2,.6,.2,1); base and rear point never move; no loop; reduce-motion = end state. Surfaces: first-run WelcomeView, App Store preview opening, methodology header. Not yet checked in Icon Composer or on device.
+
+## Part 3 done (2026-10-17)
+
+`docs/` index + methodology copy, FIG/TABLE captions with the 1 px rule, favicons, topbar mark on all four pages, `docs/og-hero.png` (source + `render.sh` in `docs/og/`), absolute og:image/og:url on GitHub Pages. Not done: scale-chain figure (only a text placeholder exists), Tailfin cite.
+Floor numbers: TABLE 1's 4.2% (and the shot-01 ±167) are the 3%-floor minimums; read the real values off the device verdict before launch.

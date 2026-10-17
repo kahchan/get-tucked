@@ -9,9 +9,14 @@
 <meta property="og:description" content="Frontal area, in cm², from one photo. It tells you when a difference is too small to trust." />
 <meta property="og:type" content="website" />
 
-<meta property="og:image" content="og-hero.png" />
+<meta property="og:image" content="https://kahchan.github.io/get-tucked/og-hero.png" />
+<meta property="og:url" content="https://kahchan.github.io/get-tucked/" />
 <meta name="twitter:card" content="summary_large_image" />
 
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preload" as="font" type="font/woff2" href="fonts/barlow-condensed-700.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-mono-700.woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
@@ -33,7 +38,7 @@ setTimeout(function () {
 <body>
 
 <div class="topbar">
-  <div class="brand">Get <b>Tucked</b></div>
+  <div class="brand"><img class="mark" src="favicon.svg" width="20" height="20" alt="">Get <b>Tucked</b></div>
   <a class="top-cta" href="#" aria-label="Download on the App Store">
     <img class="badge" src="appstore-badge-black.svg" width="120" height="40" alt="Download on the App Store">
   </a>
@@ -103,7 +108,7 @@ setTimeout(function () {
       </div>
 
       <div class="cap-row">
-        <div class="caption">One photo. Rider, bike and bags isolated, ready to measure.</div>
+        <div class="caption fig-cap"><b>FIG. 01 ·</b> Declan head-on, fully loaded. The app cut out rider, bike and bags.</div>
       </div>
     </div>
   </section>
@@ -186,7 +191,7 @@ setTimeout(function () {
             </g>
           </svg>
         </div>
-        <figcaption class="shot-cap"><b>01</b> Upright.</figcaption>
+        <figcaption class="shot-cap fig-cap"><b>FIG. 02 ·</b> Upright.</figcaption>
       </figure>
       <figure class="shot">
         <div class="pose-frame">
@@ -246,7 +251,7 @@ setTimeout(function () {
             </g>
           </svg>
         </div>
-        <figcaption class="shot-cap"><b>02</b> Tucked.</figcaption>
+        <figcaption class="shot-cap fig-cap"><b>FIG. 03 ·</b> Tucked.</figcaption>
       </figure>
     </div>
   </section>
@@ -335,20 +340,21 @@ setTimeout(function () {
     <div class="sec-label">The measurement floor</div>
     <h2>A difference smaller than the noise isn't a result.</h2>
     <p class="body">
-      Every reading carries a <strong>±3% margin</strong>, and the app checks every comparison
-      against it. If two setups differ by less than that floor, the app says
+      Every reading carries an error bar of <strong>at least ±3%</strong>, wider when a live
+      shot's three frames disagree. The app checks every comparison against the combined error of
+      both readings. If two setups differ by less than that floor, the app says
       <strong>indistinguishable</strong>, not “1.8% better.”
     </p>
 
     <div class="floor" role="table" aria-label="Comparison verdict">
-      <div class="row"><span>fork bags OFF → ON</span><span class="v">difference&nbsp;&nbsp;1.8&nbsp;%</span></div>
-      <div class="row"><span>measurement floor</span><span class="v">±&nbsp;&nbsp;4.2&nbsp;%</span></div>
+      <div class="row"><span>tall → tucked</span><span class="v">difference&nbsp;&nbsp;1.3&nbsp;%</span></div>
+      <div class="row"><span>combined floor (two readings)</span><span class="v">±&nbsp;&nbsp;4.2&nbsp;%</span></div>
       <div class="verdict">
         <span class="label">verdict</span>
         <span class="val">INDISTINGUISHABLE</span>
       </div>
     </div>
-    <div class="floor-cap">A difference smaller than the noise isn't a result. It's noise.</div>
+    <div class="floor-cap fig-cap"><b>TABLE 1 ·</b> Paul's bike, tall vs tucked.</div>
   </section>
 
   <!-- ============ FAQ (objections) ============ -->
@@ -370,7 +376,7 @@ setTimeout(function () {
       <div class="qa">
         <h3>Is there an Android version?</h3>
         <p>No. Get Tucked is native iOS. The segmentation runs on Apple's on-device vision, so
-          nothing ever leaves your phone. No Android today.</p>
+          nothing ever leaves your phone.</p>
       </div>
       <div class="qa">
         <h3>Do I need a wind tunnel?</h3>
@@ -379,8 +385,8 @@ setTimeout(function () {
       </div>
       <div class="qa">
         <h3>How accurate is it?</h3>
-        <p>Every reading carries a ±3% margin, and the app tells you when a difference is smaller
-          than that. It answers “did this change anything?” better than “what's my exact number?”
+        <p>Every reading carries an error bar of at least ±3%, and the app tells you when a difference is smaller
+          than the combined error of both readings. It answers “did this change anything?” better than “what's my exact number?”
           <a href="methodology.html">Read the method</a>.</p>
       </div>
       <div class="qa">
@@ -422,8 +428,8 @@ setTimeout(function () {
   <div class="wrap footer-inner">
     <div>
       <p class="dads">Made by Imprecisely Accurate Instruments, in Wellington, New Zealand.</p>
-      <p>gettucked.app@gmail.com · Press kit → · <a href="privacy.html">Privacy</a> · <a href="support.html">Support</a></p>
-      <p>© 2026 Get Tucked. Everything on-device. No accounts, no analytics.</p>
+      <p>gettucked.app@gmail.com · <a href="privacy.html">Privacy</a> · <a href="support.html">Support</a></p>
+      <p>© 2026 Kah Chan. Everything on-device. No accounts, no analytics.</p>
     </div>
     <div class="footer-mark" aria-hidden="true">
       <svg class="seal" viewBox="0 0 64 64" role="img"><g fill="none" stroke="currentColor" stroke-linecap="butt"><circle cx="32" cy="32" r="31.1" stroke-width="0.85"></circle><circle cx="32" cy="32" r="27.2" stroke-width="0.75" opacity="0.45"></circle><path d="M32 0.9v5.7M32 56.9v5.7M0.9 32h5.7M56.9 32h5.7" stroke-width="0.75" opacity="0.55"></path><g transform="translate(19.55 22.9) scale(1.596)" stroke-width="1.7"><path d="M0 3 C2.6 -0.6 5.2 -0.6 7.8 3 C10.4 6.6 13 6.6 15.6 3"></path><path d="M0 8.4 C2.6 4.8 5.2 4.8 7.8 8.4 C10.4 12 13 12 15.6 8.4"></path></g></g></svg>

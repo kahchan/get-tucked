@@ -78,6 +78,7 @@ a:hover{text-decoration:underline; text-underline-offset:3px}
   border-bottom:1px solid var(--line2);
 }
 .brand{
+  display:inline-flex; align-items:center; gap:8px;
   font-family:var(--head); font-weight:700; font-size:22px;
   letter-spacing:-0.4px; text-transform:uppercase; color:var(--fg);
 }
@@ -343,7 +344,18 @@ p.body em{color:var(--fg); font-style:italic}
   font-family:var(--mono); font-size:13px; color:var(--fg2);
   margin-top:14px; line-height:1.5;
 }
-.shot-cap b{color:var(--acc); margin-right:8px; font-weight:700}
+.shot-cap b, .fig-cap b{color:var(--acc); margin-right:8px; font-weight:700}
+
+/* FIG/TABLE captions: a 1 px rule draws left to right when the caption's section enters (.in);
+   the hero caption has no .in ancestor, so it draws after the wipe lands. */
+.fig-cap::before{
+  content:""; display:block; height:1px; background:var(--line); margin-bottom:10px;
+  transform-origin:left;
+}
+.js .fig-cap::before{transform:scaleX(0)}
+.js .in .fig-cap::before{transform:scaleX(1); transition:transform .42s cubic-bezier(.2,.6,.2,1) .2s}
+.js .hero .fig-cap::before{animation:rule .42s cubic-bezier(.2,.6,.2,1) .9s forwards}
+@keyframes rule{ to{ transform:scaleX(1) } }
 
 /* ---------- FAQ (objections) ---------- */
 .faq{
@@ -708,6 +720,7 @@ details .figure-note{
     opacity:1; transform:none; transition:none}
   .js section.block::before, .js .doc > section::before{transform:scaleX(1); transition:none}
   details::details-content{transition:none}  /* snap open, no height slide */
+  .js .fig-cap::before{transform:scaleX(1) !important; transition:none !important; animation:none !important}
 }
 @media print{
   details{open:true}
