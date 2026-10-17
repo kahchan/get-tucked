@@ -4,17 +4,21 @@
   },
   "groups": [
     {
-      "name": "grid",
+      "name": "tuck",
       "layers": [
         {
-          "glass": false,
-          "image-name": "grid.svg",
-          "name": "grid"
+          "glass": true,
+          "image-name": "after.svg",
+          "name": "after"
         }
       ],
       "shadow": {
-        "kind": "none",
-        "opacity": 0
+        "kind": "neutral",
+        "opacity": 0.3
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
       }
     },
     {
@@ -32,21 +36,17 @@
       }
     },
     {
-      "name": "tuck",
+      "name": "grid",
       "layers": [
         {
-          "glass": true,
-          "image-name": "after.svg",
-          "name": "after"
+          "glass": false,
+          "image-name": "grid.svg",
+          "name": "grid"
         }
       ],
       "shadow": {
-        "kind": "neutral",
-        "opacity": 0.3
-      },
-      "translucency": {
-        "enabled": false,
-        "value": 0
+        "kind": "none",
+        "opacity": 0
       }
     }
   ],
