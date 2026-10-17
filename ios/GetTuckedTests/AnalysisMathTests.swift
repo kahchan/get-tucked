@@ -156,6 +156,12 @@ final class AnalysisMathTests: XCTestCase {
         )
     }
 
+    func testMeasuredFractionNeverBelowFloor() {
+        XCTAssertEqual(
+            AnalysisMath.uncertaintyCm2(areaCm2: 400, measuredFraction: 0.004), 12, accuracy: acc
+        )
+    }
+
     // MARK: - Burst capture (AL10)
 
     func testMedianOfThreeValues() {

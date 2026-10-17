@@ -213,7 +213,7 @@ private struct NoiseFloorNote: View {
                 .kerning(1.2)
             // Plan AB9: varied off the "X, not Y" negation used elsewhere.
             Text(
-                "Every reading carries a ±\(Int(AnalysisMath.uncertaintyFraction * 100))% margin, so " +
+                "Every reading carries at least a ±\(Int(AnalysisMath.uncertaintyFraction * 100))% margin, so " +
                 "re-shoot the same position to tell a real change from ordinary noise."
             )
             .font(Theme.mono(12))

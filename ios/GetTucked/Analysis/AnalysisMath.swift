@@ -164,7 +164,8 @@ enum AnalysisMath {
     /// `measuredFraction` is the seam for a measured noise floor (AL10),
     /// falls back to the fixed placeholder when absent.
     static func uncertaintyCm2(areaCm2: Double, measuredFraction: Double? = nil) -> Double {
-        areaCm2 * (measuredFraction ?? uncertaintyFraction)
+        // Three burst shots can agree by luck; never claim tighter than the fixed floor.
+        areaCm2 * max(measuredFraction ?? uncertaintyFraction, uncertaintyFraction)
     }
 
     // MARK: - Burst capture (AL10, §7/§9)
