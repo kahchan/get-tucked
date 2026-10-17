@@ -204,7 +204,7 @@ struct LiveCameraView: View {
                         .font(Theme.mono(12, weight: .bold))
                         .foregroundStyle(Theme.Palette.fg2)
                         .kerning(0.5)
-                        .hudText()
+                        .hudPlate()
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, Theme.Space.sm)
@@ -245,7 +245,7 @@ struct LiveCameraView: View {
             .font(Theme.mono(12, weight: .bold))
             .foregroundStyle(Theme.Palette.amb)
             .kerning(0.5)
-            .hudText()
+            .hudPlate()
             .opacity(reason == nil ? 0 : 1)
             .animation(Theme.Motion.entrance(Theme.Motion.fast), value: reason)
             .accessibilityHidden(reason == nil)
@@ -294,7 +294,7 @@ struct LiveCameraView: View {
                         .font(Theme.mono(12, weight: .bold))
                         .foregroundStyle(Theme.Palette.fg2)
                         .kerning(0.5)
-                        .hudText()
+                        .hudPlate()
                 }
                 .buttonStyle(.plain)
             }
@@ -430,7 +430,7 @@ private struct LibraryFallbackLink: View {
                 .font(Theme.mono(12, weight: .bold))
                 .foregroundStyle(Theme.Palette.fg2)
                 .kerning(0.5)
-                .hudText()
+                .hudPlate()
         }
         .buttonStyle(.plain)
         .allowsHitTesting(!isLoading)
@@ -514,6 +514,8 @@ private struct CaptureButton: View {
     let enabled: Bool
     let action: () -> Void
 
+    @State private var readyHaptic = 0
+
     var body: some View {
         Button(action: action) {
             ZStack {
@@ -529,6 +531,13 @@ private struct CaptureButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Capture photo")
         .animation(.easeInOut(duration: 0.2), value: enabled)
+        // Level/tilt flicker while framing; only buzz once ready has held,
+        // or the phone buzzes on every flicker (Plan AP4).
+        .task(id: enabled) {
+            guard enabled, (try? await Task.sleep(for: .milliseconds(300))) != nil else { return }
+            readyHaptic += 1
+        }
+        .sensoryFeedback(.success, trigger: readyHaptic)
     }
 }
 

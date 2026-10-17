@@ -351,7 +351,7 @@ struct StatusPill: View {
         }
     }
 
-    // State today is colour + a dot alone — inaudible. Spoken form for
+    // The glyph is visual only. Spoken form for
     // VoiceOver (Plan AK9); the visible label stays just the short word.
     private var stateDescription: String {
         switch state {
@@ -363,9 +363,12 @@ struct StatusPill: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 5, height: 5)
+            // Plan AP4: a glyph, not a colour-only dot, so ready reads
+            // without colour. Two states only (Kah): ready or not.
+            Image(systemName: state == .ok ? "checkmark" : "xmark")
+                .font(.system(size: 9, weight: .heavy))
+                .foregroundStyle(dotColor)
+                .frame(width: 9, height: 9)
                 .opacity(dotOpacity)
             Text(label.uppercased())
                 .font(Theme.mono(12))

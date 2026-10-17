@@ -46,11 +46,9 @@ extension View {
     /// re-run the before/after comparison in the AK10 report rather than
     /// guessing a new offset.
     /// `edgeSwipeBack: false` drops the AK18 edge-swipe gesture while keeping
-    /// the invisible-bar styling. Required for any screen hosting a drag
-    /// gesture of its own: the edge swipe is a screen-wide
-    /// `.highPriorityGesture`, so it recognises anywhere and cancels a child
-    /// drag at 24pt of travel (AK20 — it silently killed every brush stroke
-    /// in `MaskCorrectionEditor`).
+    /// the invisible-bar styling. The edge gesture is simultaneous (Plan AP2), so
+    /// it still fires on a child drag that starts in the edge band: screens
+    /// whose own drags can start at the edge opt out.
     func hideNavBar(edgeSwipeBack: Bool = true) -> some View {
         #if canImport(UIKit)
         HideNavBarKeepingSwipe(edgeSwipeBack: edgeSwipeBack) { self }
@@ -79,6 +77,17 @@ extension View {
     func hudText() -> some View {
         shadow(color: .black.opacity(0.6), radius: 2, y: 1)
     }
+
+    /// Plan AP5: the shadow alone failed on bright scenes. Free HUD text
+    /// gets the same chip-sized plate as `StatusPill`/`BikeChip`. A blend
+    /// mode was rejected: `difference` goes grey-on-grey over mid tones and
+    /// recolours the acid/amber state colours.
+    func hudPlate() -> some View {
+        padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(Theme.Palette.bg0.opacity(0.72))
+            .hudText()
+    }
 }
 
 #if canImport(UIKit)
@@ -97,24 +106,25 @@ private struct HideNavBarKeepingSwipe<Content: View>: View {
     @ViewBuilder var content: () -> Content
     @Environment(\.dismiss) private var dismiss
 
-    /// Matches the system screen-edge-pan recognizer's own recognition zone
-    /// (AK17). No RTL handling elsewhere in this codebase, so this checks the
-    /// leading (left) edge only.
-    private static var edgeBandWidth: CGFloat { 24 }
+    /// Leading (left) edge only; no RTL handling elsewhere in this codebase.
+    /// Plan AP2: ends 1pt inside the content margin, not at the system's
+    /// 24pt, so a drag that starts on content (the speed slider at its
+    /// minimum) can't also pop the screen now the gesture is simultaneous.
+    private static var edgeBandWidth: CGFloat { Theme.Space.screenMargin - 1 }
 
     var body: some View {
         content()
             .navigationBarBackButtonHidden(true)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
-            // AK20: `including:` rather than wrapping the modifier in an `if`
-            // — a conditional modifier changes the view's identity, which
-            // would reset the @State of everything below it on any screen
-            // that ever flipped the flag. The edge test still lives in
-            // `.onEnded` (it needs the translation), so on screens that keep
-            // the swipe this gesture does still recognise screen-wide; that's
-            // tolerable there only because none of them host a child drag.
-            .highPriorityGesture(
+            // Plan AP2: `.simultaneousGesture`, not `.highPriorityGesture`.
+            // High priority recognised screen-wide and cancelled every child
+            // drag at 24pt (AK20 brush, the speed slider) and fought
+            // ScrollView pans. Simultaneous lets children keep their drags;
+            // the edge test in `.onEnded` still decides the dismiss. A
+            // strip overlay was rejected: it would eat taps on the back
+            // button under it.
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 24)
                     .onEnded { value in
                         guard value.startLocation.x <= Self.edgeBandWidth else { return }

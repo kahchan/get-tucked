@@ -134,12 +134,11 @@ struct MaskCorrectionEditor: View {
                 .padding(.bottom, Theme.Space.lg)
             }
         }
-        // AK20: `edgeSwipeBack: false` is load-bearing, not tidying. The
-        // default screen-wide edge gesture is `.highPriorityGesture`, so it
-        // recognises anywhere on screen and cancels the canvas's drag at 24pt
-        // of travel — `.onEnded` never fired and no brush stroke ever
-        // committed. Nothing is lost here: this is a `fullScreenCover` with
-        // its own CANCEL, not a pushed screen with a back destination.
+        // AK20/AP2: `edgeSwipeBack: false` is load-bearing. The edge gesture
+        // is simultaneous, so a brush stroke that starts at the left edge and
+        // moves right would also dismiss this cover and lose the edits.
+        // Nothing is lost by opting out: this is a `fullScreenCover` with its
+        // own CANCEL, not a pushed screen with a back destination.
         .hideNavBar(edgeSwipeBack: false)
         .animation(Theme.Motion.entrance(Theme.Motion.fast), value: tool)
         .task { await refreshPreview() }

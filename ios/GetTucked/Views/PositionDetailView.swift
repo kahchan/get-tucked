@@ -38,6 +38,7 @@ struct PositionDetailView: View {
     // photo via `.id(showingSideOn)` resetting the whole pinch-zoom modifier,
     // same as zoom itself.
     @State private var isPhotoZoomed = false
+    @State private var screenHeight: CGFloat = 0
     // Peeked from the stored photos' headers (no full decode) so the
     // placeholder box is sized correctly from the very first frame (N5) —
     // the decoded photo then fades in over it with zero layout shift.
@@ -154,7 +155,12 @@ struct PositionDetailView: View {
                             }
                         }
                         .aspectRatio(showingSideOn ? sideOnAspectRatio : headOnAspectRatio, contentMode: .fit)
+                        // Plan AP1: same 40% cap as the capture reveal
+                        // (CaptureView), so a tall portrait photo can't push
+                        // the numbers below the fold. Letterboxed in bg1.
+                        .frame(maxHeight: screenHeight > 0 ? screenHeight * 0.4 : .infinity)
                         .frame(maxWidth: .infinity)
+                        .background(Theme.Palette.bg1)
                         // Keyed on position identity + showingSideOn so switching
                         // photos, or navigating to a different Position, resets
                         // zoom rather than carrying a now-meaningless offset onto
@@ -274,6 +280,7 @@ struct PositionDetailView: View {
                 }
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
         .hideNavBar()
         #if canImport(UIKit)
         .task { await loadPhotos() }
