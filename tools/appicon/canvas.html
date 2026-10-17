@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Get Tucked — icon canvas</title>
+<!--
+  Lanes write artifact/project/lanes/<id>/index.json: {"name","premise","items":[{"file","title","note","motion"?}]}
+  and list their id in artifact/project/lanes/lanes.json. Serve the repo root ("repo" in .claude/launch.json)
+  and open /tools/appicon/canvas.html. Click a thumbnail to run it through the proof bench.
+-->
+<style>
+:root{--bg:#080808;--fg:#ececec;--mute:#8a8a8a;--rule:#222;--acid:#D9F020;--sq:22.37%}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.4 ui-monospace,Menlo,monospace}
+header{padding:16px;border-bottom:1px solid var(--rule)}
+h1{font-size:15px;margin:0}
+h2{font-size:13px;margin:0 0 4px;color:var(--acid);text-transform:uppercase;letter-spacing:.14em}
+.lane{padding:16px;border-bottom:1px solid var(--rule)}
+.premise{color:var(--mute);margin:0 0 12px;max-width:80ch}
+.grid{display:flex;flex-wrap:wrap;gap:16px}
+.cell{width:96px;cursor:pointer;text-align:center}
+.cell img{width:64px;height:64px;border-radius:var(--sq);display:block;margin:0 auto 4px}
+.cell span{font-size:10px;color:var(--mute);display:block}
+.cell.on img{outline:2px solid var(--acid);outline-offset:3px}
+#bench{background:#111;border-bottom:1px solid var(--rule);padding:16px;display:none}
+#bench.on{display:block}
+.row{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end;margin-bottom:16px}
+.lab{font-size:10px;color:var(--mute);text-align:center;margin-top:4px}
+.ic{border-radius:var(--sq);display:block}
+.blur{filter:blur(2.5px)}
+.tint{border-radius:var(--sq);background:#3a6df0;overflow:hidden;display:inline-block}
+.tint img{mix-blend-mode:luminosity;display:block}
+.clear{border-radius:var(--sq);background:rgba(255,255,255,.18);overflow:hidden;display:inline-block}
+.clear img{filter:grayscale(1) brightness(1.4);opacity:.75;mix-blend-mode:screen;display:block}
+.home{width:300px;padding:28px 18px;border-radius:36px;display:grid;grid-template-columns:repeat(4,60px);gap:20px 12px;justify-content:space-between;background:linear-gradient(160deg,#3b4a5c,#1a2230 55%,#5a4636)}
+.home div{font:10px -apple-system,system-ui,sans-serif;color:#fff;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home img{width:60px;height:60px;border-radius:var(--sq);display:block;margin-bottom:4px}
+.store{width:340px;background:#000;border-radius:24px;padding:12px 16px;font:13px -apple-system,system-ui,sans-serif}
+.store .r{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #1c1c1c}
+.store img{width:62px;height:62px;border-radius:var(--sq)}
+.store b{display:block;font-weight:600}
+.store i{font-style:normal;color:#8e8e93;font-size:12px}
+.store em{margin-left:auto;font-style:normal;background:#1c1c1e;color:#0a84ff;font-weight:700;padding:5px 16px;border-radius:99px}
+</style>
+</head>
+<body>
+<header><h1>GET TUCKED · ICON CANVAS</h1><p class="premise" id="sum"></p></header>
+<section id="bench"></section>
+<main id="lanes"></main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+let shelf = { home: [], 'cycling aero': [] };
+
+const img = (src, px, cls = 'ic') => `<img class="${cls}" src="${src}" width="${px}" height="${px}" alt="">`;
+
+function bench(src, title) {
+  const sizes = [256, 180, 120, 60, 40, 29];
+  const home = shelf.home.slice(0, 11).map(a => `<div>${img('shelf/' + a.file, 60, '')}${a.name.split(/[:\-–]/)[0].trim()}</div>`);
+  home.splice(5, 0, `<div>${img(src, 60, '')}Get Tucked</div>`);
+  const rivals = shelf['cycling aero'].filter(a => !/youtube|chatgpt/i.test(a.name)).slice(0, 3);
+  const row = (s, n, sub) => `<div class="r">${img(s, 62, '')}<div><b>${n}</b><i>${sub}</i></div><em>GET</em></div>`;
+  $('#bench').innerHTML = `
+    <h2>${title}</h2>
+    <div class="row">${sizes.map(s => `<div>${img(src, s)}<div class="lab">${s}px</div></div>`).join('')}
+      <div>${img(src, 16, '')}<div class="lab">16 favicon</div></div></div>
+    <div class="row">
+      <div>${img(src, 60, 'ic blur')}<div class="lab">blur @60</div></div>
+      <div style="background:#000;padding:8px">${img(src, 60)}<div class="lab">dark</div></div>
+      <div><span class="tint">${img(src, 60, '')}</span><div class="lab">tinted ≈</div></div>
+      <div style="background:linear-gradient(160deg,#3b4a5c,#5a4636);padding:8px"><span class="clear">${img(src, 60, '')}</span><div class="lab">clear ≈</div></div>
+      <div><img class="ic" src="${src}" width="60" height="60" alt="" style="filter:grayscale(1)"><div class="lab">mono</div></div>
+    </div>
+    <div class="row">
+      <div class="home">${home.join('')}</div>
+      <div class="store">${row(src, 'Get Tucked', 'Frontal area from a photo')}${rivals.map(a => row('shelf/' + a.file, a.name, a.seller)).join('')}</div>
+    </div>`;
+  $('#bench').classList.add('on');
+}
+
+async function load() {
+  shelf = await fetch('shelf/shelf.json').then(r => r.json()).catch(() => shelf);
+  const ids = await fetch('artifact/project/lanes/lanes.json').then(r => r.json()).catch(() => []);
+  let count = 0;
+  for (const id of ids) {
+    const lane = await fetch(`artifact/project/lanes/${id}/index.json`).then(r => r.json()).catch(() => null);
+    if (!lane) continue;
+    const sec = document.createElement('section');
+    sec.className = 'lane';
+    sec.innerHTML = `<h2>${lane.name}</h2><p class="premise">${lane.premise || ''}</p><div class="grid"></div>`;
+    for (const it of lane.items) {
+      const src = `artifact/project/lanes/${id}/${it.file}`;
+      const c = document.createElement('div');
+      c.className = 'cell';
+      c.title = it.note || '';
+      c.innerHTML = `${img(src, 64, '')}<span>${it.title}${it.motion ? ' ▶' : ''}</span>`;
+      c.onclick = () => {
+        document.querySelectorAll('.cell.on').forEach(e => e.classList.remove('on'));
+        c.classList.add('on');
+        scrollTo({ top: 0, behavior: "smooth" });
+        bench(it.motion ? `artifact/project/lanes/${id}/${it.motion}` : src, `${lane.name} / ${it.title}`);
+      };
+      sec.querySelector('.grid').append(c);
+      count++;
+    }
+    $('#lanes').append(sec);
+  }
+  $('#sum').textContent = `${ids.length} lanes · ${count} candidates · click one for the proof bench (sizes, blur, dark, tinted/clear approximations, home screen, store search)`;
+}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{
+ "name": "D · Area",
+ "premise": "No figure: a measured area getting smaller, drawn as an acid plot shrinking inside its own before-outline, with its error band.",
+ "items": [
+  {
+   "file": "01.svg",
+   "title": "Shrink inside the plot",
+   "note": "S1 2 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 12. Acid area inside its grey before-outline, anchored to a corner. Reads smaller at once; the outline is the before, not a true tolerance band."
+  },
+  {
+   "file": "02.svg",
+   "title": "Plot with error band",
+   "note": "S1 2 S2 2 S3 1 S4 1 S5 2 S6 2 S7 1 = 11. As 16 plus an amber hairline band round the result. Only candidate with a real band at 1024; at 64 the amber ring crowds the solid."
+  },
+  {
+   "file": "03.svg",
+   "title": "Shrinking cell grid",
+   "note": "S1 1 S2 2 S3 1 S4 2 S5 0 S6 2 S7 2 = 10. 4x4 squares each smaller than the last: area literally diminishing. No band; risks reading as a loading or halftone glyph."
+  },
+  {
+   "file": "04.svg",
+   "title": "Plot, amber before",
+   "note": "S1 2 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 12. 16 with the before-outline in amber. Palette variant; amber outline outweighs the acid mass a little."
+  },
+  {
+   "file": "05.svg",
+   "title": "Heptagon shrink",
+   "note": "S1 2 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 12. Seven-sided plot; more gem than parcel, so less distinct than 16."
+  },
+  {
+   "file": "06.svg",
+   "title": "Three shrinking plots",
+   "note": "S1 2 S2 2 S3 1 S4 1 S5 1 S6 2 S7 1 = 10. Two ghost outlines then the solid: a progression. Muddy at 64."
+  },
+  {
+   "file": "07.svg",
+   "title": "Half solid, half band",
+   "note": "S1 1 S2 1 S3 2 S4 2 S5 2 S6 2 S7 1 = 11. Left half acid, right half only its amber band. Reads half-moon more than smaller."
+  },
+  {
+   "file": "08.svg",
+   "title": "Counted cells",
+   "note": "S1 1 S2 1 S3 1 S4 2 S5 0 S6 2 S7 2 = 9. Acid cells kept, hollow grey cells lost. Below gate: no band, reads as a generic grid."
+  },
+  {
+   "file": "09.svg",
+   "title": "Frozen pixel scan",
+   "note": "S1 1 S2 1 S3 1 S4 2 S5 0 S6 2 S7 2 = 9. Filled rows above a scan line, hollow below. Below gate: reads as a grid, no band."
+  },
+  {
+   "file": "10.svg",
+   "title": "Misregistered area",
+   "note": "S1 1 S2 0 S3 2 S4 2 S5 1 S6 2 S7 1 = 9. Bold solid pentagon with an offset amber outline as the error. Below gate: says error, not smaller."
+  },
+  {
+   "file": "11.svg",
+   "title": "Dashed band",
+   "note": "S1 1 S2 1 S3 0 S4 2 S5 0 S6 2 S7 1 = 7. Solid plot in a dashed amber band. Below gate: dashes shimmer at 64 and the band becomes the main read."
+  }
+ ]
+}

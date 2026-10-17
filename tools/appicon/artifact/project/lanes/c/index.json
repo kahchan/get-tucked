@@ -1,0 +1,76 @@
+{
+ "name": "C · Plate",
+ "premise": "Cyanotype photogram: the paper-white shadow is the projected frontal area, the orange hairline is its error.",
+ "items": [
+  {
+   "file": "final-1.svg",
+   "title": "Tuck, bar, band",
+   "note": "FINAL. S1 2 S2 1 S3 1 S4 2 S5 2 S6 2 S7 2 = 12. Constructed bar stub reads as handlebar plus front wheel; cleanest head-on read."
+  },
+  {
+   "file": "final-2.svg",
+   "title": "Upright, tuck, bar",
+   "note": "FINAL. S1 2 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 12. A/B with bar: #5C86BC upright head and leg frame the paper tuck. No orange."
+  },
+  {
+   "file": "final-3.svg",
+   "title": "Upright outline, bar",
+   "note": "FINAL. S1 2 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 12. Orange upright outline as the before, paper tuck as the after; busiest at 1024."
+  },
+  {
+   "file": "01.svg",
+   "title": "Tuck sun-print, band",
+   "note": "S1 1 S2 1 S3 1 S4 2 S5 2 S6 2 S7 2 = 11. Plain paper tuck, orange band; reads as hooded figure, bike cue weak."
+  },
+  {
+   "file": "02.svg",
+   "title": "Upright behind tuck",
+   "note": "S1 1 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 11. A/B shrink: 0676 in #5C86BC under paper 0674, wheel-aligned; ghost mostly hidden."
+  },
+  {
+   "file": "03.svg",
+   "title": "Side-on sun-print",
+   "note": "S1 2 S2 2 S3 0 S4 1 S5 0 S6 2 S7 1 = 8. Below bar; kept only as the side-on comparison. Ring wheels = generic bike glyph."
+  },
+  {
+   "file": "04.svg",
+   "title": "Tuck on drafting grid",
+   "note": "S1 1 S2 1 S3 1 S4 2 S5 2 S6 2 S7 2 = 11. Same as 01 on the studio graph grid (64 u pitch, no moire at 64 px)."
+  },
+  {
+   "file": "05.svg",
+   "title": "Band is the upright",
+   "note": "S1 1 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 11. Orange hairline is the upright outline around the tuck (before/after)."
+  },
+  {
+   "file": "06.svg",
+   "title": "Big tuck, wheel bleeds",
+   "note": "S1 1 S2 1 S3 1 S4 2 S5 2 S6 2 S7 2 = 11. Larger tuck, wheel off the bottom; most mass, still ghost-like."
+  },
+  {
+   "file": "07.svg",
+   "title": "Upright, tuck, band",
+   "note": "S1 1 S2 1 S3 1 S4 2 S5 2 S6 2 S7 1 = 10. Darker upright under the banded tuck; upright nearly invisible."
+  },
+  {
+   "file": "08.svg",
+   "title": "Grid, upright, tuck",
+   "note": "S1 1 S2 1 S3 1 S4 2 S5 1 S6 2 S7 2 = 10. A/B on drafting grid, no band."
+  },
+  {
+   "file": "09.svg",
+   "title": "Tuck, bar, band",
+   "note": "S1 2 S2 1 S3 1 S4 2 S5 2 S6 2 S7 2 = 12. Constructed bar stub reads as handlebar plus front wheel; cleanest head-on read."
+  },
+  {
+   "file": "10.svg",
+   "title": "Upright, tuck, bar",
+   "note": "S1 2 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 12. A/B with bar: #5C86BC upright head and leg frame the paper tuck. No orange."
+  },
+  {
+   "file": "11.svg",
+   "title": "Upright outline, bar",
+   "note": "S1 2 S2 2 S3 1 S4 2 S5 1 S6 2 S7 2 = 12. Orange upright outline as the before, paper tuck as the after; busiest at 1024."
+  }
+ ]
+}

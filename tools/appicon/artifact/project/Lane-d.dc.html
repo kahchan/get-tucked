@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lane D area</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">LANE D · NO FIGURE · HOUSE COLOURS</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Area</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 560px; line-height: 1.5">No figure: a measured area getting smaller, drawn as an acid plot shrinking inside its own before-outline, with its error band.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+    <sc-for list="{{finals}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: flex-end; gap: 16px">
+          <img src="{{f.src}}" alt="{{f.title}}" style="width: 240px; height: 240px; border-radius: 22.37%; display: block">
+          <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+            <img src="{{f.src}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #262626; padding-top: 8px"><b>{{f.title}}</b><span style="color: #D9F020">{{f.score}}</span></div>
+        <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">{{f.note}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">ALL CANDIDATES · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 18px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="8">
+        <div style="width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+          <span style="font-size: 10px; color: #8A8A8A">{{r.score}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      finals: [
+        { src: '/_blob/a2a8829ab426f36ef23a60467db4cf56', title: 'Shrink inside the plot', score: '12/14', note: 'Solid acid area inside its grey before-outline, anchored to a corner. Clearest "area, smaller" at 64 px.' },
+        { src: '/_blob/40f595a04b684d67dc4058c1a455d5b7', title: 'Plot with error band', score: '11/14', note: 'Adds an amber hairline band round the result. The only true error band in the lane; crowds the solid at 64 px.' },
+        { src: '/_blob/25885af745a21041ccb7c81ad1465f97', title: 'Shrinking cell grid', score: '10/14', note: 'Squares each smaller than the last. A different idea, no band; may read as a loading glyph.' }
+      ],
+      rest: [
+        { src: '/_blob/b82dcce6a8ca5565ce0a8ad1170d7473', title: 'Plot, amber before', score: '12' },
+        { src: '/_blob/1f15ec00a57b7940e725a3dbee029432', title: 'Heptagon shrink', score: '12' },
+        { src: '/_blob/397c64d91820ed409d3c04176617f323', title: 'Three shrinking plots', score: '10' },
+        { src: '/_blob/d4bf33471d0e99695f7ab2903d2dd435', title: 'Half solid, half band', score: '11' },
+        { src: '/_blob/c3c982491ccce75058f132cb7c99be02', title: 'Counted cells', score: '9' },
+        { src: '/_blob/036c5bf8db246421c4c67498165e8868', title: 'Frozen pixel scan', score: '9' },
+        { src: '/_blob/8f11c1b7c937aa6ce335c55be0df8625', title: 'Misregistered area', score: '9' },
+        { src: '/_blob/c1788124ce19dba4458fe28d998144ac', title: 'Dashed band', score: '7' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

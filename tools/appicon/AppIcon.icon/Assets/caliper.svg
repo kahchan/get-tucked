@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- jaw nibs close on the rider's bar ends (x 343 / 680, y 397): the handlebar is the ruler -->
+  <g fill="#FFFFFF">
+    <path d="M254 214 L312 214 L312 378 L343 378 L343 416 L312 416 L312 810 L254 810 Z"/>
+    <path d="M770 214 L712 214 L712 378 L680 378 L680 416 L712 416 L712 810 L770 810 Z"/>
+  </g>
+</svg>

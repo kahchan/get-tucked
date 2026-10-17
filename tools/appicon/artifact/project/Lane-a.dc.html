@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lane A head-on</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">LANE A · RECOMMENDED · HOUSE COLOURS</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Head-on</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 560px; line-height: 1.5">Wind's-eye view: the rider upright shrinks to a tuck, behind a tolerance band.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+    <sc-for list="{{finals}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: flex-end; gap: 16px">
+          <img src="{{f.src}}" alt="{{f.title}}" style="width: 240px; height: 240px; border-radius: 22.37%; display: block">
+          <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+            <img src="{{f.src}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #262626; padding-top: 8px"><b>{{f.title}}</b><span style="color: #D9F020">{{f.score}}</span></div>
+        <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">{{f.note}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">ALL CANDIDATES · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 18px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="9">
+        <div style="width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+          <span style="font-size: 10px; color: #8A8A8A">{{r.score}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      finals: [
+        { src: '/_blob/2029d17f88948b16860f43686165fd64', title: 'Upright to tuck', score: '13/14', note: 'Amber upright solid behind a hunched acid tuck, one grey error band on the tuck. Amber flanks and head tip survive blur at 64 px.' },
+        { src: '/_blob/55159644b7be31395164ecb57f57b516', title: 'Upright shrinks to tuck', score: '12/14', note: 'Same without the band. Cleanest read at 64 px.' },
+        { src: '/_blob/94e71137a933c0b3036d7c3077a50f26', title: 'Outline before, tuck after', score: '12/14', note: 'Upright as an amber hairline, solid tuck. The outline fades under blur and in tint.' }
+      ],
+      rest: [
+        { src: '/_blob/4a516ac3bd508244272d059bf97388d7', title: 'Amber shadow, plain tuck', score: '11' },
+        { src: '/_blob/4a5b94d3b10a9c16fcebfdb945755561', title: 'Outline A/B, plain tuck', score: '11' },
+        { src: '/_blob/7477630f3c740493fc981b42c9e4a7c6', title: 'Solo tuck, amber band', score: '11' },
+        { src: '/_blob/6f57de1d39f2c155b814851793dc5bbd', title: 'Solo hunched, grey band', score: '11' },
+        { src: '/_blob/bce53211c88e4486ae8a5b5847d67d1a', title: 'Solo hunched, large', score: '11' },
+        { src: '/_blob/031eda843d94c86ca9dc3a2b3079748c', title: 'Dark before, acid after', score: '10' },
+        { src: '/_blob/1dccf2b31a95c9f2e8e681b87b03ae3c', title: 'Frozen scan', score: '10' },
+        { src: '/_blob/84b408b63615787ba7d9368ab9e5b63a', title: 'Scan with band', score: '10' },
+        { src: '/_blob/7ceabd4a7593d41d84588470d6e54696', title: 'Solo tuck, grey band', score: '10' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

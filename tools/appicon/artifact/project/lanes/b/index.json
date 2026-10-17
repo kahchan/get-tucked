@@ -1,0 +1,76 @@
+{
+ "name": "B · Side-on",
+ "premise": "Say the name: the flat-back tuck, built from primitives, with one hairline error band and ring wheels instead of solid discs.",
+ "items": [
+  {
+   "file": "final-1.svg",
+   "title": "Flat-back, bleed",
+   "note": "S1-S7 2-2-1-2-2-2-2 = 13/14. Straight-bar back, amber error band, ring wheels bleeding off the bottom; same as 14. Best rider read at 64; S3 capped at 1 (still a cyclist glyph)."
+  },
+  {
+   "file": "final-2.svg",
+   "title": "Rounded tuck, bleed",
+   "note": "S1-S7 2-2-1-2-2-2-1 = 12/14. Same as 02: humped back from 0675 proportions. Warmer, more figure-like; S7 1 because the name says flat-back."
+  },
+  {
+   "file": "final-3.svg",
+   "title": "Hub crop, big rider",
+   "note": "S1-S7 2-2-1-2-2-1-2 = 12/14. Same as 08: rider fills the field, dim rings bleed left/right/bottom. Survives blur best; side bleed costs S6."
+  },
+  {
+   "file": "01.svg",
+   "title": "Tuck, ring wheels",
+   "note": "S1-S7 2-2-1-1-2-2-2 = 12/14. Whole bike in frame, grey band. Rider is small against grey rings at 64."
+  },
+  {
+   "file": "03.svg",
+   "title": "Dark disc wheels",
+   "note": "S1-S7 2-2-1-1-2-2-2 = 12/14. Wheels as #161616 discs with grey rim, bleeding. Disc answers the solid-disc problem without a bright mass; rims still compete."
+  },
+  {
+   "file": "04.svg",
+   "title": "Upright ghost, grey",
+   "note": "S1-S7 1-2-1-1-2-1-2 = 10/14. A/B back angle: hairline upright (0677 construction) behind the tuck. Ghost vanishes at 64; figure is small."
+  },
+  {
+   "file": "05.svg",
+   "title": "Upright ghost, amber",
+   "note": "S1-S7 1-2-1-1-2-1-2 = 10/14. As 04 with an amber ghost."
+  },
+  {
+   "file": "06.svg",
+   "title": "Hairline wheels",
+   "note": "S1-S7 2-2-1-1-1-2-2 = 11/14. Wheels as 9-unit rings; vanish under blur. Band device is the wheels, not an outline of the rider."
+  },
+  {
+   "file": "07.svg",
+   "title": "Hub crop, helmet tail",
+   "note": "S1-S7 2-2-1-2-2-1-2 = 12/14. Crop with aero-helmet tail and grey band. Tail makes the head read as a blob."
+  },
+  {
+   "file": "09.svg",
+   "title": "Flat-back, whole bike",
+   "note": "S1-S7 2-2-1-1-2-2-2 = 12/14. Straight-bar back, amber band, full bike. Clean; rider smaller than final-1."
+  },
+  {
+   "file": "10.svg",
+   "title": "Dim rings, no band",
+   "note": "S1-S7 2-2-1-2-0-2-2 = 11/14. Control with no error band: S5 zero. Rider pops against #333 rings."
+  },
+  {
+   "file": "11.svg",
+   "title": "Amber rings",
+   "note": "S1-S7 2-2-1-1-1-2-2 = 11/14. Amber wheels pull the eye off the rider at 64."
+  },
+  {
+   "file": "12.svg",
+   "title": "Helmet tail, amber band",
+   "note": "S1-S7 2-2-1-1-2-2-2 = 12/14. Whole bike, helmet tail, amber band."
+  },
+  {
+   "file": "13.svg",
+   "title": "Hub crop, amber band",
+   "note": "S1-S7 2-2-1-2-2-1-2 = 12/14. Crop with rounded back and amber band; legs run off the field."
+  }
+ ]
+}

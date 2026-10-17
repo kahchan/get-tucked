@@ -1,0 +1,66 @@
+{
+ "name": "A · Head-on",
+ "premise": "Wind's-eye view: the rider upright shrinks to a tuck, behind a tolerance band.",
+ "items": [
+  {
+   "file": "final-1.svg",
+   "title": "Upright to tuck",
+   "note": "S1..S7 2/2/2/2/2/2/1 = 13/14; Amber upright solid behind hunched acid tuck, grey error band on the tuck"
+  },
+  {
+   "file": "final-2.svg",
+   "title": "Upright shrinks to tuck",
+   "note": "S1..S7 2/2/2/2/0/2/2 = 12/14; Same without band; cleanest 64 px read, amber flanks and head tip survive blur"
+  },
+  {
+   "file": "final-3.svg",
+   "title": "Outline before, tuck after",
+   "note": "S1..S7 2/2/1/1/2/2/2 = 12/14; Upright as amber hairline (the before), solid tuck; outline fades under blur"
+  },
+  {
+   "file": "04.svg",
+   "title": "Amber shadow, plain tuck",
+   "note": "S1..S7 2/1/2/2/0/2/2 = 11/14; Un-hunched tuck over amber upright; tuck read weaker than 11"
+  },
+  {
+   "file": "05.svg",
+   "title": "Outline A/B, plain tuck",
+   "note": "S1..S7 2/1/1/1/2/2/2 = 11/14; Un-hunched tuck over amber outline; weaker tuck read"
+  },
+  {
+   "file": "06.svg",
+   "title": "Solo tuck, amber band",
+   "note": "S1..S7 2/1/1/2/2/2/1 = 11/14; Solo tuck, amber band; no comparator so tuck reads as cyclist"
+  },
+  {
+   "file": "07.svg",
+   "title": "Solo hunched, grey band",
+   "note": "S1..S7 2/1/1/2/2/2/1 = 11/14; Solo hunched tuck, grey band"
+  },
+  {
+   "file": "08.svg",
+   "title": "Solo hunched, large",
+   "note": "S1..S7 2/1/1/2/2/2/1 = 11/14; Solo hunched tuck, larger, amber band"
+  },
+  {
+   "file": "09.svg",
+   "title": "Dark before, acid after",
+   "note": "S1..S7 2/1/1/1/1/2/2 = 10/14; Dark upright with grey outline behind tuck; fades at 64 and blur"
+  },
+  {
+   "file": "10.svg",
+   "title": "Frozen scan",
+   "note": "S1..S7 2/1/1/1/1/2/2 = 10/14; Frozen scan: tuck acid above hairline at 60%, grey below; hairline lost in blur"
+  },
+  {
+   "file": "11.svg",
+   "title": "Scan with band",
+   "note": "S1..S7 2/1/1/1/1/2/2 = 10/14; Frozen scan with band above, shadow tuck below; lower half too dark"
+  },
+  {
+   "file": "12.svg",
+   "title": "Solo tuck, grey band",
+   "note": "S1..S7 2/1/1/1/2/2/1 = 10/14; Solo tuck, grey band; the plain baseline"
+  }
+ ]
+}

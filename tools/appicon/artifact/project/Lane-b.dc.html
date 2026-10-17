@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lane B side-on</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">LANE B · CONTROL · HOUSE COLOURS</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Side-on</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 560px; line-height: 1.5">Say the name: the flat-back tuck, built from primitives, with one hairline error band and ring wheels instead of solid discs.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+    <sc-for list="{{finals}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: flex-end; gap: 16px">
+          <img src="{{f.src}}" alt="{{f.title}}" style="width: 240px; height: 240px; border-radius: 22.37%; display: block">
+          <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+            <img src="{{f.src}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #262626; padding-top: 8px"><b>{{f.title}}</b><span style="color: #D9F020">{{f.score}}</span></div>
+        <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">{{f.note}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #D9F020; border-top: 1px solid #262626; padding-top: 12px">ALL CANDIDATES · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 18px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="11">
+        <div style="width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+          <span style="font-size: 10px; color: #8A8A8A">{{r.score}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      finals: [
+        { src: '/_blob/1dd07ce9cc684baf934638964398fc5b', title: 'Flat-back, bleed', score: '13/14', note: 'Straight-bar back, amber error band, ring wheels bleeding off the bottom. Strongest rider read.' },
+        { src: '/_blob/51c6c37b0b2b6220519f76dfa9a0ae50', title: 'Rounded tuck, bleed', score: '12/14', note: 'Humped back from the 0675 proportions. Warmer and more figure-like, but not the flat-back idea.' },
+        { src: '/_blob/e8f53177d1fef725ecf6f79476c3c49c', title: 'Hub crop, big rider', score: '12/14', note: 'Rider fills the field, dim rings bleed off three edges. Survives blur best.' }
+      ],
+      rest: [
+        { src: '/_blob/9d20cadf92ae5dbc48fe550c12a6f917', title: 'Tuck, ring wheels', score: '12' },
+        { src: '/_blob/067ffdd30bdff4c4038e7675624718f2', title: 'Dark disc wheels', score: '12' },
+        { src: '/_blob/e9d34e70065669625e31756a84cb3034', title: 'Upright ghost, grey', score: '10' },
+        { src: '/_blob/4054db5faf9bf5b9c769e0a3058b7857', title: 'Upright ghost, amber', score: '10' },
+        { src: '/_blob/e502a63ef6a63a36fcf890203155197c', title: 'Hairline wheels', score: '11' },
+        { src: '/_blob/8ce0083fe01225b47c06f31270f7e5c0', title: 'Hub crop, helmet tail', score: '12' },
+        { src: '/_blob/10d11bfd93c073adf88c1c00fe3890c3', title: 'Flat-back, whole bike', score: '12' },
+        { src: '/_blob/55db498a34d8ddc4596c08e04bb62b5d', title: 'Dim rings, no band', score: '11' },
+        { src: '/_blob/601bda2ff56db8f1fa4deae99e999042', title: 'Amber rings', score: '11' },
+        { src: '/_blob/c6a9415c33c40d7b6177e0f4453552a6', title: 'Helmet tail, amber band', score: '12' },
+        { src: '/_blob/23663e395889ac257e030f19a40e72f6', title: 'Hub crop, amber band', score: '12' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

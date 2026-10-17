@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lane C plate</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#D9F020}a:hover{color:#E8A020}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #080808; color: #EEEEEE; font-family: 'Space Mono', monospace; padding: 40px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #262626; padding-bottom: 16px; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 11px; letter-spacing: 0.24em; color: #8A8A8A">LANE C · STUDIO PALETTE</div>
+      <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1; text-transform: uppercase">Plate</h1>
+    </div>
+    <div style="font-size: 12px; color: #B0B0B0; max-width: 560px; line-height: 1.5">Cyanotype photogram: the paper-white shadow is the projected frontal area, the orange hairline is its error.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+    <sc-for list="{{finals}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: flex-end; gap: 16px">
+          <img src="{{f.src}}" alt="{{f.title}}" style="width: 240px; height: 240px; border-radius: 22.37%; display: block">
+          <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+            <img src="{{f.src}}" alt="" style="width: 64px; height: 64px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 40px; height: 40px; border-radius: 22.37%; display: block">
+            <img src="{{f.src}}" alt="" style="width: 29px; height: 29px; border-radius: 22.37%; display: block">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #262626; padding-top: 8px"><b>{{f.title}}</b><span style="color: #F07C2B">{{f.score}}</span></div>
+        <div style="font-size: 11px; line-height: 1.5; color: #8A8A8A">{{f.note}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 11px; letter-spacing: 0.14em; color: #F07C2B; border-top: 1px solid #262626; padding-top: 12px">ALL CANDIDATES · 96 PX</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px 18px">
+      <sc-for list="{{rest}}" as="r" hint-placeholder-count="8">
+        <div style="width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center">
+          <img src="{{r.src}}" alt="{{r.title}}" style="width: 96px; height: 96px; border-radius: 22.37%; display: block">
+          <span style="font-size: 10px; color: #B0B0B0; text-align: center">{{r.title}}</span>
+          <span style="font-size: 10px; color: #8A8A8A">{{r.score}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      finals: [
+        { src: '/_blob/962a34697e88f218b57d70e5c69e9334', title: 'Tuck, bar, band', score: '12/14', note: 'Paper tuck on blueprint with an orange error band. A built bar stub gives the bike read; without it the tuck reads as a hooded figure.' },
+        { src: '/_blob/df35b194319cef8d87c07ac581c32a75', title: 'Upright, tuck, bar', score: '12/14', note: 'A/B: pale-blue upright behind the paper tuck, aligned at the wheel. No orange band.' },
+        { src: '/_blob/9e733bea4123b98db23db7cdb23e016a', title: 'Upright outline, bar', score: '12/14', note: 'Orange outline of the upright around the paper tuck: before and after. Busiest at 1024.' }
+      ],
+      rest: [
+        { src: '/_blob/aa83582c7cfb287f61f429c0b294827b', title: 'Tuck sun-print, band', score: '11' },
+        { src: '/_blob/e2445e9a2b1e633d1b3360586afb9c47', title: 'Upright behind tuck', score: '11' },
+        { src: '/_blob/515fbb0ce116295e88b0d5a40930fbbe', title: 'Side-on sun-print', score: '8' },
+        { src: '/_blob/62df2a27620860cd0aeb76b5be798c65', title: 'Tuck on drafting grid', score: '11' },
+        { src: '/_blob/846f0a6b4fa7ba87c11857b25d285371', title: 'Band is the upright', score: '11' },
+        { src: '/_blob/d1f02edcdf0c733772e2f232592b63eb', title: 'Big tuck, wheel bleeds', score: '11' },
+        { src: '/_blob/51cb1885ea32f5ed345478463da15e20', title: 'Upright, tuck, band', score: '10' },
+        { src: '/_blob/e8ce002c80019323cf94882ced839502', title: 'Grid, upright, tuck', score: '10' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
