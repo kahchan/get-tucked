@@ -20,7 +20,7 @@ struct WrongBikeSheet: View {
                 NavHeader(
                     title: "WRONG BIKE?",
                     subtitle: selectedBike == nil
-                        ? "Pick the bike this position was actually shot on."
+                        ? "Pick the bike this position was actually shot on, or add it."
                         : nil
                 )
                 SectionDivider()
@@ -39,6 +39,8 @@ struct WrongBikeSheet: View {
                                 .buttonStyle(RowPressStyle())
                                 SectionDivider()
                             }
+                            // Plan AQ-C: the bike it was shot on may not exist yet.
+                            AddBikeForm(saveLabel: "SAVE & USE") { selectedBike = $0 }
                         }
                     }
                 }

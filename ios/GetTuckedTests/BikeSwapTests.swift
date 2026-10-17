@@ -42,16 +42,6 @@ final class BikeSwapTests: XCTestCase {
         return position
     }
 
-    // MARK: - Affordance gate (Plan Y3)
-
-    func testIsAvailableFalseWithZeroOtherBikes() {
-        XCTAssertFalse(BikeSwap.isAvailable(otherBikesCount: 0))
-    }
-
-    func testIsAvailableTrueWithAtLeastOneOtherBike() {
-        XCTAssertTrue(BikeSwap.isAvailable(otherBikesCount: 1))
-    }
-
     func testOtherBikesExcludesCurrentBike() {
         let a = makeBike(nickname: "A", barMm: 400)
         let b = makeBike(nickname: "B", barMm: 500)

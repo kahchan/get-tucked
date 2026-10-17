@@ -110,6 +110,7 @@ struct CaptureView: View {
     // — this surfaces it the same way camera denial does (Settings deep-link),
     // via the same alert mechanism `showingError` already uses.
     @State private var showingPhotoLibraryDenied = false
+    @State private var showingBikePicker = false
     // AL14 candidate 4: the in-flight analysis Task, if any — cancelled and
     // reset if the app backgrounds mid-analysis rather than left to resolve
     // into a step the user never returns to see.
@@ -205,6 +206,19 @@ struct CaptureView: View {
                 showingConsentReminder = true
             }
         }
+        // Plan AQ-A: the bar width isn't read until runAnalysis, so a swap
+        // here (before CONFIRM SCALE) needs no rescale.
+        .sheet(isPresented: $showingBikePicker) {
+            if let bike = selectedBike {
+                BikePickerSheet(bikes: bikes, selected: bike) { picked in
+                    // Drop ends vs grip ends are different points on the
+                    // photo; taps for the old bar type would be the wrong ruler.
+                    if picked.effectiveBarType != bike.effectiveBarType { tapPoints = [] }
+                    selectedBike = picked
+                    showingBikePicker = false
+                }
+            }
+        }
         .sheet(isPresented: $showingConsentReminder) {
             ConsentReminderSheet {
                 userSettings?.consentToCaptureOthers = true
@@ -280,7 +294,8 @@ struct CaptureView: View {
                         wheelTapPoints: $wheelTapPoints,
                         wheelDiameterMm: selectedBike?.wheelDiameterMm,
                         primaryTapPrompts: barTapPrompts,
-                        caveatBanner: dropBarCaveatBanner
+                        caveatBanner: dropBarCaveatBanner,
+                        bikeRuler: selectedBike.map { ($0, { showingBikePicker = true }) }
                     ) {
                         step = .analysing
                         analysisTask = Task { await runAnalysis() }
@@ -1583,6 +1598,33 @@ private struct DropBarCaveatBanner: View {
     }
 }
 
+private struct BikeRulerRow: View {
+    let bike: Bike
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Space.sm) {
+                Text("BARS \(Int(bike.handlebarWidthMm)) MM · \(bike.nickname.uppercased())")
+                    .font(Theme.mono(12, weight: .bold))
+                    .foregroundStyle(Theme.Palette.fg)
+                    .lineLimit(1)
+                Spacer()
+                Text("CHANGE ▾")
+                    .font(Theme.mono(11, weight: .bold))
+                    .foregroundStyle(Theme.Palette.acc)
+                    .kerning(0.5)
+            }
+            .padding(.horizontal, Theme.Space.screenMargin)
+            .frame(minHeight: Theme.Control.iconTapTarget)
+            .background(Theme.Palette.bg0)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Bars \(Int(bike.handlebarWidthMm)) millimetres, \(bike.nickname). Change bike")
+    }
+}
+
 /// Two-tap distance calibration against a photo — pinch/zoom/pan, drag-to-
 /// fine-tune, floating loupe, connecting line. Originally built for the
 /// head-on handlebar ruler; generalised (Plan P1.5) to also drive the
@@ -1616,6 +1658,9 @@ private struct TapCalibrationStep: View {
     // head-on ruler's no-skip behaviour today.
     var onSkip: (() -> Void)? = nil
     var skipLabel: String = "SKIP"
+    // Plan AQ-A: head-on only. Testers missed the camera's bike chip, so
+    // the ruler shows where the bars are being tapped.
+    var bikeRuler: (bike: Bike, onChange: () -> Void)? = nil
     let onConfirm: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -1671,6 +1716,10 @@ private struct TapCalibrationStep: View {
         VStack(spacing: 0) {
             if let caveatBanner {
                 DropBarCaveatBanner(text: caveatBanner.text, onDismiss: caveatBanner.onDismiss)
+            }
+
+            if let bikeRuler {
+                BikeRulerRow(bike: bikeRuler.bike, action: bikeRuler.onChange)
             }
 
             instructionBanner

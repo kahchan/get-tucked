@@ -230,9 +230,10 @@ struct PositionDetailView: View {
                         // Explicit and discoverable (Kah's stated
                         // preference) — a ghost-link row, not buried in a
                         // menu, same visual weight as HowItWorksLink (Plan
-                        // Y2). Only shown when there's actually another bike
-                        // to swap to.
-                        if BikeSwap.isAvailable(otherBikesCount: otherBikes.count) {
+                        // Y2). Shown even with one bike (Plan AQ-C: the
+                        // sheet can add one); hidden only when there's no
+                        // bar-width provenance to rescale from.
+                        if position.metrics?.handlebarWidthMmUsed != nil {
                             HeaderLink("WRONG BIKE?") { showingWrongBikeSheet = true }
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.horizontal, Theme.Space.screenMargin)

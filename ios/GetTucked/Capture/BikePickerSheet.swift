@@ -9,21 +9,7 @@ struct BikePickerSheet: View {
     let selected: Bike
     let onPick: (Bike) -> Void
 
-    @Environment(\.modelContext) private var context
-    @State private var addingBike = false
-    @State private var nickname = ""
-    @State private var handlebarWidthText = ""
-    @State private var bikeType: BikeType = .road
     @State private var pendingSelection: Bike?
-    // Wheel size + wheelbase — optional cross-scale verification metadata (Plan K1).
-    @State private var showWheelSize = false
-    @State private var rimStandard: RimStandard?
-    @State private var tireWidthText = ""
-    @State private var wheelbaseText = ""
-
-    private var isValid: Bool {
-        Bike.isValidInput(nickname: nickname, handlebarWidthText: handlebarWidthText)
-    }
 
     var body: some View {
         ZStack {
@@ -48,66 +34,101 @@ struct BikePickerSheet: View {
                             SectionDivider()
                         }
 
-                        Button {
-                            addingBike.toggle()
-                            if !addingBike { resetForm() }
-                        } label: {
-                            HStack(spacing: Theme.Space.sm) {
-                                Text(addingBike ? "×" : "+")
-                                    .font(Theme.mono(16))
-                                    .foregroundStyle(Theme.Palette.acc)
-                                    .frame(width: 20, alignment: .center)
-                                    .accessibilityHidden(true)
-                                Text(addingBike ? "CANCEL" : "ADD A BIKE")
-                                    .font(Theme.mono(11, weight: .bold))
-                                    .foregroundStyle(Theme.Palette.acc)
-                                    .kerning(0.8)
-                                Spacer()
-                            }
-                            .padding(.horizontal, Theme.Space.screenMargin)
-                            .frame(minHeight: 52)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        SectionDivider()
-
-                        if addingBike {
-                            // Q8.2: FieldLabel/MonoField/TypeToggle/etc. carry
-                            // no margin of their own — this wrapper is the
-                            // form's one and only screen-edge indent.
-                            VStack(alignment: .leading, spacing: 0) {
-                                FieldLabel("NICKNAME")
-                                    .padding(.top, Theme.Space.md)
-                                MonoField(placeholder: "Winter trainer", text: $nickname)
-
-                                FieldLabel("TYPE")
-                                    .padding(.top, Theme.Space.md)
-                                TypeToggle(selection: $bikeType)
-
-                                FieldLabel("HANDLEBAR WIDTH (MM)")
-                                    .padding(.top, Theme.Space.md)
-                                MonoField(placeholder: "420", text: $handlebarWidthText, numericOnly: true)
-
-                                OptionalSectionToggle(
-                                    label: showWheelSize ? "Hide wheel size" : "Wheel size & wheelbase (optional)",
-                                    expanded: $showWheelSize
-                                )
-                                .padding(.top, Theme.Space.sm)
-                                if showWheelSize {
-                                    WheelSizeFields(rimStandard: $rimStandard, tireWidthText: $tireWidthText, wheelbaseText: $wheelbaseText)
-                                }
-
-                                AccentButton(label: "SAVE & SELECT", action: saveBike, enabled: isValid)
-                                    .padding(.top, Theme.Space.lg)
-                                    .padding(.bottom, Theme.Space.lg)
-                            }
-                            .padding(.horizontal, Theme.Space.screenMargin)
-                        }
+                        AddBikeForm(saveLabel: "SAVE & SELECT") { select($0, after: 0.22) }
                     }
                 }
             }
         }
         .hideNavBar()
+    }
+
+    private func select(_ bike: Bike, after seconds: Double) {
+        pendingSelection = bike
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            onPick(bike)
+        }
+    }
+}
+
+/// "+ ADD A BIKE" toggle row plus the inline form, inserting the bike on
+/// save. Shared by the capture-time picker and `WrongBikeSheet` (Plan AQ-C).
+struct AddBikeForm: View {
+    let saveLabel: String
+    let onSaved: (Bike) -> Void
+
+    @Environment(\.modelContext) private var context
+    @State private var addingBike = false
+    @State private var nickname = ""
+    @State private var handlebarWidthText = ""
+    @State private var bikeType: BikeType = .road
+    // Wheel size + wheelbase — optional cross-scale verification metadata (Plan K1).
+    @State private var showWheelSize = false
+    @State private var rimStandard: RimStandard?
+    @State private var tireWidthText = ""
+    @State private var wheelbaseText = ""
+
+    private var isValid: Bool {
+        Bike.isValidInput(nickname: nickname, handlebarWidthText: handlebarWidthText)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                addingBike.toggle()
+                if !addingBike { resetForm() }
+            } label: {
+                HStack(spacing: Theme.Space.sm) {
+                    Text(addingBike ? "×" : "+")
+                        .font(Theme.mono(16))
+                        .foregroundStyle(Theme.Palette.acc)
+                        .frame(width: 20, alignment: .center)
+                        .accessibilityHidden(true)
+                    Text(addingBike ? "CANCEL" : "ADD A BIKE")
+                        .font(Theme.mono(11, weight: .bold))
+                        .foregroundStyle(Theme.Palette.acc)
+                        .kerning(0.8)
+                    Spacer()
+                }
+                .padding(.horizontal, Theme.Space.screenMargin)
+                .frame(minHeight: 52)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            SectionDivider()
+
+            if addingBike {
+                // Q8.2: FieldLabel/MonoField/TypeToggle/etc. carry
+                // no margin of their own — this wrapper is the
+                // form's one and only screen-edge indent.
+                VStack(alignment: .leading, spacing: 0) {
+                    FieldLabel("NICKNAME")
+                        .padding(.top, Theme.Space.md)
+                    MonoField(placeholder: "Winter trainer", text: $nickname)
+
+                    FieldLabel("TYPE")
+                        .padding(.top, Theme.Space.md)
+                    TypeToggle(selection: $bikeType)
+
+                    FieldLabel("HANDLEBAR WIDTH (MM)")
+                        .padding(.top, Theme.Space.md)
+                    MonoField(placeholder: "420", text: $handlebarWidthText, numericOnly: true)
+
+                    OptionalSectionToggle(
+                        label: showWheelSize ? "Hide wheel size" : "Wheel size & wheelbase (optional)",
+                        expanded: $showWheelSize
+                    )
+                    .padding(.top, Theme.Space.sm)
+                    if showWheelSize {
+                        WheelSizeFields(rimStandard: $rimStandard, tireWidthText: $tireWidthText, wheelbaseText: $wheelbaseText)
+                    }
+
+                    AccentButton(label: saveLabel, action: saveBike, enabled: isValid)
+                        .padding(.top, Theme.Space.lg)
+                        .padding(.bottom, Theme.Space.lg)
+                }
+                .padding(.horizontal, Theme.Space.screenMargin)
+            }
+        }
     }
 
     private func resetForm() {
@@ -118,13 +139,6 @@ struct BikePickerSheet: View {
         rimStandard = nil
         tireWidthText = ""
         wheelbaseText = ""
-    }
-
-    private func select(_ bike: Bike, after seconds: Double) {
-        pendingSelection = bike
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
-            onPick(bike)
-        }
     }
 
     private func saveBike() {
@@ -142,7 +156,7 @@ struct BikePickerSheet: View {
         context.insert(bike)
         addingBike = false
         resetForm()
-        select(bike, after: 0.22)
+        onSaved(bike)
     }
 }
 

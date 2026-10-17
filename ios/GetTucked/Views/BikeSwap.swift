@@ -6,12 +6,6 @@ import Foundation
 /// bike edit: editing a bike's bar width and retro-rescaling its positions
 /// is explicitly out of scope (v1 decision, 2026-07-18).
 enum BikeSwap {
-    /// The affordance only appears with at least one other bike to swap to
-    /// (Plan Y2/Y3) — otherwise there's nothing to pick from.
-    static func isAvailable(otherBikesCount: Int) -> Bool {
-        otherBikesCount > 0
-    }
-
     /// Every bike except the position's current one, in whatever order
     /// `allBikes` arrives in.
     static func otherBikes(allBikes: [Bike], excluding currentBike: Bike?) -> [Bike] {
