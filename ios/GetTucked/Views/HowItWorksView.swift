@@ -267,14 +267,14 @@ private struct LimitationsSection: View {
 
 // MARK: - Posture limitation (Plan AN, label-only fallback)
 
-/// AN1 (`plans/plan-an-posture-cd.md`) hasn't cleared its literature gate, so
-/// this stays words, not numbers — no ratio, no percentage, matching the
+/// AN1 failed its literature gate (`plans/posture-cd-sources.md`: no stable
+/// Cd ratio in verified data), so this stays words, not numbers, matching the
 /// "position detail" row which shows a bin name only.
 private struct PostureLimitationSection: View {
     private let items = [
         "Position changes drag two ways: how big you are, and how slippery.",
         "We measure the first. The second we can't see from a photo.",
-        "A tuck also makes you more slippery, which we can't measure — so this estimate is conservative for tucked positions.",
+        "Studies disagree on whether a tuck also makes you more slippery. The cleanest tunnel data says most of the gain is in how big you are, which is what we measure.",
     ]
 
     var body: some View {

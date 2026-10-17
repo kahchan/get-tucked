@@ -1,8 +1,9 @@
 import Foundation
 
 /// Plan AN — posture bin classification only. No Cd ratio, no spread: AN1
-/// (literature ingest, `plans/plan-an-posture-cd.md`) hasn't run, so there is
-/// nothing to quantify yet, only a name for the bin. Deliberately not read by
+/// failed (`plans/posture-cd-sources.md`, no stable Cd ratio in verified
+/// data), so
+/// the bin is a name, not a quantity. Deliberately not read by
 /// `EffortModel` — the one-way dependency is the guarantee the estimate can't
 /// drift into using these numbers by accident.
 enum PostureBin: String {
