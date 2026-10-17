@@ -4,6 +4,21 @@
   },
   "groups": [
     {
+      "name": "grid",
+      "layers": [
+        {
+          "glass": false,
+          "image-name": "grid.svg",
+          "name": "grid"
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      }
+    },
+    {
+      "name": "upright",
       "layers": [
         {
           "glass": false,
@@ -13,10 +28,11 @@
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.5
+        "opacity": 0.3
       }
     },
     {
+      "name": "tuck",
       "layers": [
         {
           "glass": true,
@@ -26,7 +42,11 @@
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.5
+        "opacity": 0.3
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
       }
     }
   ],
