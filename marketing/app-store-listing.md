@@ -50,7 +50,7 @@ HOW IT KNOWS THE SIZE
 Your handlebar width is the ruler. You enter it once. The app turns pixels into centimetres from the two bar ends you tap. No guessing from camera lenses.
 
 TOLERANCE
-Every reading carries a ±3% margin. If two setups differ by less than that, the app says indistinguishable, not "1.8% better". It answers "did this change anything?" better than "what is my exact number?". Frontal area is not drag, and the time estimate is a range, not a promise.
+Each reading shows its error bar: at least ±3%, wider when a live shot's three frames disagree. If two setups differ by less than their combined error, the app says indistinguishable, not "1.8% better". Frontal area is not drag, and the time estimate is a range, not a promise.
 
 WHEN THE OUTLINE IS WRONG
 Tap or paint to add or remove a region. A corrected measurement is marked as corrected.
