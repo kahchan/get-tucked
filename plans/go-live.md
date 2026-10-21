@@ -1,7 +1,7 @@
 # Go live
 
-Status 2026-10-13: site live (dark) at https://kahchan.github.io/get-tucked/ from
-`main:/docs`, commit 8885039. All App Store CTAs are still `href="#"`. App not
+Status 2026-10-21: site live (dark) at https://impreciselyaccurate.com/ from
+`main:/docs` (custom domain 4ad56d2; old github.io URL redirects). All App Store CTAs are still `href="#"`. App not
 submitted. Next session: App Store submission.
 
 ## Done
@@ -53,10 +53,10 @@ submitted. Next session: App Store submission.
 1. Put the real App Store URL in the three CTAs: top bar, hero, and buy section.
 2. Make `og-hero.png`. Without it, shared links show a blank card.
 3. Make the press kit, or remove the dead "Press kit →" link.
-4. Optional: custom domain. Add `docs/CNAME`, then set DNS.
+4. ~~Custom domain~~ — done 2026-10-21, 4ad56d2; DNS at iwantmyname, domain verified on GitHub.
 
 ## After launch
 
 Outreach in the order in `marketing/outreach-drafts.md`: TestFlight racer seeding,
 then Reddit, then press. Fill-ins: App Store URL, methodology URL (live now:
-`/get-tucked/methodology.html`), TestFlight link, press kit.
+`https://impreciselyaccurate.com/methodology.html`), TestFlight link, press kit.

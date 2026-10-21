@@ -1,7 +1,7 @@
 # App Review notes — paste into App Store Connect
 
 Sample photo (committed, also downloadable): `docs/review/sample-head-on.jpg`
-Live at https://kahchan.github.io/get-tucked/review/sample-head-on.jpg
+Live at https://impreciselyaccurate.com/review/sample-head-on.jpg
 Attach the same file to the submission.
 
 ## Text to paste
@@ -11,7 +11,7 @@ Get Tucked has no account, no login and no server. There are no credentials to p
 
 IMPORTANT: the app measures a photo of a person on a bicycle. It cannot do anything useful if the camera points at a desk or a wall. To review the full flow without a bicycle, use the sample photo below.
 
-Sample photo: https://kahchan.github.io/get-tucked/review/sample-head-on.jpg (also attached to this submission). It shows a rider head-on, upright, on a flat-bar bike.
+Sample photo: https://impreciselyaccurate.com/review/sample-head-on.jpg (also attached to this submission). It shows a rider head-on, upright, on a flat-bar bike.
 
 Steps to complete one measurement:
 1. Save the sample photo to the Photos app on the device.
@@ -26,8 +26,8 @@ Why each permission is requested:
 - Photo library: to read a photo the user picks as the source for a measurement, to read back captures the app saved, and to save source photos to the library.
 - Motion: to keep the camera level during capture.
 
-All photos and measurements stay on the device. Privacy policy: https://kahchan.github.io/get-tucked/privacy.html
-Support: https://kahchan.github.io/get-tucked/support.html
+All photos and measurements stay on the device. Privacy policy: https://impreciselyaccurate.com/privacy.html
+Support: https://impreciselyaccurate.com/support.html
 ```
 
 ## Status
