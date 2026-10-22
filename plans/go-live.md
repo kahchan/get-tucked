@@ -1,7 +1,7 @@
 # Go live
 
-Status 2026-10-21: site live (dark) at https://impreciselyaccurate.com/ from
-`main:/docs` (custom domain 4ad56d2; old github.io URL redirects). All App Store CTAs are still `href="#"`. App not
+Status 2026-10-21: site live (dark) at https://impreciselyaccurate.com/get-tucked/ from
+`main:/docs`. The domain belongs to the `kahchan.github.io` repo (root redirects here). All App Store CTAs are still `href="#"`. App not
 submitted. Next session: App Store submission.
 
 ## Done
@@ -59,4 +59,4 @@ submitted. Next session: App Store submission.
 
 Outreach in the order in `marketing/outreach-drafts.md`: TestFlight racer seeding,
 then Reddit, then press. Fill-ins: App Store URL, methodology URL (live now:
-`https://impreciselyaccurate.com/methodology.html`), TestFlight link, press kit.
+`https://impreciselyaccurate.com/get-tucked/methodology.html`), TestFlight link, press kit.

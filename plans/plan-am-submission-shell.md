@@ -302,7 +302,7 @@ runs alongside the two waves rather than queueing behind them.
 
 - **D1 — is `hello@gettucked.app` a live mailbox?** It's in the site footer and both
   AM4 pages point at it. App Review will use it. Needs to actually receive mail.
-- **D2 — closed 2026-10-21.** Served from https://impreciselyaccurate.com/ (4ad56d2).
+- **D2 — closed 2026-10-21.** Served from https://impreciselyaccurate.com/get-tucked/ (4ad56d2).
 - **D3 — does an App Store Connect app record exist yet** (bundle ID
   `com.gettucked.app`, team `LVK77WYSK8`)? Nothing can be uploaded without it, and
   it's a Kah-only step.

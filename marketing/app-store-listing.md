@@ -18,7 +18,7 @@ Price tier: **open decision**. The site says $20; Apple's nearest tier is US$19.
 ## App Privacy
 
 **Data Not Collected.** The privacy policy URL:
-`https://impreciselyaccurate.com/privacy.html`
+`https://impreciselyaccurate.com/get-tucked/privacy.html`
 
 ## Version 1.0
 
@@ -67,8 +67,8 @@ An iPhone XS or newer (any iPhone that runs iOS 17), a plain and evenly lit wall
 Made by Imprecisely Accurate Instruments, in Wellington, New Zealand.
 ```
 
-**Support URL:** `https://impreciselyaccurate.com/support.html`
-**Marketing URL:** `https://impreciselyaccurate.com/`
+**Support URL:** `https://impreciselyaccurate.com/get-tucked/support.html`
+**Marketing URL:** `https://impreciselyaccurate.com/get-tucked/`
 **Copyright:** `2026 Kah Chan`
 
 **App Review information:** contact name, phone, `gettucked.app@gmail.com`; sign-in
