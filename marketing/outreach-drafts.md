@@ -101,6 +101,92 @@ beats the noise floor; and when a segmentation mask is trustworthy enough to cou
 
 ---
 
+## 2b. Forum posts
+
+Post these in the same week as Reddit, one a day so you can answer each thread live. Post as the
+builder, from one personal account. Read each forum's self-promotion rules first, and ask the
+admin when the rules say to. Attach the two-setup comparison screenshot wherever the forum
+allows images.
+
+### Tour Aotearoa Facebook group (and other NZ bikepacking groups)
+
+Message an admin before you post. Most NZ groups allow a builder post once if the admin agrees.
+
+**Post:**
+
+Kia ora all. A mate and I (two Wellington dads with day jobs) built an iPhone app called Get
+Tucked. You photograph yourself and your loaded bike against a plain wall, and it gives you the
+frontal area of the whole rig in cm², bags included. Shoot two setups and it tells you which one
+is smaller, or that the difference sits inside its ±3% margin.
+
+We built it for the TA question: is the bar bag or the fork bags costing me more into a
+Canterbury headwind? It won't give you watts or CdA. It measures what a photo can measure.
+
+US$9.99 once, no subscription, no account, everything stays on your phone.
+
+App Store: [App Store link]
+How it works and what it can't do: https://impreciselyaccurate.com/get-tucked/methodology.html
+
+Happy to answer questions here, and I'd like to hear what it gets wrong on your rig.
+
+### Weight Weenies (aero / tech subforum: confirm the current name)
+
+This crowd knows CdA, Chung field tests and wind tunnels. Lead with the method and its limits,
+and expect a close look at the error budget. Answer every technical question with the real
+number or "we don't know".
+
+**Title:** Measuring frontal area from a photo, with an honest error bar
+
+**Post:**
+
+I built an iPhone app that measures projected frontal area from one photo. I'd like this forum to
+pick the method apart.
+
+- **Segmentation:** Apple Vision, on-device. It masks the rider, the bike and the bags together.
+- **Scale:** your handlebar width acts as an in-frame ruler. The app cross-checks it against your
+  wheel size as a second ruler, so a bad tap gets flagged.
+- **Error:** each reading carries a fixed ±3% margin. When you compare two setups, the app
+  combines both margins. If the difference doesn't clear them, it reports "indistinguishable".
+- **Limits:** it measures A only. It doesn't estimate Cd, model airflow or give watts. If you run
+  field tests, the test gives you CdA and this gives you A.
+
+Full method and known limits: https://impreciselyaccurate.com/get-tucked/methodology.html
+
+It's called Get Tucked, US$9.99 once, iOS only: [App Store link]
+
+Where do you think the error budget is wrong?
+
+### Show HN (Hacker News)
+
+HN rewards the engineering story and punishes a sales pitch. Say the price in the first comment.
+Post on a weekday morning US Pacific time. Stay in the thread for the first three hours.
+
+**Title:** Show HN: An iOS app that measures cyclist frontal area, and its own error
+
+**Link:** https://impreciselyaccurate.com/get-tucked/methodology.html
+
+**First comment:**
+
+I'm one of two dads who built this around day jobs. Cyclists spend a lot of money on aero gear,
+and the only ways to measure it are wind tunnels and dedicated aero sensors. We wanted to know what a
+phone photo can tell you with no depth sensor.
+
+The pipeline: Apple Vision segments the rider and the loaded bike on-device. The user taps the two
+ends of the handlebar, and its known width sets the scale. The wheel diameter gives a second
+ruler, and if the two disagree, the app flags the photo. The app then reports projected area in
+cm² with a fixed ±3% margin. When you compare two setups, it combines both margins and says
+"indistinguishable" when the difference doesn't clear them.
+
+What it won't do: estimate drag coefficient, model airflow or give watts. The methodology page
+lists what the app can't do.
+
+It's SwiftUI and SwiftData, with no backend, no accounts and no analytics. US$9.99 once on the
+App Store: [App Store link]
+
+I'm happy to go deep on the segmentation, the scale math or the error model.
+
+---
+
 ## 3. Press pitch (bikepacking.com, Escape Collective, The Radavist)
 
 Send after the Reddit post has reception to point at. Journalists skim — everything above
