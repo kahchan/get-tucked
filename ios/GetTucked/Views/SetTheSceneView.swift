@@ -34,7 +34,7 @@ struct SetTheSceneView: View {
 
                 SectionDivider()
 
-                // Blob stand-ins + column headers
+                // Column headers
                 HStack(spacing: 0) {
                     ColumnHeader(label: "DO", color: Theme.Palette.acc)
                     ColumnHeader(label: "AVOID", color: Theme.Palette.amb)
@@ -42,16 +42,20 @@ struct SetTheSceneView: View {
 
                 SectionDivider()
 
-                // Silhouette blobs
                 HStack(spacing: 0) {
-                    BlobStandin(tint: Theme.Palette.acc)
+                    ExamplePhoto(
+                        name: "SetSceneExample-do",
+                        label: "Good example: rider fills the frame head to wheel, against a plain wall."
+                    )
                     Rectangle()
                         .fill(Theme.Palette.line)
                         .frame(width: 1)
-                    BlobStandin(tint: Theme.Palette.amb)
+                    ExamplePhoto(
+                        name: "SetSceneExample-avoid",
+                        label: "Bad example: small rider in a cluttered street, with a van, bollards and a pram in the shot."
+                    )
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 200)
 
                 SectionDivider()
 
@@ -114,45 +118,21 @@ private struct ColumnHeader: View {
     }
 }
 
-private struct BlobStandin: View {
-    let tint: Color
+private struct ExamplePhoto: View {
+    let name: String
+    let label: String
 
     var body: some View {
-        ZStack {
-            Theme.Palette.bg1
-            // Rough cyclist-in-aero silhouette using layered ellipses
-            VStack(spacing: 0) {
-                // Head
-                Ellipse()
-                    .fill(tint.opacity(0.15))
-                    .stroke(tint.opacity(0.3), lineWidth: 1)
-                    .frame(width: 28, height: 28)
-                    .offset(x: 12)
-                // Torso + arms stretched forward
-                Capsule()
-                    .fill(tint.opacity(0.15))
-                    .stroke(tint.opacity(0.3), lineWidth: 1)
-                    .frame(width: 100, height: 38)
-                    .rotationEffect(.degrees(-25))
-                    .offset(y: -8)
-                // Legs
-                HStack(spacing: 6) {
-                    Capsule()
-                        .fill(tint.opacity(0.12))
-                        .stroke(tint.opacity(0.25), lineWidth: 1)
-                        .frame(width: 18, height: 55)
-                        .rotationEffect(.degrees(8))
-                    Capsule()
-                        .fill(tint.opacity(0.12))
-                        .stroke(tint.opacity(0.25), lineWidth: 1)
-                        .frame(width: 18, height: 55)
-                        .rotationEffect(.degrees(-8))
-                }
-                .offset(y: -10)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .clipped()
+        // 2:3 matches the asset crop, so head-to-wheel is never trimmed —
+        // a cropped DO photo would break its own "fill the frame" rule.
+        Color.clear
+            .aspectRatio(2.0 / 3.0, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .overlay(Image(name).resizable().scaledToFill())
+            .clipped()
+            .accessibilityElement()
+            .accessibilityLabel(label)
+            .accessibilityAddTraits(.isImage)
     }
 }
 
