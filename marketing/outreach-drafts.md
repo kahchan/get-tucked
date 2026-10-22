@@ -19,7 +19,7 @@ person or don't send it. Should read like one rider emailing another — over-po
 Hi [name] — followed your [Tour Divide / AMR] ride last year. [One specific, true
 sentence — a setup choice they made, a scratch, a result.]
 
-A mate and I built an iPhone app that measures the frontal area of you *and* your loaded
+My mate Joe Corbett and I built an iPhone app that measures the frontal area of you *and* your loaded
 bike from photos — so it's not just body position, it's the fork bags, the seatpack, the
 bar roll, all of it. You shoot against a plain wall, it segments the whole rig, gives you
 cm² and posture angles, and compares setups: frame bag on vs off, hoods vs drops, aero bars
@@ -31,7 +31,7 @@ reading carries a ±3% margin, and when two setups land inside it, the app just 
 
 It's called Get Tucked. (Yes, on purpose. Our kids think it's the funniest thing we've ever
 done, which tells you where the bar is.) We're two dads building it around day jobs,
-launching at USD $20, no subscription. Would love to get it on your phone before launch —
+launching at US$9.99, no subscription. Would love to get it on your phone before launch —
 no obligation to say anything about it, ever. If it's useful, use it. If you happen to
 mention it, we won't complain.
 
@@ -78,7 +78,7 @@ re-shoot the same position, so you can watch the floor move with your own eyes b
 trust a change.
 
 Everything runs on-device. Photos stay in your library, no account, no cloud, no
-analytics. USD $20 one-time, no subscription.
+analytics. US$9.99 one-time, no subscription.
 
 [App Store link] · [Methodology page link]
 
@@ -192,7 +192,7 @@ I'm happy to go deep on the segmentation, the scale math or the error model.
 Send after the Reddit post has reception to point at. Journalists skim — everything above
 the fold, links do the heavy lifting.
 
-**Subject:** Two dads built a $20 aero measurement app that refuses to overstate its own
+**Subject:** Two dads built a US$9.99 aero measurement app that refuses to overstate its own
 accuracy
 
 Hi [name],
@@ -217,12 +217,12 @@ screen inside the app and a page on the site: [methodology link].
 It landed well with the community — the r/bikepacking launch post is here [link], and
 riders including [names, if any bit] have been using it since the beta.
 
-We're a two-person team (both full-time-employed dads, building this from New Zealand), $20
-one-time, everything on-device, no accounts or analytics. Happy to send promo codes, a press kit [link], or get
+We're a two-person team (Joe Corbett and Kah Chan, both full-time-employed dads, building this from New Zealand), US$9.99
+one-time, everything on-device, no accounts or analytics. Happy to send promo codes, a press kit (https://impreciselyaccurate.com/get-tucked/press.html), or get
 on a call. Also happy to be technically grilled on the measurement math — that's the fun
 part.
 
-Kah [+ surname, links]
+Kah Chan
 
 > Credibility load-bearing lines: the Reddit reception link and the racer names. If neither
 > exists yet, wait.
