@@ -56,7 +56,7 @@ difference is too small to trust
 
 **Body:**
 
-Two of us (both dads with day jobs, both just cycling fans) spent [X months] building an
+Joe Corbett and I (both dads with day jobs, both just cycling fans) spent [X months] building an
 iPhone app called Get Tucked. Yes, that's the name. We have children; this is the level of
 humour you get. You photograph your position against a plain background and it extracts the
 whole silhouette — you *and* the loaded bike — then gives you frontal area in cm² plus
@@ -114,7 +114,7 @@ Message an admin before you post. Most NZ groups allow a builder post once if th
 
 **Post:**
 
-Kia ora all. A mate and I (two Wellington dads with day jobs) built an iPhone app called Get
+Kia ora all. My mate Joe Corbett and I (two Wellington dads with day jobs) built an iPhone app called Get
 Tucked. You photograph yourself and your loaded bike against a plain wall, and it gives you the
 frontal area of the whole rig in cm², bags included. Shoot two setups and it tells you which one
 is smaller, or that the difference sits inside its ±3% margin.
@@ -139,7 +139,7 @@ number or "we don't know".
 
 **Post:**
 
-I built an iPhone app that measures projected frontal area from one photo. I'd like this forum to
+Joe Corbett and I built an iPhone app that measures projected frontal area from one photo. I'd like this forum to
 pick the method apart.
 
 - **Segmentation:** Apple Vision, on-device. It masks the rider, the bike and the bags together.
@@ -167,7 +167,7 @@ Post on a weekday morning US Pacific time. Stay in the thread for the first thre
 
 **First comment:**
 
-I'm one of two dads who built this around day jobs. Cyclists spend a lot of money on aero gear,
+Joe Corbett and I are two dads who built this around day jobs. Cyclists spend a lot of money on aero gear,
 and the only ways to measure it are wind tunnels and dedicated aero sensors. We wanted to know what a
 phone photo can tell you with no depth sensor.
 

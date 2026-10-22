@@ -27,7 +27,7 @@ Hi Joe,
 
 Your Velo interview about the bikepacking aero hack made me think you'd have opinions on this.
 
-A mate and I built an iPhone app called Get Tucked. You photograph yourself and your loaded bike
+My mate Joe Corbett and I built an iPhone app called Get Tucked. You photograph yourself and your loaded bike
 against a plain wall, and it gives you frontal area in cm² for the whole rig, bags included.
 Compare two setups and it tells you which one is smaller, or that the difference sits inside its
 ±3% margin. It won't predict CdA. We're two dads with day jobs and no wind tunnel.
@@ -59,7 +59,7 @@ Hi Matt,
 Five laps of the Triple Crown, an EWS season bikepacked between races, the MTB Rally under your
 own power. You think hard about what you carry.
 
-A mate and I built an iPhone app called Get Tucked to measure that. You photograph yourself and
+My mate Joe Corbett and I built an iPhone app called Get Tucked to measure that. You photograph yourself and
 your loaded bike against a plain wall, and it gives you frontal area in cm² for the whole rig.
 Compare setups (this bar roll against that one, dynamo against solar) and it tells you which is
 smaller, or that the difference sits inside its ±3% margin. It won't predict CdA. We're two dads
@@ -87,7 +87,7 @@ Get Tucked · https://impreciselyaccurate.com/get-tucked/
 
 Hi [name],
 
-Two Wellington dads, with day jobs and kids, built an iPhone app called Get Tucked. It measures
+Joe Corbett and I, two Wellington dads with day jobs and kids, built an iPhone app called Get Tucked. It measures
 the frontal area of a rider and their loaded bike from a photo, and it answers the question
 bikepackers ask most: what do these bags cost me? Kiwi ultra riders are the people we built it
 for. The app also tells you what a photo can't say about drag, in a category full of aero claims
@@ -128,7 +128,7 @@ https://impreciselyaccurate.com/get-tucked/methodology.html
 [reception: Riders on r/bikepacking took it apart here: link. Joe Nation has been using it since
 the beta.]
 
-We're two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
+Joe Corbett and I are two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
 runs on the phone, and has no accounts or analytics. App Store: [App Store link]
 
 I can send download codes and screenshots, or get on a call.
@@ -156,7 +156,7 @@ https://impreciselyaccurate.com/get-tucked/methodology.html
 [reception: Riders on r/bikepacking took it apart here: link. Joe Nation has been using it since
 the beta.]
 
-We're two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
+Joe Corbett and I are two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
 runs on the phone, and has no accounts or analytics. App Store: [App Store link]
 
 I can send download codes and screenshots, or get on a call.
@@ -184,7 +184,7 @@ https://impreciselyaccurate.com/get-tucked/methodology.html
 [reception: Riders on r/bikepacking took it apart here: link. Joe Nation has been using it since
 the beta.]
 
-We're two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
+Joe Corbett and I are two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
 runs on the phone, and has no accounts or analytics. App Store: [App Store link]
 
 I can send download codes and screenshots, or get on a call. If you want to grill us on the
