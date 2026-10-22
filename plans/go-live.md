@@ -32,7 +32,8 @@ submitted. Next session: App Store submission.
 
 ## Claude — submission (Plan AM wave 2 and the upload)
 
-1. **Build 1.0 (2) uploaded 2026-10-17** (main 8bbfc0a: Plans AP, AQ, icon r7), via
+1. **Build 1.0 (3) uploaded 2026-10-22** (main 447d3fb: Set the Scene photos). 1.0 (2)
+   went up 2026-10-17 (8bbfc0a: Plans AP, AQ, icon r7). Both via
    `xcodebuild archive` + `-exportArchive` with `ios/ExportOptions.plist`. A duplicate
    1.0 (1) went up first by mistake (build 1 already existed): ignore or expire it. Bump
    `CFBundleVersion` in `project.yml` before every upload. Internal TestFlight first; external
@@ -40,8 +41,8 @@ submitted. Next session: App Store submission.
 2. AM5 no-subject walk is still open (camera at a wall, photo with no person).
 3. Store metadata: subtitle, description, keywords, privacy answers ("Data Not
    Collected"), age rating, price.
-   - Price: the site says $20. Apple's nearest tier is US$19.99. Make the site and
-     the store say the same thing.
+   - Price: US$9.99 (decided 2026-10-22). Site updated; set the same tier in App Store
+     Connect. Outreach drafts in `marketing/` still say $20.
 
 ## After 1.0 is approved
 

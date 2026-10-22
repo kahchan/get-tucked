@@ -13,7 +13,7 @@ shipping app and the site; keep it em-dash-free.
 
 ## Pricing
 
-Price tier: **open decision**. The site says $20; Apple's nearest tier is US$19.99.
+Price tier: **US$9.99** (Kah, 2026-10-22). The site says the same.
 
 ## App Privacy
 
