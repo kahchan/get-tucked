@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Press · Get Tucked</title>
+<meta name="description" content="Press kit for Get Tucked: fact sheet, descriptions, screenshots and icon." />
+<meta property="og:title" content="Press · Get Tucked" />
+<meta property="og:description" content="Press kit for Get Tucked: fact sheet, descriptions, screenshots and icon." />
+<meta property="og:type" content="article" />
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preload" as="font" type="font/woff2" href="fonts/barlow-condensed-700.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+<script>
+document.documentElement.classList.add('js');
+/* AI11 failsafe — inline so it runs even if site.js 404s, fails to parse, or
+   is blocked outright. Bails when site.js signalled that it wired the scroll
+   observer: revealing everything unconditionally would cancel the entrances
+   for below-fold content the reader hasn't reached yet. Selector list must
+   stay identical to the `targets` query in site.js — keep the two in sync. */
+setTimeout(function () {
+  if (window.__gtEntrancesOwned) return;
+  document.querySelectorAll(
+    'section.block, .doc > section, .floor, .get-list, .shots, .faq, ul.plain, .cites, .enter'
+  ).forEach(function (e) { e.classList.add('in'); });
+}, 2000);
+</script>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><img class="mark" src="favicon.svg" width="20" height="20" alt="">Get <b>Tucked</b></a>
+  <a class="top-cta" href="#" aria-label="Download on the App Store">
+    <img class="badge" src="appstore-badge-black.svg" width="120" height="40" alt="Download on the App Store">
+  </a>
+</div>
+
+<div class="doc">
+
+  <header class="doc-head enter">
+    <div class="doc-eyebrow">Press</div>
+    <h1 class="doc-title">Press kit</h1>
+    <p class="doc-intro">Get Tucked is an iPhone app that measures the frontal area of a cyclist and their loaded bike from one photo against a plain wall. Riders compare positions and bag setups in cm². Each reading carries an error bar, and the app says "indistinguishable" when a difference is too small to trust.</p>
+  </header>
+
+  <section>
+    <h2>Download</h2>
+    <p>One zip with the fact sheet, six App Store screenshots at 1320 × 2868 px, and the app icon at 1024 px. You may use these images to cover Get Tucked. Please don't alter the screenshots.</p>
+    <a class="methlink" href="press/get-tucked-press-kit.zip" download>
+      Download the press kit (zip, 3 MB) <span class="arw">→</span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Fact sheet</h2>
+    <ul class="plain">
+      <li><strong>Maker:</strong> Imprecisely Accurate Instruments, Wellington, New Zealand</li>
+      <li><strong>Platform:</strong> iPhone, iOS 17 or later (iPhone XS and newer)</li>
+      <li><strong>Price:</strong> US$9.99, one-time. No subscription, no in-app purchases.</li>
+      <li><strong>Privacy:</strong> everything runs on the phone. No account, no analytics, no network calls.</li>
+      <li><strong>Contact:</strong> Kah Chan, gettucked.app@gmail.com</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <p>Cyclists spend a lot on aero gear, and the usual ways to measure it are wind tunnels and dedicated sensors. Get Tucked uses a phone photo. The rider stands on the bike in front of a plain wall, a friend takes a head-on photo from 5 to 6 m back, and the rider taps the two ends of the handlebar. The app segments rider, bike and bags on the phone and reports frontal area in cm².</p>
+    <ul class="plain">
+      <li><strong>The handlebar is the ruler.</strong> The rider enters its width once, and it turns pixels into centimetres.</li>
+      <li><strong>The wheel is a second ruler.</strong> If the two rulers disagree, the app flags the photo.</li>
+      <li><strong>Every reading has an error bar</strong> of at least ±3%. If two setups differ by less than their combined error, the app says "indistinguishable".</li>
+    </ul>
+    <p>It measures frontal area, not drag. It does not estimate CdA or model airflow, and its time estimate is a range. The <a href="methodology.html">methodology page</a> gives the full method and a list of what the app can't do.</p>
+  </section>
+
+  <section>
+    <h2>Screenshots</h2>
+    <div class="shots">
+      <figure class="shot"><img class="press-shot" src="press/shot-01.jpg" width="460" height="1000" loading="lazy" alt="App Store screenshot: See what the wind sees. The compare screen overlays two outlines, tucked and tall."></figure>
+      <figure class="shot"><img class="press-shot" src="press/shot-02.jpg" width="460" height="1000" loading="lazy" alt="App Store screenshot: Your wind tunnel is a roller door. The live camera frames a rider in front of a roller door."></figure>
+      <figure class="shot"><img class="press-shot" src="press/shot-03.jpg" width="460" height="1000" loading="lazy" alt="App Store screenshot: Too small to trust? We say so. Two positions 1.3% apart, inside the noise."></figure>
+      <figure class="shot"><img class="press-shot" src="press/shot-04.jpg" width="460" height="1000" loading="lazy" alt="App Store screenshot: 4 to 12 min per 100 km, probably. The time estimate shown as a range."></figure>
+      <figure class="shot"><img class="press-shot" src="press/shot-05.jpg" width="460" height="1000" loading="lazy" alt="App Store screenshot: Your handlebars are the ruler. The scale screen with a loupe on the bar end."></figure>
+      <figure class="shot"><img class="press-shot" src="press/shot-06.jpg" width="460" height="1000" loading="lazy" alt="App Store screenshot: Good light in, good numbers out. Do and avoid examples for the photo."></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>About the makers</h2>
+    <p>Two dads in Wellington, New Zealand, who built Get Tucked around day jobs. Imprecisely Accurate Instruments is Kah Chan's studio. Kah is a product designer.</p>
+    <p>We are happy to send download codes, answer questions about the measurement math, or get on a call: gettucked.app@gmail.com.</p>
+  </section>
+
+  </div>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div>
+      <p class="dads">Made by Imprecisely Accurate Instruments, in Wellington, New Zealand.</p>
+      <p>gettucked.app@gmail.com · <a href="index.html">Home</a> · <a href="privacy.html">Privacy</a> · <a href="support.html">Support</a> · <a href="press.html">Press</a></p>
+      <p>© 2026 Kah Chan. Everything on-device. No accounts, no analytics.</p>
+    </div>
+    <div class="footer-mark" aria-hidden="true">
+      <svg class="seal" viewBox="0 0 64 64" role="img"><g fill="none" stroke="currentColor" stroke-linecap="butt"><circle cx="32" cy="32" r="31.1" stroke-width="0.85"></circle><circle cx="32" cy="32" r="27.2" stroke-width="0.75" opacity="0.45"></circle><path d="M32 0.9v5.7M32 56.9v5.7M0.9 32h5.7M56.9 32h5.7" stroke-width="0.75" opacity="0.55"></path><g transform="translate(19.55 22.9) scale(1.596)" stroke-width="1.7"><path d="M0 3 C2.6 -0.6 5.2 -0.6 7.8 3 C10.4 6.6 13 6.6 15.6 3"></path><path d="M0 8.4 C2.6 4.8 5.2 4.8 7.8 8.4 C10.4 12 13 12 15.6 8.4"></path></g></g></svg>
+      <div class="cal">
+        <span class="serif">Imprecisely Accurate</span>
+        <span class="cal-row">
+          <span class="cal-tick"></span>
+          <span class="cal-arm"><svg viewBox="0 0 6 8" fill="none" stroke="currentColor" stroke-width="1"><path d="M5.5.5l-5 3.5 5 3.5"></path></svg><span class="cal-fill"></span></span>
+          <span class="cal-label">Instruments</span>
+          <span class="cal-arm"><span class="cal-fill"></span><svg viewBox="0 0 6 8" fill="none" stroke="currentColor" stroke-width="1"><path d="M.5.5L5.5 4 .5 7.5"></path></svg></span>
+          <span class="cal-tick"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+</body>
+</html>

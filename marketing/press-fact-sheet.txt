@@ -1,0 +1,48 @@
+GET TUCKED: PRESS FACT SHEET
+
+App:        Get Tucked
+Maker:      Imprecisely Accurate Instruments, Wellington, New Zealand
+Platform:   iPhone, iOS 17 or later (iPhone XS and newer)
+Price:      US$9.99, one-time. No subscription, no in-app purchases.
+App Store:  linked from the website
+Website:    https://impreciselyaccurate.com/get-tucked/
+Method:     https://impreciselyaccurate.com/get-tucked/methodology.html
+Contact:    Kah Chan, gettucked.app@gmail.com
+
+SHORT DESCRIPTION (50 words)
+Get Tucked is an iPhone app that measures the frontal area of a cyclist and their loaded bike
+from one photo against a plain wall. Riders compare positions and bag setups in cm². Each
+reading carries an error bar, and the app says "indistinguishable" when a difference is too
+small to trust.
+
+LONG DESCRIPTION
+Cyclists spend a lot on aero gear, and the usual ways to measure it are wind tunnels and
+dedicated sensors. Get Tucked uses a phone photo. The rider stands on the bike in front of a
+plain wall, a friend takes a head-on photo from 5 to 6 m back, and the rider taps the two ends
+of the handlebar. The app segments rider, bike and bags on the phone and reports frontal area
+in cm². Shoot a second setup, such as bags on against bags off or hoods against drops, and the
+app compares the two.
+
+HOW IT WORKS
+- The handlebar width is the ruler. The rider enters it once, and it turns pixels into cm.
+- The wheel is a second ruler. If the two rulers disagree, the app flags the photo.
+- Each reading shows its error bar, at least ±3%. If two setups differ by less than their
+  combined error, the app says "indistinguishable".
+
+WHAT IT DOES NOT CLAIM
+- It measures frontal area, not drag. It does not estimate CdA or model airflow.
+- Its time estimate is a range, not a promise.
+
+PRIVACY
+Everything runs on the phone. No account, no analytics, no tracking, no network calls.
+Photos never leave the phone.
+
+ABOUT THE MAKERS
+Two dads in Wellington, New Zealand, who built Get Tucked around day jobs. Imprecisely
+Accurate Instruments is Kah Chan's studio. Kah is a product designer.
+
+IN THIS KIT
+screenshots/  Six App Store screenshots, 1320 x 2868 px
+icon/         App icon, 1024 x 1024 px PNG
+
+You may use these images to cover Get Tucked. Please don't alter the screenshots.

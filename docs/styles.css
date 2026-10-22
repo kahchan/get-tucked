@@ -331,6 +331,7 @@ p.body em{color:var(--fg); font-style:italic}
   max-width:860px; margin-top:8px;
 }
 .shot{margin:0}
+.press-shot{width:100%; height:auto; display:block; border:1px solid var(--line)}
 .pair{grid-template-columns:repeat(2,1fr)}
 .pose-frame{position:relative; aspect-ratio:1; overflow:hidden; background:var(--bg1); border:1px solid var(--line)}
 .shot-frame{
