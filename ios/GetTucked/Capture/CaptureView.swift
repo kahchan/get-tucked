@@ -162,11 +162,11 @@ struct CaptureView: View {
 
                 stepContent
             }
-            .alert("Capture failed", isPresented: $showingError, presenting: analysisError) { _ in
+            .alert(burstImages.isEmpty ? "Can't use this photo" : "Capture failed", isPresented: $showingError, presenting: analysisError) { _ in
                 Button("Try again") { step = .pickPhoto }
                 Button("Cancel", role: .cancel) { requestExitCaptureFlow() }
             } message: { error in
-                Text(error.errorDescription ?? "Unknown error.")
+                Text(error.message(fromLibrary: burstImages.isEmpty))
             }
             // AL14 candidate 1: mirrors LiveCameraView's camera-denial
             // Settings deep-link — doesn't block the capture flow (the photo
@@ -247,6 +247,14 @@ struct CaptureView: View {
         }
     }
 
+    /// AR1: fails fast, before the user spends two taps calibrating a photo with no rider.
+    private func riderCheckPassed(_ image: UIImage) async -> Bool {
+        do { try await AnalysisEngine.checkRider(image: image) }
+        catch let error as AnalysisError { analysisError = error; showingError = true; return false }
+        catch {}  // ponytail: Vision itself failed (Simulator Code=9); analyse re-runs this check
+        return true
+    }
+
     private func discardInFlightCapture() {
         analysisTask?.cancel()
         analysisTask = nil
@@ -267,22 +275,28 @@ struct CaptureView: View {
                         // single picked photo has no 3-shot spread to
                         // measure) — burstImages stays empty and runAnalysis
                         // falls back to the single-photo path.
-                        selectedImage = image
-                        assetIdentifier = identifier
                         burstImages = []
-                        tapPoints = []
-                        step = .calibrate
+                        Task {
+                            guard await riderCheckPassed(image) else { return }
+                            selectedImage = image
+                            assetIdentifier = identifier
+                            tapPoints = []
+                            step = .calibrate
+                        }
                     }, onCapture: { _ in }, onBurstCapture: { images in
                         // Only the first of the 3 goes to the camera roll —
                         // saving all 3 near-duplicate frames would clutter
                         // the library for no benefit (AL10).
                         guard let first = images.first else { return }
-                        selectedImage = first  // already normalised in photoOutput delegate
-                        assetIdentifier = nil  // live capture has no PHAsset identifier
                         burstImages = images
-                        tapPoints = []
-                        step = .calibrate
-                        Task { await saveToCameraRoll(first) }
+                        Task {
+                            guard await riderCheckPassed(first) else { return }
+                            selectedImage = first  // already normalised in photoOutput delegate
+                            assetIdentifier = nil  // live capture has no PHAsset identifier
+                            tapPoints = []
+                            step = .calibrate
+                            await saveToCameraRoll(first)
+                        }
                     }, onCancel: { requestExitCaptureFlow() }, ghost: headOnGhost)
                     .transition(.identity)
                 }

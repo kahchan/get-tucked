@@ -442,6 +442,7 @@ private struct LibraryFallbackLink: View {
                    let image = UIImage(data: data) {
                     onPicked(image, newItem.itemIdentifier)
                 }
+                pickerItem = nil
                 isLoading = false
             }
         }

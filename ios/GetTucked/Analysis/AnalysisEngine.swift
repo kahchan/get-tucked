@@ -67,6 +67,19 @@ enum AnalysisError: LocalizedError {
         case .burstSpreadTooHigh: "You moved between shots. Hold still and try again."
         }
     }
+
+    /// AR2: a picked library photo can't be retaken, so the camera coaching
+    /// ("Step back") is replaced with advice about choosing another photo.
+    func message(fromLibrary: Bool) -> String {
+        guard fromLibrary else { return errorDescription ?? "Unknown error." }
+        switch self {
+        case .noPersonDetected: return "No rider found in this photo. Pick a photo of a person on a bike."
+        case .multiplePersonsDetected: return "More than one person in this photo. Pick one with only the rider."
+        case .personTooSmallInFrame: return "The rider is too small in this photo. Pick one where they fill more of the frame."
+        case .personClipsFrame: return "Part of the rider is cut off in this photo. Pick one that shows them head to wheel."
+        default: return errorDescription ?? "Unknown error."
+        }
+    }
 }
 
 struct AnalysisResult {
@@ -365,6 +378,14 @@ struct AnalysisEngine {
     }
 
     // MARK: - Person validation
+
+    /// AR1: the same rider check `analyse` runs, callable before calibration.
+    static func checkRider(image: UIImage) async throws {
+        guard let cgImage = image.cgImage else { throw AnalysisError.segmentationFailed }
+        try await validatePerson(
+            cgImage: cgImage, imageSize: CGSize(width: cgImage.width, height: cgImage.height)
+        )
+    }
 
     private static func validatePerson(cgImage: CGImage, imageSize: CGSize) async throws {
         let request = VNDetectHumanRectanglesRequest()

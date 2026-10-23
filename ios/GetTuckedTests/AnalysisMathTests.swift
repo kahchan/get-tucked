@@ -986,3 +986,28 @@ final class AnalysisMathTests: XCTestCase {
         XCTAssertEqual(backResult.wheelCheckDisagreementFraction ?? -1, expectedDisagreement, accuracy: 1e-9)
     }
 }
+
+final class RiderCheckTests: XCTestCase {
+    func testCheckRiderThrowsOnBlankImage() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Vision human-rectangle detection fails in the Simulator")
+        #endif
+        let blank = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 300)).image { ctx in
+            UIColor.gray.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 200, height: 300))
+        }
+        do {
+            try await AnalysisEngine.checkRider(image: blank)
+            XCTFail("expected noPersonDetected")
+        } catch AnalysisError.noPersonDetected {
+        } catch { XCTFail("wrong error: \(error)") }
+    }
+
+    func testLibraryMessages() {
+        XCTAssertEqual(AnalysisError.noPersonDetected.message(fromLibrary: true), "No rider found in this photo. Pick a photo of a person on a bike.")
+        XCTAssertEqual(AnalysisError.multiplePersonsDetected.message(fromLibrary: true), "More than one person in this photo. Pick one with only the rider.")
+        XCTAssertEqual(AnalysisError.personTooSmallInFrame.message(fromLibrary: true), "The rider is too small in this photo. Pick one where they fill more of the frame.")
+        XCTAssertEqual(AnalysisError.personClipsFrame.message(fromLibrary: true), "Part of the rider is cut off in this photo. Pick one that shows them head to wheel.")
+        XCTAssertEqual(AnalysisError.noPersonDetected.message(fromLibrary: false), AnalysisError.noPersonDetected.errorDescription)
+        XCTAssertEqual(AnalysisError.burstSpreadTooHigh.message(fromLibrary: true), AnalysisError.burstSpreadTooHigh.errorDescription)
+    }
+}
