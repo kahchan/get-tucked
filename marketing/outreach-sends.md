@@ -5,7 +5,6 @@ rider or outlet.
 
 **Before you send:**
 - Racers get the TestFlight link. Media get `[App Store link]`: replace it with the live URL.
-- Replace `[name]` in the media emails with the editor's name.
 - Fill or delete the `[reception]` line in B, C and D.
 - Generate the promo codes you offer media (App Store Connect → the app → Promo Codes).
 - Attach one image to every email: a two-setup comparison screen from the store shots.
@@ -20,6 +19,9 @@ Send one follow-up after a week of silence, then stop.
 # Racer emails (the two Kiwis first)
 
 ## 1 · Joe Nation
+
+**To:** Instagram DM. No public email found. The handle is unconfirmed: the Downtime
+podcast lists @joenation1, and racer-list.md has @joe__nation. Check which one is active.
 
 **Subject:** Your aero hack, measured
 
@@ -48,16 +50,20 @@ Get Tucked · https://impreciselyaccurate.com/get-tucked/
 
 ## 2 · Matthew Fairbrother
 
-> **Verify before send:** the five-lap Triple Crown ride. A search found only the "North Shore
-> Triple Triple Crown" on Blister's podcast (Nov 2024). Confirm the event name and lap count on his
-> own site or Instagram, and fix the first line to match.
+**To:** mathewf2004@gmail.com (his site's contact page, "All Inquiries"; note the single-t
+spelling). Instagram: @matthewfmtb.
+
+> **Hook verified 2026-10-22:** Pinkbike, "Matthew Fairbrother's Mammoth North Shore Epic"
+> (Oct 21, 2026). Five laps of the North Shore Triple Crown: 453 km, 15,005 m, 29:38 elapsed. He
+> planned four and decided on the fifth during lap four.
 
 **Subject:** What your kit costs you
 
 Hi Matt,
 
-Five laps of the Triple Crown, an EWS season bikepacked between races, the MTB Rally under your
-own power. You think hard about what you carry.
+Five laps of the North Shore Triple Crown, 15,000 m of climbing, and you only decided on the
+fifth during the fourth. Add the EWS season you bikepacked between races, and you think hard about
+what you carry.
 
 My mate Joe Corbett and I built an iPhone app called Get Tucked to measure that. You photograph yourself and
 your loaded bike against a plain wall, and it gives you frontal area in cm² for the whole rig.
@@ -83,9 +89,12 @@ Get Tucked · https://impreciselyaccurate.com/get-tucked/
 
 ## A · NZ Cycling Journal (send first, local angle)
 
+**To:** Liam Friary, founder (Pedal Press). Use the form at nzcyclingjournal.com/contact. No
+public email. Pedal Press also publishes NZ Mountain Biker.
+
 **Subject:** Wellington dads build an aero app
 
-Hi [name],
+Hi Liam,
 
 Joe Corbett and I, two Wellington dads with day jobs and kids, built an iPhone app called Get Tucked. It measures
 the frontal area of a rider and their loaded bike from a photo, and it answers the question
@@ -111,9 +120,11 @@ Get Tucked · https://impreciselyaccurate.com/get-tucked/
 
 ## B · The Radavist (hold until reception link)
 
+**To:** John Watson, founder. contact@theradavist.com (John handles all content inquiries).
+
 **Subject:** An aero app with no watts-saved claims
 
-Hi [name],
+Hi John,
 
 Get Tucked feels more like a Radavist story than a spec sheet. It's an iPhone app that measures
 the frontal area of your whole loaded rig from a photo, and its favourite feature is telling you
@@ -140,9 +151,12 @@ Get Tucked · https://impreciselyaccurate.com/get-tucked/
 
 ## C · BIKEPACKING.com (hold until reception link)
 
+**To:** Lucas Winzenburg, managing editor. No public email: use the tips form at
+bikepacking.com/contribute/suggestions/. Logan Watts (founding editor) is the alternative.
+
 **Subject:** Frontal area for loaded rigs, from a photo
 
-Hi [name],
+Hi Lucas,
 
 Your readers pore over rig breakdowns, so this might land. Get Tucked measures the frontal area of
 rider, bike and bags together from a photo, and compares setups side by side. Think of it as a
@@ -168,9 +182,12 @@ Get Tucked · https://impreciselyaccurate.com/get-tucked/
 
 ## D · Escape Collective (hold until reception link)
 
+**To:** Ronan Mc Laughlin, senior tech editor (performance), their wind tunnel writer.
+info@escapecollective.com, marked "For Ronan". Dave Rome (senior tech editor) is the alternative.
+
 **Subject:** An aero app that admits its error
 
-Hi [name],
+Hi Ronan,
 
 Escape cares about technical honesty, so you might like this one. Get Tucked measures frontal area
 from photos. It makes no CdA claim, models no airflow, and reports no difference smaller than its
