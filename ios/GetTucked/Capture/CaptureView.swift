@@ -8,24 +8,38 @@ struct CaptureView: View {
     @Binding var path: [AppScreen]
     // Set only via "Match this position" (Plan P2) — the position to align
     // this capture's ghost against. nil for every ordinary capture.
-    var referenceID: PersistentIdentifier? = nil
+    let referenceID: PersistentIdentifier?
     // Fires once a new position is inserted (Plan N7) — lets the list root
     // give the newest row a brief highlight once the user gets back there.
-    var onSaved: (UUID) -> Void = { _ in }
+    let onSaved: (UUID) -> Void
     @Environment(\.modelContext) private var context
     // AL14 candidate 4: only source of "is real async work in flight" this
     // view has — used to discard cleanly on backgrounding.
     @Environment(\.scenePhase) private var scenePhase
     @Query private var bikes: [Bike]
-    @Query(sort: \Position.capturedAt, order: .reverse) private var positions: [Position]
+    @Query private var referencePositions: [Position]
     // GetTuckedApp.fetchOrCreate guarantees exactly one row exists by the
     // time any view runs — this array is never empty in practice.
     @Query private var userSettingsRows: [UserSettings]
     private var userSettings: UserSettings? { userSettingsRows.first }
 
-    private var referencePosition: Position? {
-        guard let referenceID else { return nil }
-        return positions.first { $0.persistentModelID == referenceID }
+    private var referencePosition: Position? { referencePositions.first }
+
+    init(path: Binding<[AppScreen]>, referenceID: PersistentIdentifier?, onSaved: @escaping (UUID) -> Void) {
+        _path = path
+        self.referenceID = referenceID
+        self.onSaved = onSaved
+        if let id = referenceID {
+            _referencePositions = Query(filter: #Predicate<Position> { $0.persistentModelID == id })
+        } else {
+            _referencePositions = Query(filter: #Predicate<Position> { _ in false })
+        }
+    }
+
+    private func latestPositionBike() -> Bike? {
+        var d = FetchDescriptor<Position>(sortBy: [SortDescriptor(\.capturedAt, order: .reverse)])
+        d.fetchLimit = 1
+        return (try? context.fetch(d))?.first?.bike
     }
 
     /// Plan S1: drop bars are tapped at the drop ends (the tappable
@@ -196,7 +210,7 @@ struct CaptureView: View {
                 // Matching a position (Plan P2) means staying on the same
                 // setup — the reference's own bike takes priority over the
                 // usual "whatever was used last" default.
-                selectedBike = referencePosition?.bike ?? positions.first?.bike ?? bikes.first
+                selectedBike = referencePosition?.bike ?? latestPositionBike() ?? bikes.first
             }
             if !ghostsBuilt, referencePosition != nil {
                 ghostsBuilt = true

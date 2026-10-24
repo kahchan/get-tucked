@@ -226,6 +226,7 @@ struct BikeSetupView: View {
     private func deleteBike() {
         guard let bike = editing else { return }
         context.delete(bike)   // cascades to the bike's positions
+        try? context.save()   // don't wait for autosave: a crash before it resurrects the bike
         onSave?()
         dismiss()
     }

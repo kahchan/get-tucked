@@ -284,8 +284,14 @@ private struct PositionDetailWrapper: View {
     @Binding var path: [AppScreen]
     @Query private var positions: [Position]
 
+    init(id: PersistentIdentifier, path: Binding<[AppScreen]>) {
+        self.id = id
+        _path = path
+        _positions = Query(filter: #Predicate<Position> { $0.persistentModelID == id })
+    }
+
     var body: some View {
-        if let position = positions.first(where: { $0.persistentModelID == id }) {
+        if let position = positions.first {
             PositionDetailView(position: position, path: $path)
         } else {
             Text("Position not found")
@@ -321,6 +327,13 @@ private struct ComparisonWrapper: View {
     let idB: PersistentIdentifier
     @Binding var path: [AppScreen]
     @Query private var positions: [Position]
+
+    init(idA: PersistentIdentifier, idB: PersistentIdentifier, path: Binding<[AppScreen]>) {
+        self.idA = idA
+        self.idB = idB
+        _path = path
+        _positions = Query(filter: #Predicate<Position> { $0.persistentModelID == idA || $0.persistentModelID == idB })
+    }
 
     var body: some View {
         let a = positions.first(where: { $0.persistentModelID == idA })
