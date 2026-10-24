@@ -20,8 +20,7 @@ Send one follow-up after a week of silence, then stop.
 
 ## 1 · Joe Nation
 
-**To:** Instagram DM. No public email found. The handle is unconfirmed: the Downtime
-podcast lists @joenation1, and racer-list.md has @joe__nation. Check which one is active.
+**To:** Instagram DM, @joe__nation (BIKEPACKING.com links this handle). No public email found.
 
 **Subject:** Your aero hack, measured
 
@@ -75,6 +74,149 @@ The TestFlight link gives you a free copy: https://testflight.apple.com/join/WB3
 
 Would you try it on your next kit change and tell me what it gets wrong? One line or ten, either
 works. You don't need to post about it.
+
+The method, with a list of what it can't do:
+https://impreciselyaccurate.com/get-tucked/methodology.html
+
+Cheers,
+Kah Chan
+Get Tucked · https://impreciselyaccurate.com/get-tucked/
+
+---
+
+# Racer emails, wave 2
+
+Send after Joe and Matt, a day or two apart. Contacts and hooks checked 2026-10-23.
+
+## 3 · Rufus Wenlock
+
+**To:** info@sufur.co.nz (Süfur Cycles site). Instagram: @rufus_here.
+
+> **Hook:** BIKEPACKING.com, "An Introduction to Sufur Cycles" (2025). He maximised the front
+> triangle so one frame bag replaces the extras, and built Joe Nation's 2025 Tour Divide bike with
+> a rigid fork, 100 mm BB drop and a Tailfin Aeropack for "a sleek slipstream".
+
+**Subject:** Measuring a sleek slipstream
+
+Hi Rufus,
+
+You built Joe Nation's Tour Divide bike around one big frame bag and a low, rigid front end, partly
+for aero. You can see that kind of choice on a rig. It is much harder to measure.
+
+My mate Joe Corbett and I built an iPhone app called Get Tucked. You photograph yourself and
+your loaded bike against a plain wall, and it gives you frontal area in cm² for the whole rig, bags
+included. Compare two setups and it tells you which one is smaller, or that the difference sits
+inside its ±3% margin. It won't predict CdA. We're two dads in Wellington with day jobs and no wind
+tunnel.
+
+The TestFlight link gives you a free copy: https://testflight.apple.com/join/WB34npSn
+
+Would you shoot a Süfur build with it and tell me what it gets wrong? One line or ten, either works. You don't need to post about it.
+
+The method, with a list of what it can't do:
+https://impreciselyaccurate.com/get-tucked/methodology.html
+
+Cheers,
+Kah Chan
+Get Tucked · https://impreciselyaccurate.com/get-tucked/
+
+---
+
+## 4 · Torsten Frank
+
+**To:** info@tfrank.de (his blog's About page). Instagram: @torsten_frank. He writes in German;
+the email is in English.
+
+> **Hook:** torstenfrank.wordpress.com, "Aerodynamik von Bikepacking-Taschen" (Dec 2021). A
+> season of field tests gave CdA and watts for 8 bikepacking bag setups. Our methodology page
+> already cites it.
+
+**Subject:** Your bag test, from a photo
+
+Hi Torsten,
+
+Your 2021 test of eight bikepacking bag setups is one of the few real aero numbers for loaded
+bikes. Our methodology page cites it.
+
+My mate Joe Corbett and I built an iPhone app called Get Tucked. You photograph yourself and
+your loaded bike against a plain wall, and it gives you frontal area in cm² for the whole rig, bags
+included. Compare two setups and it tells you which one is smaller, or that the difference sits
+inside its ±3% margin. It won't predict CdA. We're two dads in Wellington with day jobs and no wind
+tunnel.
+
+Your tests give CdA. Get Tucked gives only A, the frontal area.
+
+The TestFlight link gives you a free copy: https://testflight.apple.com/join/WB34npSn
+
+Would you shoot a few of your test setups and tell me whether the area ranking matches your CdA ranking? One line or ten, either works. You don't need to post about it.
+
+The method, with a list of what it can't do:
+https://impreciselyaccurate.com/get-tucked/methodology.html
+
+Cheers,
+Kah Chan
+Get Tucked · https://impreciselyaccurate.com/get-tucked/
+
+---
+
+## 5 · Ulrich Bartholmoes
+
+**To:** the contact form at uba-cycling.de (no public email). Instagram: @ubartholmoes.
+
+> **Hook:** BIKEPACKING.com and bike-x.de. He won the 2023 Tour Divide on a BMC Twostroke hardtail
+> built up with drop bars, then rode it again in 2024 to second in 13 days 22 hours, under Mike
+> Hall's old record.
+
+**Subject:** Drop bars on the Divide, measured
+
+Hi Ulrich,
+
+You won the 2023 Tour Divide on a drop-bar hardtail, and rode it again in 2024 under Mike Hall's
+old record. Drop bars on the Divide is a frontal-area choice as much as a comfort one.
+
+My mate Joe Corbett and I built an iPhone app called Get Tucked. You photograph yourself and
+your loaded bike against a plain wall, and it gives you frontal area in cm² for the whole rig, bags
+included. Compare two setups and it tells you which one is smaller, or that the difference sits
+inside its ±3% margin. It won't predict CdA. We're two dads in Wellington with day jobs and no wind
+tunnel.
+
+The TestFlight link gives you a free copy: https://testflight.apple.com/join/WB34npSn
+
+Would you shoot your Divide setup with it and tell me what it gets wrong? One line or ten, either works. You don't need to post about it.
+
+The method, with a list of what it can't do:
+https://impreciselyaccurate.com/get-tucked/methodology.html
+
+Cheers,
+Kah Chan
+Get Tucked · https://impreciselyaccurate.com/get-tucked/
+
+---
+
+## 6 · Robin Gemperle
+
+**To:** Instagram DM, @robingemperle (no public email; linked from his Apidura ambassador page).
+
+> **Hook:** Scott Sports and Apidura. He won the 2023 Atlas Mountain Race and the 2024
+> Transcontinental (TCR No10), and set an unofficial record at the 2025 Tour Divide. Note: the
+> racer list said Atlas 2024. That was wrong.
+
+**Subject:** Atlas rig against TCR rig
+
+Hi Robin,
+
+Atlas in 2023, the Transcontinental in 2024, then the Tour Divide. Those are three different
+setup problems, and every one of them is about what you push through the air.
+
+My mate Joe Corbett and I built an iPhone app called Get Tucked. You photograph yourself and
+your loaded bike against a plain wall, and it gives you frontal area in cm² for the whole rig, bags
+included. Compare two setups and it tells you which one is smaller, or that the difference sits
+inside its ±3% margin. It won't predict CdA. We're two dads in Wellington with day jobs and no wind
+tunnel.
+
+The TestFlight link gives you a free copy: https://testflight.apple.com/join/WB34npSn
+
+Would you shoot your current race setup with it and tell me what it gets wrong? One line or ten, either works. You don't need to post about it.
 
 The method, with a list of what it can't do:
 https://impreciselyaccurate.com/get-tucked/methodology.html
