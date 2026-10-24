@@ -3,6 +3,7 @@ import PhotosUI
 import AVFoundation
 import CoreMotion
 import Vision
+import os
 
 // MARK: - Live camera view (Phase 2.3)
 
@@ -103,6 +104,11 @@ struct LiveCameraView: View {
                     } else {
                         portraitHUD
                     }
+                }
+
+                if !session.isRunning {
+                    CameraLoader()
+                        .transition(.opacity.animation(Theme.Motion.entrance(Theme.Motion.fast)))
                 }
 
                 if captureFlash {
@@ -734,6 +740,10 @@ final class CameraSession: NSObject, ObservableObject {
     // not consumed by any gate yet.
     @Published var bgConfidence: Double = 0
     @Published var permissionDenied = false
+    @Published var isRunning = false
+
+    private static let signposter = OSSignposter(subsystem: "com.gettucked.app", category: "camera")
+    private let startInterval = OSAllocatedUnfairLock<OSSignpostIntervalState?>(initialState: nil)
     // Which way the phone is physically held — always .portrait unless
     // OrientationLock permits landscape (Plan L4).
     @Published var orientationBucket: OrientationBucket = .portrait
@@ -781,12 +791,14 @@ final class CameraSession: NSObject, ObservableObject {
         self.bike = bike
         #if DEBUG
         if Self.stagedFrame != nil {
+            isRunning = true
             levelOK = true
             tiltOK = true
             bgOK = true
             return
         }
         #endif
+        startInterval.withLock { $0 = Self.signposter.beginInterval("cameraStart") }
         sessionQueue.async { [weak self] in self?.configureSession() }
         startMotion()
         checkStorage()
@@ -799,6 +811,8 @@ final class CameraSession: NSObject, ObservableObject {
     }
 
     func stop() {
+        isRunning = false
+        startInterval.withLock { $0 = nil }
         sessionQueue.async { [weak self] in self?.captureSession.stopRunning() }
         motionManager.stopDeviceMotionUpdates()
         storageCheckTimer?.invalidate()
@@ -910,13 +924,12 @@ final class CameraSession: NSObject, ObservableObject {
         }
 
         captureSession.commitConfiguration()
-        captureSession.startRunning()
-
-        // AF1's 2x default. Hardcoded rather than reading `zoomIsAt2x` here:
-        // this runs once at session start (before the HUD's toggle can have
-        // fired), and `zoomIsAt2x` is a `@Published` property that's only
-        // safe to read from the main thread, not this session queue.
+        // AF1's 2x default, applied before startRunning so the session opens
+        // on the right lens. Hardcoded rather than reading `zoomIsAt2x`: that
+        // `@Published` property is only safe to read from the main thread,
+        // not this session queue.
         applyZoom(visualMultiplier: 2.0, to: device)
+        captureSession.startRunning()
     }
 
     /// `videoZoomFactor` applies at the AVCaptureDevice level, which the
@@ -1013,6 +1026,15 @@ extension CameraSession: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
+        // Before the throttle guard so the first frame always ends the interval.
+        if let interval = startInterval.withLock({ state -> OSSignpostIntervalState? in
+            defer { state = nil }
+            return state
+        }) {
+            Self.signposter.endInterval("cameraStart", interval)
+            DispatchQueue.main.async { self.isRunning = true }
+        }
+
         // Throttle: segmenting every frame at photo resolution pegs the CPU.
         let now = CACurrentMediaTime()
         guard now - lastSegmentation >= segmentationInterval else { return }
@@ -1078,6 +1100,45 @@ extension CameraSession: AVCapturePhotoCaptureDelegate {
         Task { @MainActor [weak self] in
             self?.captureCompletion?(image)
             self?.captureCompletion = nil
+        }
+    }
+}
+
+// MARK: - Camera start loader (AS5)
+
+/// Shown only if the session takes longer than 150 ms, so a fast start never
+/// flashes it.
+private struct CameraLoader: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visible = false
+    @State private var sweep = false
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("STARTING CAMERA")
+                .font(Theme.mono(11, weight: .bold))
+                .foregroundStyle(Theme.Palette.fg2)
+            if !reduceMotion {
+                Theme.Palette.bg0
+                    .frame(width: 120, height: 2)
+                    .overlay(alignment: .leading) {
+                        Theme.Palette.acc
+                            .frame(width: 40)
+                            .offset(x: sweep ? 80 : 0)
+                    }
+                    .clipped()
+            }
+        }
+        .opacity(visible ? 1 : 0)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Starting camera")
+        .task {
+            try? await Task.sleep(for: .milliseconds(150))
+            visible = true
+            if !reduceMotion {
+                withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) { sweep = true }
+            }
         }
     }
 }
