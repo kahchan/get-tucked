@@ -448,7 +448,7 @@ final class MaskCorrectionTests: XCTestCase {
     /// container exactly as `GetTuckedApp` does — live schema plus the full
     /// migration plan — and round-trips both new fields through it.
     func testLiveContainerBuildsAndPersistsTheCorrectionFields() throws {
-        let schema = Schema(versionedSchema: SchemaV11.self)
+        let schema = Schema(versionedSchema: SchemaV12.self)
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: schema, migrationPlan: AppMigrationPlan.self, configurations: [configuration]

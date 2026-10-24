@@ -10,14 +10,14 @@ struct GetTuckedApp: App {
     // migrationPlan parameter and would silently skip SchemaV1→V2 (Plan O),
     // V2→V3 (Plan P1.5), V3→V4 (ghost-compare), V4→V5 (Plan S1),
     // V5→V6 (Plan V), V6→V7 (Plan W), V7→V8 (Plan AH), V8→V9 (Plan AL
-    // wave 2), V9→V10 (Plan AL9), or V10→V11 (Plan AK5). This MUST name the
+    // wave 2), V9→V10 (Plan AL9), V10→V11 (Plan AK5), or V11→V12 (Plan AS3). This MUST name the
     // latest schema version — pointing it at a
     // frozen snapshot makes the store's entities resolve to the nested
     // copies and every live-class @Query dies with a "Failed to cast model"
     // fatal (seen after Plan V, when V5 became a snapshot — see commit
     // 7d7f311).
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema(versionedSchema: SchemaV11.self)
+        let schema = Schema(versionedSchema: SchemaV12.self)
         let configuration = ModelConfiguration(schema: schema)
         let container = try! ModelContainer(
             for: schema,

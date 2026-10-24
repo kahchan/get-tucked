@@ -12,7 +12,7 @@ final class Position {
 
     // Stored as Data (compact PNG) rather than a separate @Model,
     // since PhotoRef has no identity outside its Position.
-    var photosData: Data?
+    @Attribute(.externalStorage) var photosData: Data?
 
     // Raw person-segmentation mask (grayscale PNG) — stored untinted so a
     // future accent/opacity change never leaves old positions with a stale
@@ -20,7 +20,7 @@ final class Position {
     // the colour-splitter for the two-tone matte (rider = subjectMaskData ∩
     // maskData) and the area/outline fallback when subjectMaskData is nil
     // (old positions, or a capture where subject-lifting failed).
-    var maskData: Data?
+    @Attribute(.externalStorage) var maskData: Data?
 
     // Subject-lift matte (Plan W2, SchemaV7) — rider+bike+bags as one
     // instance-connected union (VNGenerateForegroundInstanceMaskRequest),
@@ -29,7 +29,7 @@ final class Position {
     // Plan W2 (subject-lifting unavailable then) or when subject-lifting
     // failed on this capture — both degrade to maskData/person-only exactly
     // as before, single-tone, numbers unchanged.
-    var subjectMaskData: Data?
+    @Attribute(.externalStorage) var subjectMaskData: Data?
 
     // Rider-corrected head-on subject matte (Plan AK5, SchemaV11) — the
     // same DeviceGray PNG format as subjectMaskData above, produced by
@@ -40,14 +40,14 @@ final class Position {
     // (the editor always re-rasterises from the original, never from a
     // previous correction). nil for every position the rider hasn't
     // hand-corrected, which is all of them until they do.
-    var correctedSubjectMaskData: Data?
+    @Attribute(.externalStorage) var correctedSubjectMaskData: Data?
 
     // Side-on segmentation mask (Plan O), untinted grayscale PNG — mirrors
     // maskData's storage and tint-at-display-time rationale. Presentational
     // only: side-on posture metrics never depended on segmentation, so a
     // nil value here just means the skeleton (if any) draws over the bare
     // photo instead of a matte.
-    var sideOnMaskData: Data?
+    @Attribute(.externalStorage) var sideOnMaskData: Data?
 
     // Side-on subject-lift matte (Plan AH, SchemaV8) — rider+bike+bags as
     // one instance-connected union, mirroring subjectMaskData's role for the
@@ -57,7 +57,7 @@ final class Position {
     // failed on this capture, both of which degrade to sideOnMaskData/
     // person-only exactly as before. Presentational only (Plan O) — never
     // feeds frontalAreaCm2 or any other number.
-    var sideOnSubjectMaskData: Data?
+    @Attribute(.externalStorage) var sideOnSubjectMaskData: Data?
 
     // Head-on photo asset identifier (PHAsset local ID)
     var headOnPhotoIdentifier: String?
@@ -69,7 +69,7 @@ final class Position {
     // no PHAsset identifier, mirroring photosData's head-on handling. Without
     // this a live side-on shot computes posture metrics whose source photo
     // is unviewable forever, and the FRONTAL/SIDE-ON toggle never appears.
-    var sideOnPhotoData: Data?
+    @Attribute(.externalStorage) var sideOnPhotoData: Data?
 
     // Scale calibration: two tap points in unit coordinates (0–1),
     // TOP-left origin, y-down — stored as [x0, y0, x1, y1]. Comes from
