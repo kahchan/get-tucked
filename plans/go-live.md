@@ -32,7 +32,7 @@ submitted. Next session: App Store submission.
 
 ## Claude — submission (Plan AM wave 2 and the upload)
 
-1. **Build 1.0 (3) uploaded 2026-10-22** (main 447d3fb: Set the Scene photos). 1.0 (2)
+1. **Build 1.0 (5) uploaded 2026-10-27** (main b3ff363: Plan AS). **Build 1.0 (3) uploaded 2026-10-22** (main 447d3fb: Set the Scene photos). 1.0 (2)
    went up 2026-10-17 (8bbfc0a: Plans AP, AQ, icon r7). Both via
    `xcodebuild archive` + `-exportArchive` with `ios/ExportOptions.plist`. A duplicate
    1.0 (1) went up first by mistake (build 1 already existed): ignore or expire it. Bump
