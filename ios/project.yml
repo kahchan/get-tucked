@@ -23,7 +23,7 @@ targets:
       properties:
         CFBundleDisplayName: Get Tucked
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "3"
+        CFBundleVersion: "5"
         UILaunchScreen:
           UIColorName: LaunchBackground
         ITSAppUsesNonExemptEncryption: false
