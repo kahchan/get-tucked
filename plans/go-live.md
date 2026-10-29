@@ -51,7 +51,7 @@ submitted. Next session: App Store submission.
 
 ## Launch day — site
 
-1. ~~Put the real App Store URL in the CTAs~~: done 2026-10-29. `https://apps.apple.com/app/get-tucked/id6823064224`.
+1. ~~Put the real App Store URL in the CTAs~~: done 2026-10-29. `https://apps.apple.com/nz/app/get-tucked/id6823064224`.
 2. Make `og-hero.png`. Without it, shared links show a blank card.
 3. ~~Press kit~~: done 2026-10-22. `docs/press.html` + `docs/press/get-tucked-press-kit.zip` (fact sheet source: `marketing/press-fact-sheet.txt`). Rebuild the zip if the store shots change.
 4. ~~Custom domain~~ — done 2026-10-21, 4ad56d2; DNS at iwantmyname, domain verified on GitHub.

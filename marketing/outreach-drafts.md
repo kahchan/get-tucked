@@ -80,7 +80,7 @@ trust a change.
 Everything runs on-device. Photos stay in your library, no account, no cloud, no
 analytics. US$9.99 one-time, no subscription.
 
-https://apps.apple.com/app/get-tucked/id6823064224 · [Methodology page link]
+https://apps.apple.com/nz/app/get-tucked/id6823064224 · [Methodology page link]
 
 Happy to answer anything about how the measurement works — the math has some genuinely fun
 problems in it: scale from a known handlebar width used as an in-frame ruler (no depth
@@ -124,7 +124,7 @@ Canterbury headwind? It won't give you watts or CdA. It measures what a photo ca
 
 US$9.99 once, no subscription, no account, everything stays on your phone.
 
-App Store: https://apps.apple.com/app/get-tucked/id6823064224
+App Store: https://apps.apple.com/nz/app/get-tucked/id6823064224
 How it works and what it can't do: https://impreciselyaccurate.com/get-tucked/methodology.html
 
 Happy to answer questions here, and I'd like to hear what it gets wrong on your rig.
@@ -152,7 +152,7 @@ pick the method apart.
 
 Full method and known limits: https://impreciselyaccurate.com/get-tucked/methodology.html
 
-It's called Get Tucked, US$9.99 once, iOS only: https://apps.apple.com/app/get-tucked/id6823064224
+It's called Get Tucked, US$9.99 once, iOS only: https://apps.apple.com/nz/app/get-tucked/id6823064224
 
 Where do you think the error budget is wrong?
 
@@ -181,7 +181,7 @@ What it won't do: estimate drag coefficient, model airflow or give watts. The me
 lists what the app can't do.
 
 It's SwiftUI and SwiftData, with no backend, no accounts and no analytics. US$9.99 once on the
-App Store: https://apps.apple.com/app/get-tucked/id6823064224
+App Store: https://apps.apple.com/nz/app/get-tucked/id6823064224
 
 I'm happy to go deep on the segmentation, the scale math or the error model.
 

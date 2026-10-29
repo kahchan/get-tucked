@@ -4,7 +4,7 @@ App:        Get Tucked
 Maker:      Imprecisely Accurate Instruments, Wellington, New Zealand
 Platform:   iPhone, iOS 17 or later (iPhone XS and newer)
 Price:      US$9.99, one-time. No subscription, no in-app purchases.
-App Store:  https://apps.apple.com/app/get-tucked/id6823064224
+App Store:  https://apps.apple.com/nz/app/get-tucked/id6823064224
 Website:    https://impreciselyaccurate.com/get-tucked/
 Method:     https://impreciselyaccurate.com/get-tucked/methodology.html
 Contact:    Kah Chan, gettucked.app@gmail.com
