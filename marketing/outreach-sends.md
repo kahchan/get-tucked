@@ -229,7 +229,7 @@ Get Tucked · https://impreciselyaccurate.com/get-tucked/
 
 # Media pitches
 
-## A · NZ Cycling Journal (send first, local angle)
+## A · NZ Cycling Journal — SENT 2026-10-29 (contact form)
 
 **To:** Liam Friary, founder (Pedal Press). Use the form at nzcyclingjournal.com/contact. No
 public email. Pedal Press also publishes NZ Mountain Biker.
