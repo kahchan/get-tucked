@@ -4,7 +4,7 @@ Complete emails. Built from the hooks in [`racer-list.md`](racer-list.md). Send 
 rider or outlet.
 
 **Before you send:**
-- Racers get the TestFlight link. Media get `[App Store link]`: replace it with the live URL.
+- Racers get the TestFlight link. Media get the App Store link (already filled in).
 - Fill or delete the `[reception]` line in B, C and D.
 - Generate the promo codes you offer media (App Store Connect → the app → Promo Codes).
 - Attach one image to every email: a two-setup comparison screen from the store shots.
@@ -250,7 +250,7 @@ and below that floor the app calls two setups indistinguishable. The full method
 limits: https://impreciselyaccurate.com/get-tucked/methodology.html
 
 It costs US$9.99 once, runs on the phone, and has no accounts or analytics. It's on the App Store
-now: [App Store link]
+now: https://apps.apple.com/app/get-tucked/id6823064224
 
 No other outlet has the story yet, and I'd like you to have it first. I can send download codes
 and screenshots, or get on a call.
@@ -282,7 +282,7 @@ https://impreciselyaccurate.com/get-tucked/methodology.html
 the beta.]
 
 Joe Corbett and I are two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
-runs on the phone, and has no accounts or analytics. App Store: [App Store link]
+runs on the phone, and has no accounts or analytics. App Store: https://apps.apple.com/app/get-tucked/id6823064224
 
 I can send download codes and screenshots, or get on a call.
 
@@ -313,7 +313,7 @@ https://impreciselyaccurate.com/get-tucked/methodology.html
 the beta.]
 
 Joe Corbett and I are two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
-runs on the phone, and has no accounts or analytics. App Store: [App Store link]
+runs on the phone, and has no accounts or analytics. App Store: https://apps.apple.com/app/get-tucked/id6823064224
 
 I can send download codes and screenshots, or get on a call.
 
@@ -344,7 +344,7 @@ https://impreciselyaccurate.com/get-tucked/methodology.html
 the beta.]
 
 Joe Corbett and I are two dads in Wellington, New Zealand, building this around day jobs. It costs US$9.99 once,
-runs on the phone, and has no accounts or analytics. App Store: [App Store link]
+runs on the phone, and has no accounts or analytics. App Store: https://apps.apple.com/app/get-tucked/id6823064224
 
 I can send download codes and screenshots, or get on a call. If you want to grill us on the
 measurement math, please do.
