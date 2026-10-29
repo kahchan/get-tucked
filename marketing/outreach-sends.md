@@ -274,7 +274,7 @@ when a difference is too small to trust. It makes no CdA claims and promises no 
 may also tell you that your enormous bar bag costs less than you feared.
 
 Each photo scales off two rulers already on the bike: the handlebar width, checked against the
-wheel size. If those disagree, the app flags the photo. Below a fixed ±3% floor the app calls two
+wheel size. If those disagree, the app flags the photo. Below a ±3% floor (wider for a shaky shot) the app calls two
 setups indistinguishable. The full method, with its limits:
 https://impreciselyaccurate.com/get-tucked/methodology.html
 
@@ -305,7 +305,7 @@ rider, bike and bags together from a photo, and compares setups side by side. Th
 measuring tape for all that "Rigs of" curiosity.
 
 Each photo scales off two rulers already on the bike: the handlebar width, checked against the
-wheel size. If those disagree, the app flags the photo. Below a fixed ±3% floor the app calls two
+wheel size. If those disagree, the app flags the photo. Below a ±3% floor (wider for a shaky shot) the app calls two
 setups indistinguishable. The full method, with its limits:
 https://impreciselyaccurate.com/get-tucked/methodology.html
 

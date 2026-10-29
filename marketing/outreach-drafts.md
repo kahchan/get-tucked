@@ -69,8 +69,8 @@ Notio-class sensors do that, at wind-tunnel and Notio prices. This measures what
 calibrated photo can honestly tell you — a planar projection of your frontal area — which
 is enough to answer "did moving my fork bags actually change anything?"
 
-The feature I'm proudest of is the boring one: honesty about error. Every reading carries a
-±3% margin. When you compare two setups, the app combines both margins and checks whether
+The feature I'm proudest of is the boring one: honesty about error. Every reading shows an
+error bar of at least ±3%. When you compare two setups, the app combines both and checks whether
 the difference actually clears that floor. If it doesn't, it says "indistinguishable" — not
 "1.4% better." A difference smaller than the noise isn't a result, it's noise, and I've
 never seen a consumer measurement tool willing to say so out loud. It also nudges you to
@@ -80,7 +80,7 @@ trust a change.
 Everything runs on-device. Photos stay in your library, no account, no cloud, no
 analytics. US$9.99 one-time, no subscription.
 
-https://apps.apple.com/app/get-tucked/id6823064224 · [Methodology page link]
+https://apps.apple.com/app/get-tucked/id6823064224 · https://impreciselyaccurate.com/get-tucked/methodology.html
 
 Happy to answer anything about how the measurement works — the math has some genuinely fun
 problems in it: scale from a known handlebar width used as an in-frame ruler (no depth
@@ -111,23 +111,34 @@ allows images.
 ### Tour Aotearoa Facebook group (and other NZ bikepacking groups)
 
 Message an admin before you post. Most NZ groups allow a builder post once if the admin agrees.
+Put the links in the first comment, not the post: Facebook shows link posts to fewer people.
+Attach two photos: a bags-on vs bags-off compare screenshot, and the press-kit capture shot.
+
+**Admin message:**
+
+Kia ora, I'm Kah, a Wellington rider. My mate Joe Corbett and I built a small iPhone app that
+measures how much frontal area your bags add to a loaded bike. Would you be OK with one post
+about it in the group? It's a paid app (US$9.99 once), so I wanted to ask first. Happy to drop
+it if it's not a fit.
 
 **Post:**
 
-Kia ora all. My mate Joe Corbett and I (two Wellington dads with day jobs) built an iPhone app called Get
-Tucked. You photograph yourself and your loaded bike against a plain wall, and it gives you the
-frontal area of the whole rig in cm², bags included. Shoot two setups and it tells you which one
-is smaller, or that the difference sits inside its ±3% margin.
+Kia ora all. My mate Joe Corbett and I (two Wellington dads with day jobs) built an iPhone app
+called Get Tucked. You photograph yourself and your loaded bike against a plain wall, and it
+gives you the frontal area of the whole rig in cm², bags included. Shoot two setups and it tells
+you which one is smaller, or that the difference is too small to call.
 
 We built it for the TA question: is the bar bag or the fork bags costing me more into a
-Canterbury headwind? It won't give you watts or CdA. It measures what a photo can measure.
+Southland headwind? It won't give you watts or CdA, and every reading shows its error bar (at
+least ±3%). It measures what a photo can measure, and says so when it can't.
 
-US$9.99 once, no subscription, no account, everything stays on your phone.
+US$9.99 once, no subscription, no account, everything stays on your phone. Links in the first
+comment. Happy to answer questions, and I'd like to hear what it gets wrong on your rig.
+
+**First comment:**
 
 App Store: https://apps.apple.com/app/get-tucked/id6823064224
-How it works and what it can't do: https://impreciselyaccurate.com/get-tucked/methodology.html
-
-Happy to answer questions here, and I'd like to hear what it gets wrong on your rig.
+How it works, and what it can't do: https://impreciselyaccurate.com/get-tucked/methodology.html
 
 ### Weight Weenies (aero / tech subforum: confirm the current name)
 
@@ -145,8 +156,8 @@ pick the method apart.
 - **Segmentation:** Apple Vision, on-device. It masks the rider, the bike and the bags together.
 - **Scale:** your handlebar width acts as an in-frame ruler. The app cross-checks it against your
   wheel size as a second ruler, so a bad tap gets flagged.
-- **Error:** each reading carries a fixed ±3% margin. When you compare two setups, the app
-  combines both margins. If the difference doesn't clear them, it reports "indistinguishable".
+- **Error:** each reading carries an error bar of at least ±3%, wider when a live shot's frames disagree.
+  When you compare two setups, the app combines both. If the difference doesn't clear them, it reports "indistinguishable".
 - **Limits:** it measures A only. It doesn't estimate Cd, model airflow or give watts. If you run
   field tests, the test gives you CdA and this gives you A.
 
@@ -174,7 +185,8 @@ phone photo can tell you with no depth sensor.
 The pipeline: Apple Vision segments the rider and the loaded bike on-device. The user taps the two
 ends of the handlebar, and its known width sets the scale. The wheel diameter gives a second
 ruler, and if the two disagree, the app flags the photo. The app then reports projected area in
-cm² with a fixed ±3% margin. When you compare two setups, it combines both margins and says
+cm² with an error bar of at least ±3%, wider when a live shot's three frames disagree. When
+you compare two setups, it combines both and says
 "indistinguishable" when the difference doesn't clear them.
 
 What it won't do: estimate drag coefficient, model airflow or give watts. The methodology page
@@ -209,7 +221,7 @@ The angle I think is interesting for [outlet]: it's a measurement tool that's ho
 its limits in a category full of aero snake oil. No CdA prediction, no CFD claims. It scales
 each photo off two independent rulers already on the bike — handlebar width, cross-checked
 against wheel size — so a mis-measurement gets caught rather than quietly reported. And every
-reading carries a fixed ±3% margin: the app refuses to report a difference smaller than that
+reading carries an error bar of at least ±3%: the app refuses to report a difference smaller than that
 floor, telling you two setups are "indistinguishable" rather than inventing a decimal to
 justify the purchase. The full methodology, including a plain list of what it can't do, is a
 screen inside the app and a page on the site: [methodology link].
