@@ -4,7 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="apple-itunes-app" content="app-id=6823064224" />
-<title>Get Tucked · See what the wind sees.</title>
+<meta name="google-site-verification" content="LRwkdFJh5BP0qtpL4cTN33bXygq4e65pbgetgHe3ovo" />
+<title>Get Tucked · Cycling frontal area from one photo</title>
+<link rel="canonical" href="https://impreciselyaccurate.com/get-tucked/" />
 <meta name="description" content="Measure your cyclist frontal area from one photo. The whole loaded bike, not just your body. No CdA, no CFD. Only what a photo can measure." />
 <meta property="og:title" content="Get Tucked · See what the wind sees." />
 <meta property="og:description" content="Frontal area, in cm², from one photo. It tells you when a difference is too small to trust." />
@@ -21,6 +23,47 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/barlow-condensed-700.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-mono-700.woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "MobileApplication",
+    "name": "Get Tucked",
+    "alternateName": "Get Tucked: cycling frontal area",
+    "description": "An iPhone app that measures a cyclist's frontal area, rider plus loaded bike, in cm² from one head-on photo, with an error bar on every reading.",
+    "operatingSystem": "iOS 17 or later",
+    "applicationCategory": "SportsApplication",
+    "url": "https://impreciselyaccurate.com/get-tucked/",
+    "downloadUrl": "https://apps.apple.com/app/get-tucked/id6823064224",
+    "image": "https://impreciselyaccurate.com/get-tucked/og-hero.png",
+    "offers": {"@type": "Offer", "price": "9.99", "priceCurrency": "USD"},
+    "author": {"@id": "https://impreciselyaccurate.com/#org"},
+    "sameAs": ["https://apps.apple.com/app/get-tucked/id6823064224"]
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://impreciselyaccurate.com/#org",
+    "name": "Imprecisely Accurate Instruments",
+    "url": "https://impreciselyaccurate.com/",
+    "email": "gettucked.app@gmail.com",
+    "founder": {"@type": "Person", "name": "Kah Chan"},
+    "address": {"@type": "PostalAddress", "addressLocality": "Wellington", "addressCountry": "NZ"}
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "What do I need to measure my frontal area?", "acceptedAnswer": {"@type": "Answer", "text": "An iPhone XS or newer (any iPhone that runs iOS 17), a plain, evenly lit wall, and your handlebar width, which you enter once as the ruler."}},
+      {"@type": "Question", "name": "How long does it take?", "acceptedAnswer": {"@type": "Answer", "text": "About a minute per shot. Take the photo, tap the two bar ends and the wheel, read the number."}},
+      {"@type": "Question", "name": "Is there an Android version of Get Tucked?", "acceptedAnswer": {"@type": "Answer", "text": "No. Get Tucked is native iOS. The segmentation runs on Apple's on-device vision, so nothing leaves your phone."}},
+      {"@type": "Question", "name": "Do I need a wind tunnel to measure my aero position?", "acceptedAnswer": {"@type": "Answer", "text": "No. A phone and a plain, evenly lit wall measure your frontal area. A wind tunnel or field test measures full drag (CdA), which a photo does not."}},
+      {"@type": "Question", "name": "How accurate is a frontal area measurement from a photo?", "acceptedAnswer": {"@type": "Answer", "text": "Every reading carries an error bar of at least ±3%. When two setups differ by less than the combined error of both readings, about ±4.2%, the app reports them as indistinguishable."}},
+      {"@type": "Question", "name": "What does Get Tucked cost?", "acceptedAnswer": {"@type": "Answer", "text": "US$9.99, once. No subscription, no account, no data collection. Works offline."}}
+    ]
+  }
+]
+</script>
 <script>
 document.documentElement.classList.add('js');
 /* AI11 failsafe — inline so it runs even if site.js 404s, fails to parse, or
@@ -117,7 +160,7 @@ setTimeout(function () {
   <!-- ============ WHAT IT IS ============ -->
   <section class="block">
     <p class="lead">
-      Get Tucked measures your frontal area (the surface the wind sees) from one photo
+      Get Tucked measures a cyclist's frontal area (the surface the wind sees) from one photo
       against a plain wall. It measures the <em>whole loaded bike</em>, not just your body, so you
       can see what your bags, your bars, and your position each cost you.
       When a difference is too small to trust, the app says so.
@@ -382,7 +425,7 @@ setTimeout(function () {
       <div class="qa">
         <h3>Do I need a wind tunnel?</h3>
         <p>No. A phone and a wall. The one rule is a clean, evenly lit background. That's the
-          difference between a sharp silhouette and a guess.</p>
+          difference between a sharp silhouette and a guess. <a href="measure.html">How the photo method works</a>.</p>
       </div>
       <div class="qa">
         <h3>How accurate is it?</h3>
@@ -429,7 +472,7 @@ setTimeout(function () {
   <div class="wrap footer-inner">
     <div>
       <p class="dads">Made by Imprecisely Accurate Instruments, in Wellington, New Zealand.</p>
-      <p>gettucked.app@gmail.com · <a href="privacy.html">Privacy</a> · <a href="support.html">Support</a> · <a href="press.html">Press</a></p>
+      <p>gettucked.app@gmail.com · <a href="free-speed.html">Free speed</a> · <a href="measure.html">Measure</a> · <a href="methodology.html">Method</a> · <a href="privacy.html">Privacy</a> · <a href="support.html">Support</a> · <a href="press.html">Press</a></p>
       <p>© 2026 Kah Chan. Everything on-device. No accounts, no analytics.</p>
     </div>
     <div class="footer-mark" aria-hidden="true">
